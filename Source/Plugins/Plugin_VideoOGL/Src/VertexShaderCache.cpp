@@ -51,7 +51,7 @@ void Renderer::SetVSConstant4f(unsigned int const_number, float f1, float f2, fl
 		ProgramShaderCache::SetMultiVSConstant4fv(const_number, buf, 1);
 		return;
 	}
-	for (unsigned int a = 0; a < 9; ++a)
+	for (int a = 0; a < NUM_VS_UNIFORMS; ++a)
 	{
 		if (const_number >= VSVar_Loc[a].reg && const_number < ( VSVar_Loc[a].reg + VSVar_Loc[a].size))
 		{
@@ -69,7 +69,7 @@ void Renderer::SetVSConstant4fv(unsigned int const_number, const float *f)
 		ProgramShaderCache::SetMultiVSConstant4fv(const_number, f, 1);
 		return;
 	}
-	for (unsigned int a = 0; a < 9; ++a)
+	for (int a = 0; a < NUM_VS_UNIFORMS; ++a)
 	{
 		if (const_number >= VSVar_Loc[a].reg && const_number < ( VSVar_Loc[a].reg + VSVar_Loc[a].size))
 		{
@@ -87,7 +87,7 @@ void Renderer::SetMultiVSConstant4fv(unsigned int const_number, unsigned int cou
 		ProgramShaderCache::SetMultiVSConstant4fv(const_number, f, count);
 		return;
 	}
-	for (unsigned int a = 0; a < 9; ++a)
+	for (int a = 0; a < NUM_VS_UNIFORMS; ++a)
 	{
 		if (const_number >= VSVar_Loc[a].reg && const_number < ( VSVar_Loc[a].reg + VSVar_Loc[a].size))
 		{
@@ -113,7 +113,7 @@ void Renderer::SetMultiVSConstant3fv(unsigned int const_number, unsigned int cou
 		ProgramShaderCache::SetMultiVSConstant4fv(const_number, buf, count);
 		return;
 	}
-	for (unsigned int a = 0; a < 9; ++a)
+	for (int a = 0; a < NUM_VS_UNIFORMS; ++a)
 	{
 		if (const_number >= VSVar_Loc[a].reg && const_number < ( VSVar_Loc[a].reg + VSVar_Loc[a].size))
 		{

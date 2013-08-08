@@ -297,7 +297,9 @@ void VertexManager::vFlush()
 		float slope_dfdy = -b / c;
 		float slope_f0 = out[2];
 
-		PixelShaderManager::SetZSlope(slope_dfdx, slope_dfdy, slope_f0);
+		VertexShaderManager::SetZSlope(slope_dfdx, slope_dfdy, slope_f0);
+
+		// We don't need to call VertexShaderManager::SetZSlope again here because the value is not used if zfreeze is disabled.
 	}
 
 	PixelShaderManager::SetConstants(g_nativeVertexFmt->m_components);

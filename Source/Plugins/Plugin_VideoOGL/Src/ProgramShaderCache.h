@@ -41,7 +41,9 @@ public:
 };
 
 
-const int NUM_UNIFORMS = 20;
+const int NUM_PS_UNIFORMS = 10;
+const int NUM_VS_UNIFORMS = 10;
+const int NUM_UNIFORMS = NUM_PS_UNIFORMS + NUM_VS_UNIFORMS;
 extern const char *UniformNames[NUM_UNIFORMS];
 
 struct SHADER

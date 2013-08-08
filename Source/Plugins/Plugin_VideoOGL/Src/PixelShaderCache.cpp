@@ -52,7 +52,7 @@ void Renderer::SetPSConstant4f(unsigned int const_number, float f1, float f2, fl
 		ProgramShaderCache::SetMultiPSConstant4fv(const_number, f, 1);
 		return;
 	}
-	for (unsigned int a = 0; a < 10; ++a)
+	for (int a = 0; a < NUM_PS_UNIFORMS; ++a)
 	{
 		if (const_number >= PSVar_Loc[a].reg && const_number < (PSVar_Loc[a].reg + PSVar_Loc[a].size))
 		{
@@ -70,7 +70,7 @@ void Renderer::SetPSConstant4fv(unsigned int const_number, const float *f)
 		ProgramShaderCache::SetMultiPSConstant4fv(const_number, f, 1);
 		return;
 	}
-	for (unsigned int a = 0; a < 10; ++a)
+	for (int a = 0; a < NUM_PS_UNIFORMS; ++a)
 	{
 		if (const_number >= PSVar_Loc[a].reg && const_number < (PSVar_Loc[a].reg + PSVar_Loc[a].size))
 		{
@@ -88,7 +88,7 @@ void Renderer::SetMultiPSConstant4fv(unsigned int const_number, unsigned int cou
 		ProgramShaderCache::SetMultiPSConstant4fv(const_number, f, count);
 		return;
 	}
-	for (unsigned int a = 0; a < 10; ++a)
+	for (int a = 0; a < NUM_PS_UNIFORMS; ++a)
 	{
 		if (const_number >= PSVar_Loc[a].reg && const_number < (PSVar_Loc[a].reg + PSVar_Loc[a].size))
 		{

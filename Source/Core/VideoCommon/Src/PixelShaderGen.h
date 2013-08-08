@@ -19,7 +19,6 @@
 #define I_FOG         "cfog"
 #define I_PLIGHTS     "cPLights"
 #define I_PMATERIALS  "cPmtrl"
-#define I_ZSLOPE      "czslope"
 
 #define C_COLORMATRIX	0						// 0
 #define C_COLORS		0						// 0
@@ -30,8 +29,7 @@
 #define C_INDTEXSCALE	(C_ZBIAS + 2)			//19
 #define C_INDTEXMTX		(C_INDTEXSCALE + 2)		//21
 #define C_FOG			(C_INDTEXMTX + 6)		//27
-#define C_ZSLOPE		(C_FOG + 3)
-#define C_PLIGHTS		(C_ZSLOPE + 1)
+#define C_PLIGHTS		(C_FOG + 3)
 #define C_PMATERIALS	(C_PLIGHTS + 40)
 #define C_PENVCONST_END (C_PMATERIALS + 4)
 
@@ -52,7 +50,6 @@ const s_svar PSVar_Loc[] = { {I_COLORS, C_COLORS, 4 },
 						{I_INDTEXSCALE , C_INDTEXSCALE, 2  },
 						{I_INDTEXMTX, C_INDTEXMTX, 6 },
 						{I_FOG, C_FOG, 3 },
-						{I_ZSLOPE, C_ZSLOPE, 1 },
 						{I_PLIGHTS, C_PLIGHTS, 40 },
 						{I_PMATERIALS, C_PMATERIALS, 4 },
 						};
@@ -72,7 +69,6 @@ struct pixel_shader_uid_data
 	u32 genMode_numtexgens : 4;
 	u32 genMode_numtevstages : 4;
 	u32 genMode_numindstages : 3;
-	u32 zfreeze : 1;
 
 	u32 nIndirectStagesUsed : 8;
 

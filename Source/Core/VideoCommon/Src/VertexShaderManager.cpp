@@ -23,7 +23,7 @@
 float GC_ALIGNED16(g_fProjectionMatrix[16]);
 
 // track changes
-static bool bTexMatricesChanged[2], bPosNormalMatrixChanged, bProjectionChanged, bViewportChanged;
+static bool bTexMatricesChanged[2], bPosNormalMatrixChanged, bProjectionChanged, bViewportChanged, bZSlopeChanged;
 static int nMaterialsChanged;
 static int nTransformMatricesChanged[2]; // min,max
 static int nNormalMatricesChanged[2]; // min,max
@@ -35,6 +35,7 @@ static Matrix33 s_viewRotationMatrix;
 static Matrix33 s_viewInvRotationMatrix;
 static float s_fViewTranslationVector[3];
 static float s_fViewRotation[2];
+static float s_fDepthSlope[3];
 
 void UpdateViewport(Matrix44& vpCorrection);
 
@@ -185,6 +186,8 @@ void VertexShaderManager::Dirty()
 	bTexMatricesChanged[1] = true;
 
 	bProjectionChanged = true;
+
+	bZSlopeChanged = true;
 
 	nMaterialsChanged = 15;
 }
@@ -488,6 +491,11 @@ void VertexShaderManager::SetConstants()
 			SetMultiVSConstant4fv(C_PROJECTION, 4, correctedMtx.data);
 		}
 	}
+	if (bZSlopeChanged)
+	{
+		SetVSConstant4f(C_ZSLOPE, s_fDepthSlope[0], s_fDepthSlope[1], s_fDepthSlope[2], 0.0f);
+		bZSlopeChanged = false;
+	}
 }
 
 void VertexShaderManager::InvalidateXFRange(int start, int end)
@@ -617,6 +625,17 @@ void VertexShaderManager::SetProjectionChanged()
 void VertexShaderManager::SetMaterialColorChanged(int index)
 {
 	nMaterialsChanged  |= (1 << index);
+}
+
+void VertexShaderManager::SetZSlope(float dfdx, float dfdy, float f0)
+{
+	if (s_fDepthSlope[0] != dfdx && s_fDepthSlope[1] != dfdy && s_fDepthSlope[2] != f0)
+	{
+		s_fDepthSlope[0] = dfdx;
+		s_fDepthSlope[1] = dfdy;
+		s_fDepthSlope[2] = f0;
+		bZSlopeChanged = true;
+	}
 }
 
 void VertexShaderManager::TranslateView(float x, float y, float z)

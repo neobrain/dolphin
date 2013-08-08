@@ -29,9 +29,6 @@ static u32 lastTexDims[8]; // width | height << 16 | wrap_s << 28 | wrap_t << 30
 static u32 lastZBias;
 static int nMaterialsChanged;
 
-bool s_bZSlopeChanged;
-static float zslope[3];
-
 inline void SetPSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
 {
 	g_renderer->SetPSConstant4f(const_number, f1, f2, f3, f4);
@@ -66,7 +63,6 @@ void PixelShaderManager::Dirty()
 	s_bFogRangeAdjustChanged = s_bFogColorChanged = s_bFogParamChanged = true;
 	nLightsChanged[0] = 0; nLightsChanged[1] = 0x80;
 	nMaterialsChanged = 15;
-	s_bZSlopeChanged = true;
 }
 
 void PixelShaderManager::Shutdown()
@@ -339,12 +335,6 @@ void PixelShaderManager::SetConstants(u32 components)
 			nMaterialsChanged = 0;
 		}
 	}
-
-	if (s_bZSlopeChanged)
-	{
-		SetPSConstant4f(C_ZSLOPE, zslope[0], zslope[1], zslope[2], 0.0f);
-		s_bZSlopeChanged = false;
-	}
 }
 
 void PixelShaderManager::SetPSTextureDims(int texid)
@@ -472,14 +462,6 @@ void PixelShaderManager::SetColorMatrix(const float* pmatrix)
 {
 	SetMultiPSConstant4fv(C_COLORMATRIX,7,pmatrix);
 	s_nColorsChanged[0] = s_nColorsChanged[1] = 15;
-}
-
-void PixelShaderManager::SetZSlope(float dfdx, float dfdy, float f0)
-{
-	zslope[0] = dfdx;
-	zslope[1] = dfdy;
-	zslope[2] = f0;
-	s_bZSlopeChanged = true;
 }
 
 void PixelShaderManager::InvalidateXFRange(int start, int end)

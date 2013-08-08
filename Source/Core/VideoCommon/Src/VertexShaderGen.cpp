@@ -104,6 +104,7 @@ static void GenerateVertexShader(T& out, u32 components, API_TYPE api_type)
 	DeclareUniform(out, api_type, g_ActiveConfig.backend_info.bSupportsGLSLUBO, C_NORMALMATRICES, "float4", I_NORMALMATRICES"[32]");
 	DeclareUniform(out, api_type, g_ActiveConfig.backend_info.bSupportsGLSLUBO, C_POSTTRANSFORMMATRICES, "float4", I_POSTTRANSFORMMATRICES"[64]");
 	DeclareUniform(out, api_type, g_ActiveConfig.backend_info.bSupportsGLSLUBO, C_DEPTHPARAMS, "float4", I_DEPTHPARAMS);
+	DeclareUniform(out, api_type, g_ActiveConfig.backend_info.bSupportsGLSLUBO, C_ZSLOPE, "float4", I_ZSLOPE);
 
 	if (g_ActiveConfig.backend_info.bSupportsGLSLUBO)
 		out.Write("};\n");
@@ -465,6 +466,10 @@ static void GenerateVertexShader(T& out, u32 components, API_TYPE api_type)
 		if (components & VB_HAS_COL1)
 			out.Write("o.colors_1 = color1;\n");
 	}
+
+	uid_data.zfreeze = bpmem.genMode.zfreeze;
+	if (bpmem.genMode.zfreeze)
+		out.Write("o.pos.z = " I_ZSLOPE".z + " I_ZSLOPE".x * (o.pos.x / o.pos.w / " I_DEPTHPARAMS".z / 2.0f) + " I_ZSLOPE".y * (o.pos.y / o.pos.w / " I_DEPTHPARAMS".w / -2.0f);\n");
 
 	//write the true depth value, if the game uses depth textures pixel shaders will override with the correct values
 	//if not early z culling will improve speed

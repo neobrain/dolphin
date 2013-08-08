@@ -31,6 +31,7 @@ public:
 	static void SetViewportChanged();
 	static void SetProjectionChanged();
 	static void SetMaterialColorChanged(int index);
+	static void SetZSlope(float dfdx, float dfdy, float f0);
 
 	static void TranslateView(float x, float y, float z = 0.0f);
 	static void RotateView(float x, float y);
