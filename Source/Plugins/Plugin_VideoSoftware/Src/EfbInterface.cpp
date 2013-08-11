@@ -20,12 +20,18 @@ namespace EfbInterface
 
 	inline u32 GetColorOffset(u16 x, u16 y)
 	{
-		return (x + y * EFB_WIDTH) * 3;
+//		if (bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
+//			return (x + y * EFB_WIDTH) * 2;
+//		else
+			return (x + y * EFB_WIDTH) * 3;
 	}
 
 	inline u32 GetDepthOffset(u16 x, u16 y)
 	{
-		return (x + y * EFB_WIDTH) * 3 + DEPTH_BUFFER_START;
+//		if (bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
+//			return (x + y * EFB_WIDTH) * 2 + DEPTH_BUFFER_START; // TODO: Likely needs a different depth buffer start?
+//		else
+			return (x + y * EFB_WIDTH) * 3 + DEPTH_BUFFER_START;
 	}
 
 	void DoState(PointerWrap &p)
@@ -34,9 +40,30 @@ namespace EfbInterface
 		p.DoArray(efbColorTexture, EFB_WIDTH*EFB_HEIGHT*4);
 	}
 
-	void SetPixelAlphaOnly(u32 offset, u8 a)
+	static const unsigned int dither_matrix[16] = {
+		 0,  8,  2, 10,
+		12,  4, 14,  6,
+		 3, 11,  1,  9,
+		15, 07, 13, 05
+	};
+
+	// 8 bits input, 5 bits output
+	static inline unsigned int GetDitheredValue5(u16 x, u16 y, unsigned int val)
 	{
-			switch (bpmem.zcontrol.pixel_format)
+		unsigned int offset = dither_matrix[(x&3)+4*(y&3)];
+		return (((val - (val >> 5)) << 1) + offset) >> 4;
+	}
+
+	// 8 bits input, 6 bits output
+	static inline unsigned int GetDitheredValue6(u16 x, u16 y, unsigned int val)
+	{
+		unsigned int offset = dither_matrix[(x&3)+4*(y&3)];
+		return (((val - (val >> 6)) << 2) + offset) >> 4;
+	}
+
+	void SetPixelAlphaOnly(u16 x, u16 y, u8 a)
+	{
+		switch (bpmem.zcontrol.pixel_format)
 		{
 		case PIXELFMT_RGB8_Z24:
 		case PIXELFMT_Z24:
@@ -46,9 +73,12 @@ namespace EfbInterface
 		case PIXELFMT_RGBA6_Z24:
 			{
 				u32 a32 = a;
-				u32 *dst = (u32*)&efb[offset];
+				u32 *dst = (u32*)&efb[GetColorOffset(x, y)];
 				u32 val = *dst & 0xffffffc0;
-				val |= (a32 >> 2) & 0x0000003f;
+				if (bpmem.blendmode.dither)
+					val |= GetDitheredValue6(x, y, a32);
+				else
+					val |= (a32 >> 2) & 0x0000003f;
 				*dst = val;
 			}
 			break;
@@ -57,7 +87,7 @@ namespace EfbInterface
 		}
 	}
 
-	void SetPixelColorOnly(u32 offset, u8 *rgb)
+	void SetPixelColorOnly(u16 x, u16 y, u8 *rgb)
 	{
 		switch (bpmem.zcontrol.pixel_format)
 		{
@@ -65,7 +95,7 @@ namespace EfbInterface
 		case PIXELFMT_Z24:
 			{
 				u32 src = *(u32*)rgb;
-				u32 *dst = (u32*)&efb[offset];
+				u32 *dst = (u32*)&efb[GetColorOffset(x, y)];
 				u32 val = *dst & 0xff000000;
 				val |= src >> 8;
 				*dst = val;
@@ -74,19 +104,29 @@ namespace EfbInterface
 		case PIXELFMT_RGBA6_Z24:
 			{
 				u32 src = *(u32*)rgb;
-				u32 *dst = (u32*)&efb[offset];
+				u32 *dst = (u32*)&efb[GetColorOffset(x, y)];
 				u32 val = *dst & 0xff00003f;
-				val |= (src >> 4) & 0x00000fc0;	// blue
-				val |= (src >> 6) & 0x0003f000;	// green
-				val |= (src >> 8) & 0x00fc0000;	// red
+				if (bpmem.blendmode.dither)
+				{
+					val |= GetDitheredValue6(x, y, (src>> 8)&0xff)<< 6;	// blue
+					val |= GetDitheredValue6(x, y, (src>>16)&0xff)<<12;	// green
+					val |= GetDitheredValue6(x, y, (src>>24)&0xff)<<18;	// red
+				}
+				else
+				{
+					val |= (src >> 4) & 0x00000fc0;	// blue
+					val |= (src >> 6) & 0x0003f000;	// green
+					val |= (src >> 8) & 0x00fc0000;	// red
+				}
 				*dst = val;
 			}
 			break;
 		case PIXELFMT_RGB565_Z16:
 			{
+				// TODO: Dithering support
 				INFO_LOG(VIDEO, "PIXELFMT_RGB565_Z16 is not supported correctly yet");
 				u32 src = *(u32*)rgb;
-				u32 *dst = (u32*)&efb[offset];
+				u32 *dst = (u32*)&efb[GetColorOffset(x, y)];
 				u32 val = *dst & 0xff000000;
 				val |= src >> 8;
 				*dst = val;
@@ -97,15 +137,15 @@ namespace EfbInterface
 		}
 	}
 
-	void SetPixelAlphaColor(u32 offset, u8 *color)
+	void SetPixelAlphaColor(u16 x, u16 y, u8 *color)
 	{
-			switch (bpmem.zcontrol.pixel_format)
+		switch (bpmem.zcontrol.pixel_format)
 		{
 		case PIXELFMT_RGB8_Z24:
 		case PIXELFMT_Z24:
 			{
 				u32 src = *(u32*)color;
-				u32 *dst = (u32*)&efb[offset];
+				u32 *dst = (u32*)&efb[GetColorOffset(x, y)];
 				u32 val = *dst & 0xff000000;
 				val |= src >> 8;
 				*dst = val;
@@ -114,20 +154,31 @@ namespace EfbInterface
 		case PIXELFMT_RGBA6_Z24:
 			{
 				u32 src = *(u32*)color;
-				u32 *dst = (u32*)&efb[offset];
-				u32 val = *dst & 0xff000000;
-				val |= (src >> 2) & 0x0000003f;	// alpha
-				val |= (src >> 4) & 0x00000fc0;	// blue
-				val |= (src >> 6) & 0x0003f000;	// green
-				val |= (src >> 8) & 0x00fc0000;	// red
+				u32 *dst = (u32*)&efb[GetColorOffset(x, y)];
+				u32 val |= *dst & 0xff000000;
+				if (bpmem.blendmode.dither)
+				{
+					val |= GetDitheredValue6(x, y, src&0xff) & 0x0000003f;	// alpha
+					val |= GetDitheredValue6(x, y, (src>> 8)&0xff)<< 6;	// blue
+					val |= GetDitheredValue6(x, y, (src>>16)&0xff)<<12;	// green
+					val |= GetDitheredValue6(x, y, (src>>24)&0xff)<<18;	// red
+				}
+				else
+				{
+					val |= (src >> 2) & 0x0000003f;	// alpha
+					val |= (src >> 4) & 0x00000fc0;	// blue
+					val |= (src >> 6) & 0x0003f000;	// green
+					val |= (src >> 8) & 0x00fc0000;	// red
+				}
 				*dst = val;
 			}
 			break;
 		case PIXELFMT_RGB565_Z16:
 			{
+				// TODO: Dithering support
 				INFO_LOG(VIDEO, "PIXELFMT_RGB565_Z16 is not supported correctly yet");
 				u32 src = *(u32*)color;
-				u32 *dst = (u32*)&efb[offset];
+				u32 *dst = (u32*)&efb[GetColorOffset(x, y)];
 				u32 val = *dst & 0xff000000;
 				val |= src >> 8;
 				*dst = val;
@@ -138,14 +189,14 @@ namespace EfbInterface
 		}
 	}
 
-		void GetPixelColor(u32 offset, u8 *color)
+	void GetPixelColor(u16 x, u16 y, u8 *color)
 	{
 		switch (bpmem.zcontrol.pixel_format)
 		{
 		case PIXELFMT_RGB8_Z24:
 		case PIXELFMT_Z24:
 			{
-				u32 src = *(u32*)&efb[offset];
+				u32 src = *(u32*)&efb[GetColorOffset(x, y)];
 				u32 *dst = (u32*)color;
 				u32 val = 0xff | ((src & 0x00ffffff) << 8);
 				*dst = val;
@@ -153,9 +204,9 @@ namespace EfbInterface
 			break;
 		case PIXELFMT_RGBA6_Z24:
 			{
-				u32 src = *(u32*)&efb[offset];
+				u32 src = *(u32*)&efb[GetColorOffset(x, y)];
 				color[ALP_C] = Convert6To8(src & 0x3f);
-				color[BLU_C] = Convert6To8((src >> 6) & 0x3f);
+				color[BLU_C] = Convert6To8((src >>  6) & 0x3f);
 				color[GRN_C] = Convert6To8((src >> 12) & 0x3f);
 				color[RED_C] = Convert6To8((src >> 18) & 0x3f);
 			}
@@ -163,7 +214,7 @@ namespace EfbInterface
 		case PIXELFMT_RGB565_Z16:
 			{
 				INFO_LOG(VIDEO, "PIXELFMT_RGB565_Z16 is not supported correctly yet");
-				u32 src = *(u32*)&efb[offset];
+				u32 src = *(u32*)&efb[GetColorOffset(x, y)];
 				u32 *dst = (u32*)color;
 				u32 val = 0xff | ((src & 0x00ffffff) << 8);
 				*dst = val;
@@ -174,7 +225,7 @@ namespace EfbInterface
 		}
 	}
 
-	void SetPixelDepth(u32 offset, u32 depth)
+	void SetPixelDepth(u16 x, u16 y, u32 depth)
 	{
 		switch (bpmem.zcontrol.pixel_format)
 		{
@@ -182,19 +233,19 @@ namespace EfbInterface
 		case PIXELFMT_RGBA6_Z24:
 		case PIXELFMT_Z24:
 			{
-				u32 *dst = (u32*)&efb[offset];
+				u32 *dst = (u32*)&efb[GetDepthOffset(x, y)];
 				u32 val = *dst & 0xff000000;
 				val |= depth & 0x00ffffff;
-				*dst = val;				
+				*dst = val;
 			}
 			break;
 		case PIXELFMT_RGB565_Z16:
 			{
 				INFO_LOG(VIDEO, "PIXELFMT_RGB565_Z16 is not supported correctly yet");
-				u32 *dst = (u32*)&efb[offset];
+				u32 *dst = (u32*)&efb[GetDepthOffset(x, y)];
 				u32 val = *dst & 0xff000000;
 				val |= depth & 0x00ffffff;
-				*dst = val;		
+				*dst = val;
 			}
 			break;
 		default:
@@ -202,7 +253,7 @@ namespace EfbInterface
 		}
 	}
 
-		u32 GetPixelDepth(u32 offset)
+	u32 GetPixelDepth(u16 x, u16 y)
 	{
 		u32 depth = 0;
 
@@ -212,13 +263,13 @@ namespace EfbInterface
 		case PIXELFMT_RGBA6_Z24:
 		case PIXELFMT_Z24:
 			{
-				depth = (*(u32*)&efb[offset]) & 0x00ffffff;
+				depth = (*(u32*)&efb[GetDepthOffset(x, y)]) & 0x00ffffff;
 			}
 			break;
 		case PIXELFMT_RGB565_Z16:
 			{
 				INFO_LOG(VIDEO, "PIXELFMT_RGB565_Z16 is not supported correctly yet");
-				depth = (*(u32*)&efb[offset]) & 0x00ffffff;
+				depth = (*(u32*)&efb[GetDepthOffset(x, y)]) & 0x00ffffff;
 			}
 			break;
 		default:
@@ -397,11 +448,9 @@ namespace EfbInterface
 	void BlendTev(u16 x, u16 y, u8 *color)
 	{
 		u32 dstClr;
-		u32 offset = GetColorOffset(x, y);
-
 		u8 *dstClrPtr = (u8*)&dstClr;
 
-		GetPixelColor(offset, dstClrPtr);
+		GetPixelColor(x, y, dstClrPtr);
 
 		if (bpmem.blendmode.blendenable)
 		{
@@ -425,13 +474,13 @@ namespace EfbInterface
 		if (bpmem.blendmode.colorupdate)
 		{
 			if (bpmem.blendmode.alphaupdate)
-				SetPixelAlphaColor(offset, dstClrPtr);
+				SetPixelAlphaColor(x, y, dstClrPtr);
 			else
-				SetPixelColorOnly(offset, dstClrPtr);
+				SetPixelColorOnly(x, y, dstClrPtr);
 		}
 		else if (bpmem.blendmode.alphaupdate)
 		{
-			SetPixelAlphaOnly(offset, dstClrPtr[ALP_C]);
+			SetPixelAlphaOnly(x, y, dstClrPtr[ALP_C]);
 		}
 
 		// branchless bounding box update
@@ -443,36 +492,33 @@ namespace EfbInterface
 
 	void SetColor(u16 x, u16 y, u8 *color)
 	{
-		u32 offset = GetColorOffset(x, y);
 		if (bpmem.blendmode.colorupdate)
 		{
 			if (bpmem.blendmode.alphaupdate)
-				SetPixelAlphaColor(offset, color);
+				SetPixelAlphaColor(x, y, color);
 			else
-				SetPixelColorOnly(offset, color);
+				SetPixelColorOnly(x, y, color);
 		}
 		else if (bpmem.blendmode.alphaupdate)
 		{
-			SetPixelAlphaOnly(offset, color[ALP_C]);
+			SetPixelAlphaOnly(x, y, color[ALP_C]);
 		}
 	}
 
 	void SetDepth(u16 x, u16 y, u32 depth)
 	{
 		if (bpmem.zmode.updateenable)
-			SetPixelDepth(GetDepthOffset(x, y), depth);
+			SetPixelDepth(x, y, depth);
 	}
 
 	void GetColor(u16 x, u16 y, u8 *color)
 	{
-		u32 offset = GetColorOffset(x, y);
-		GetPixelColor(offset, color);
+		GetPixelColor(x, y, color);
 	}
 
 	u32 GetDepth(u16 x, u16 y)
 	{
-		u32 offset = GetDepthOffset(x, y);
-		return GetPixelDepth(offset);
+		return GetPixelDepth(x, y);
 	}
 
 	u8 *GetPixelPointer(u16 x, u16 y, bool depth)
@@ -488,14 +534,13 @@ namespace EfbInterface
 		u8* colorPtr = (u8*)&color;
 		u32* texturePtr = (u32*)efbColorTexture;
 		u32 textureAddress = 0;
-		u32 efbOffset = 0;
 
 		for (u16 y = 0; y < EFB_HEIGHT; y++)
 		{
 			for (u16 x = 0; x < EFB_WIDTH; x++)
 			{
-				GetPixelColor(efbOffset, colorPtr);
-				efbOffset += 3;
+				// TODO: Does this work for 16 bit EFB formats?
+				GetPixelColor(x, y, colorPtr);
 				texturePtr[textureAddress++] = Common::swap32(color);  // ABGR->RGBA
 			}
 		}
@@ -503,8 +548,7 @@ namespace EfbInterface
 
 	bool ZCompare(u16 x, u16 y, u32 z)
 	{
-		u32 offset = GetDepthOffset(x, y);
-		u32 depth = GetPixelDepth(offset);
+		u32 depth = GetPixelDepth(x, y);
 
 		bool pass;
 
@@ -541,7 +585,7 @@ namespace EfbInterface
 
 		if (pass && bpmem.zmode.updateenable)
 		{
-			SetPixelDepth(offset, z);
+			SetPixelDepth(x, y, z);
 		}
 
 		return pass;
