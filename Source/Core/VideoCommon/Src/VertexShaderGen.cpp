@@ -469,7 +469,7 @@ static void GenerateVertexShader(T& out, u32 components, API_TYPE api_type)
 
 	uid_data.zfreeze = bpmem.genMode.zfreeze;
 	if (bpmem.genMode.zfreeze)
-		out.Write("o.pos.z = " I_ZSLOPE".z + " I_ZSLOPE".x * (o.pos.x / o.pos.w / " I_DEPTHPARAMS".z / 2.0f) + " I_ZSLOPE".y * (o.pos.y / o.pos.w / " I_DEPTHPARAMS".w / -2.0f);\n");
+		out.Write("o.pos.z = " I_ZSLOPE".z + " I_ZSLOPE".x * (o.pos.x / o.pos.w / " I_DEPTHPARAMS".z / -2.0f) + " I_ZSLOPE".y * (o.pos.y / o.pos.w / " I_DEPTHPARAMS".w / -2.0f);\n");
 
 	//write the true depth value, if the game uses depth textures pixel shaders will override with the correct values
 	//if not early z culling will improve speed
