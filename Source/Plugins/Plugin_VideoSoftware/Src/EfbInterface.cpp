@@ -20,17 +20,17 @@ namespace EfbInterface
 
 	inline u32 GetColorOffset(u16 x, u16 y)
 	{
-//		if (bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
-//			return (x + y * EFB_WIDTH) * 2;
-//		else
+		if (bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
+			return (x + y * EFB_WIDTH) * 2;
+		else
 			return (x + y * EFB_WIDTH) * 3;
 	}
 
 	inline u32 GetDepthOffset(u16 x, u16 y)
 	{
-//		if (bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
-//			return (x + y * EFB_WIDTH) * 2 + DEPTH_BUFFER_START; // TODO: Likely needs a different depth buffer start?
-//		else
+		if (bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
+			return (x + y * EFB_WIDTH) * 2 + DEPTH_BUFFER_START; // TODO: Likely needs a different depth buffer start?
+		else
 			return (x + y * EFB_WIDTH) * 3 + DEPTH_BUFFER_START;
 	}
 
@@ -155,7 +155,7 @@ namespace EfbInterface
 			{
 				u32 src = *(u32*)color;
 				u32 *dst = (u32*)&efb[GetColorOffset(x, y)];
-				u32 val |= *dst & 0xff000000;
+				u32 val = *dst & 0xff000000;
 				if (bpmem.blendmode.dither)
 				{
 					val |= GetDitheredValue6(x, y, src&0xff) & 0x0000003f;	// alpha
