@@ -154,8 +154,8 @@ static const char *tevAInputTable[] = // CA
 
 static const char *tevRasTable[] =
 {
-	"int4(colors_0 * 255.0f)",
-	"int4(colors_1 * 255.0f)",
+	"int4(round(colors_0 * 255.0f))",
+	"int4(round(colors_1 * 255.0f))",
 	"ERROR13", //2
 	"ERROR14", //3
 	"ERROR15", //4
@@ -413,7 +413,7 @@ static inline void GeneratePixelShader(T& out, DSTALPHA_MODE dstAlphaMode, API_T
 				out.Write("\t\tuv%d.xy = uv%d.xy / uv%d.z;\n", i, i, i);
 			}
 
-			out.Write("int2 fixpoint_uv%d = int2(uv%d.xy * " I_TEXDIMS"[%d].zw * 128.0);\n", i, i, i);
+			out.Write("int2 fixpoint_uv%d = int2(round(uv%d.xy * " I_TEXDIMS"[%d].zw * 128.0));\n", i, i, i);
 			// TODO: S24 overflows here?
 		}
 	}
@@ -500,12 +500,12 @@ static inline void GeneratePixelShader(T& out, DSTALPHA_MODE dstAlphaMode, API_T
 	// The performance impact of this additional calculation doesn't matter, but it prevents
 	// the host GPU driver from performing any early depth test optimizations.
 	if (g_ActiveConfig.bFastDepthCalc)
-		out.Write("int zCoord = int(rawpos.z * 16777215.0);\n");
+		out.Write("int zCoord = int(round(rawpos.z * 16777215.0));\n");
 	else
 	{
 		out.SetConstantsUsed(C_ZBIAS+1, C_ZBIAS+1);
 		// the screen space depth value = far z + (clip z / clip w) * z range
-		out.Write("int zCoord = " I_ZBIAS"[1].x + int((clipPos.z / clipPos.w) * float(" I_ZBIAS"[1].y));\n");
+		out.Write("int zCoord = " I_ZBIAS"[1].x + int(round((clipPos.z / clipPos.w) * float(" I_ZBIAS"[1].y)));\n");
 	}
 
 	// depth texture can safely be ignored if the result won't be written to the depth buffer (early_ztest) and isn't used for fog either
