@@ -58,7 +58,7 @@ static void GenerateLightShader(T& object, LightingUidData& uid_data, int index,
 			case LIGHTDIF_SIGN:
 			case LIGHTDIF_CLAMP:
 				object.Write("ldir = normalize(" LIGHT_POS".xyz - pos.xyz);\n", LIGHT_POS_PARAMS(lightsName, index));
-				object.Write("lacc.%s += int%s(%sdot(ldir, _norm0)) * float%s(" LIGHT_COL"));\n",
+				object.Write("lacc.%s += int%s(round(%sdot(ldir, _norm0)) * float%s(" LIGHT_COL")));\n",
 					swizzle, swizzle_components, chan.diffusefunc != LIGHTDIF_SIGN ? "max(0.0," :"(", 
 					swizzle_components, LIGHT_COL_PARAMS(lightsColName, index, swizzle));
 				break;
@@ -92,13 +92,13 @@ static void GenerateLightShader(T& object, LightingUidData& uid_data, int index,
 		switch (chan.diffusefunc)
 		{
 			case LIGHTDIF_NONE:
-				object.Write("lacc.%s += int%s(attn * float%s(" LIGHT_COL"));\n", 
+				object.Write("lacc.%s += int%s(round(attn * float%s(" LIGHT_COL")));\n", 
 						swizzle, swizzle_components, 
 						swizzle_components, LIGHT_COL_PARAMS(lightsColName, index, swizzle));
 				break;
 			case LIGHTDIF_SIGN:
 			case LIGHTDIF_CLAMP:
-				object.Write("lacc.%s += int%s(attn * %sdot(ldir, _norm0)) * float%s(" LIGHT_COL"));\n",
+				object.Write("lacc.%s += int%s(round(attn * %sdot(ldir, _norm0)) * float%s(" LIGHT_COL")));\n",
 					swizzle, swizzle_components,
 					chan.diffusefunc != LIGHTDIF_SIGN ? "max(0.0," :"(",
 					swizzle_components, LIGHT_COL_PARAMS(lightsColName, index, swizzle));
@@ -128,9 +128,9 @@ static void GenerateLightingShader(T& object, LightingUidData& uid_data, int com
 		if (color.matsource) // from vertex
 		{
 			if (components & (VB_HAS_COL0 << j))
-				object.Write("int4 mat = int4(%s%d * 255.0f);\n", inColorName, j);
+				object.Write("int4 mat = int4(round(%s%d * 255.0f));\n", inColorName, j);
 			else if (components & VB_HAS_COL0)
-				object.Write("int4 mat = int4(%s0 * 255.0f);\n", inColorName);
+				object.Write("int4 mat = int4(round(%s0 * 255.0f));\n", inColorName);
 			else
 				object.Write("int4 mat = int4(255, 255, 255, 255);\n");
 		}
@@ -146,9 +146,9 @@ static void GenerateLightingShader(T& object, LightingUidData& uid_data, int com
 			if (color.ambsource) // from vertex
 			{
 				if (components & (VB_HAS_COL0<<j) )
-					object.Write("lacc = int4(%s%d * 255.0f);\n", inColorName, j);
+					object.Write("lacc = int4(round(%s%d * 255.0f));\n", inColorName, j);
 				else if (components & VB_HAS_COL0 )
-					object.Write("lacc = int4(%s0 * 255.0f);\n", inColorName);
+					object.Write("lacc = int4(round(%s0 * 255.0f));\n", inColorName);
 				else
 					// TODO: this isn't verified. Here we want to read the ambient from the vertex,
 					// but the vertex itself has no color. So we don't know which value to read.
@@ -172,9 +172,9 @@ static void GenerateLightingShader(T& object, LightingUidData& uid_data, int com
 			if (alpha.matsource) // from vertex
 			{
 				if (components & (VB_HAS_COL0<<j))
-					object.Write("mat.w = int(%s%d.w * 255.0f);\n", inColorName, j);
+					object.Write("mat.w = int(round(%s%d.w * 255.0f));\n", inColorName, j);
 				else if (components & VB_HAS_COL0)
-					object.Write("mat.w = int(%s0.w * 255.0f);\n", inColorName);
+					object.Write("mat.w = int(round(%s0.w * 255.0f));\n", inColorName);
 				else object.Write("mat.w = 255;\n");
 			}
 			else // from color
@@ -190,9 +190,9 @@ static void GenerateLightingShader(T& object, LightingUidData& uid_data, int com
 			if (alpha.ambsource) // from vertex
 			{
 				if (components & (VB_HAS_COL0<<j) )
-					object.Write("lacc.w = int(%s%d.w * 255.0f);\n", inColorName, j);
+					object.Write("lacc.w = int(round(%s%d.w * 255.0f));\n", inColorName, j);
 				else if (components & VB_HAS_COL0 )
-					object.Write("lacc.w = int(%s0.w * 255.0f);\n", inColorName);
+					object.Write("lacc.w = int(round(%s0.w * 255.0f));\n", inColorName);
 				else
 					// TODO: The same for alpha: We want to read from vertex, but the vertex has no color
 					object.Write("lacc.w = 255;\n");
