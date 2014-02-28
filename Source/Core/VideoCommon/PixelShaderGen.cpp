@@ -679,7 +679,7 @@ static inline void WriteStage(T& out, pixel_shader_uid_data& uid_data, int n, AP
 			out.Write("wrappedcoord.y = fixpoint_uv%d.y %% %s;\n", texcoord, tevIndWrapStart[bpmem.tevind[n].tw]);
 
 		// Casting uint to int preserves bit pattern
-		// comex says this works, I didn't find anything wrong about it...
+		// comex says this works and I (neobrain) didn't find anything wrong about it...
 		if (bpmem.tevind[n].fb_addprev) // add previous tevcoord
 			out.Write("tevcoord.xy += wrappedcoord + indtevtrans%d;\n", n);
 		else
