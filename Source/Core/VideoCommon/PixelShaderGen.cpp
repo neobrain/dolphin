@@ -145,8 +145,8 @@ static const char *tevAInputTable[] =
 
 static const char *tevRasTable[] =
 {
-	"int4(round(colors_0 * 255.0f))",
-	"int4(round(colors_1 * 255.0f))",
+	"int4(round(colors_0 * 255.0))",
+	"int4(round(colors_1 * 255.0))",
 	"ERROR13", //2
 	"ERROR14", //3
 	"ERROR15", //4
@@ -535,7 +535,7 @@ static inline void GeneratePixelShader(T& out, DSTALPHA_MODE dstAlphaMode, API_T
 	else
 	{
 		WriteFog<T>(out, uid_data);
-		out.Write("\tocol0 = float4(iprev) / 255.0f;\n");
+		out.Write("\tocol0 = float4(iprev) / 255.0;\n");
 	}
 
 	// Use dual-source color blending to perform dst alpha in a single pass
@@ -545,7 +545,7 @@ static inline void GeneratePixelShader(T& out, DSTALPHA_MODE dstAlphaMode, API_T
 
 		// Colors will be blended against the alpha from ocol1 and
 		// the alpha from ocol0 will be written to the framebuffer.
-		out.Write("\tocol1 = float4(iprev) / 255.0f;\n");
+		out.Write("\tocol1 = float4(iprev) / 255.0;\n");
 		out.Write("\tocol0.a = " I_ALPHA".a / 255.0;\n");
 	}
 
