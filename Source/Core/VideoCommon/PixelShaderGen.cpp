@@ -824,10 +824,7 @@ static inline void WriteStage(T& out, pixel_shader_uid_data& uid_data, int n, AP
 	out.Write(";\n");
 
 	out.Write("\t// alpha combine\n");
-	if (ac.clamp)
-		out.Write("\t%s = clamp(", tevAOutputTable[ac.dest]);
-	else
-		out.Write("\t%s = ", tevAOutputTable[ac.dest]);
+	out.Write("\t%s = clamp(", tevAOutputTable[ac.dest]);
 
 	if (ac.bias != TevBias_COMPARE) // if not compare
 	{
@@ -866,6 +863,9 @@ static inline void WriteStage(T& out, pixel_shader_uid_data& uid_data, int n, AP
 	}
 	if (ac.clamp)
 		out.Write(", 0, 255)");
+	else
+		out.Write(", -1024, 1023)");
+
 	out.Write(";\n\n");
 }
 
