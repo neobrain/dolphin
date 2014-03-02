@@ -316,6 +316,42 @@ struct wm_motionplus_data
 	u8 pitch2 : 6;
 };
 
+struct wm_motionplus_calibration
+{
+	u16 pitch : 14;
+	u8 : 2;
+	u16 roll : 14;
+	u8 : 2;
+	u16 yaw : 14;
+	u8 : 2;
+
+	u16 pitch_min : 14;
+	u8 : 2;
+	u16 pitch_max : 14;
+	u8 : 2;
+	u16 roll_min : 14;
+	u8 : 2;
+	u16 roll_max : 14;
+	u8 : 2;
+
+	u16 pitch_slow : 14;
+	u8 : 2;
+	u16 roll_slow  : 14;
+	u8 : 2;
+	u16 yaw_slow  : 14;
+	u8 : 2;
+
+	u16 pitch_min_slow : 14;
+	u8 : 2;
+	u16 pitch_max_slow : 14;
+	u8 : 2;
+	u16 roll_min_slow : 14;
+	u8 : 2;
+
+	u16 : 16;
+	u16 : 16;
+};
+ 
 struct wm_report
 {
 	u8 wm;
