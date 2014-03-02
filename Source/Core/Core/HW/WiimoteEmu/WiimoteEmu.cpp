@@ -387,17 +387,17 @@ bool Wiimote::Step()
 void Wiimote::UpdateButtonsStatus(bool has_focus)
 {
 	// update buttons in status struct
-	m_status.buttons = 0;
+	m_status.buttons.hex = 0;
 	if (has_focus)
 	{
 		const bool is_sideways = m_options->settings[1]->value != 0;
-		m_buttons->GetState(&m_status.buttons, button_bitmasks);
-		m_dpad->GetState(&m_status.buttons, is_sideways ? dpad_sideways_bitmasks : dpad_bitmasks);
+		m_buttons->GetState(&m_status.buttons.hex, button_bitmasks);
+		m_dpad->GetState(&m_status.buttons.hex, is_sideways ? dpad_sideways_bitmasks : dpad_bitmasks);
 		UDPTLayer::GetButtons(m_udp, &m_status.buttons);
 	}
 }
 
-void Wiimote::GetCoreData(u8* const data)
+void Wiimote::GetButtonData(u8* const data)
 {
 	// when a movie is active, the button update happens here instead of Wiimote::Step, to avoid potential desync issues.
 	if(Movie::IsPlayingInput() || Movie::IsRecordingInput() || NetPlay::IsNetPlayRunning())
@@ -405,7 +405,7 @@ void Wiimote::GetCoreData(u8* const data)
 		UpdateButtonsStatus(HAS_FOCUS);
 	}
 
-	*(wm_core*)data |= m_status.buttons;
+	((wm_buttons*)data)->hex |= m_status.buttons.hex;
 }
 
 void Wiimote::GetAccelData(u8* const data)
@@ -593,7 +593,7 @@ void Wiimote::GetExtData(u8* const data)
 
 	// i dont think anything accesses the extension data like this, but ill support it. Indeed, commercial games don't do this.
 	// i think it should be unencrpyted in the register, encrypted when read.
-	memcpy(m_reg_ext.controller_data, data, sizeof(wm_extension));
+	memcpy(m_reg_ext.controller_data, data, sizeof(wm_nc)); // TODO: Should it be nc specific?
 
 	// motionplus pass-through modes
 	if (m_motion_plus_active)
@@ -633,7 +633,7 @@ void Wiimote::GetExtData(u8* const data)
 	}
 
 	if (0xAA == m_reg_ext.encryption)
-		wiimote_encrypt(&m_ext_key, data, 0x00, sizeof(wm_extension));
+		wiimote_encrypt(&m_ext_key, data, 0x00, sizeof(wm_nc)); // TODO: Why NC specific?
 }
 
 void Wiimote::Update()
@@ -659,7 +659,7 @@ void Wiimote::Update()
 	if (Movie::IsPlayingInput() && Movie::PlayWiimote(m_index, data, rptf, m_reg_ir.mode))
 	{
 		if (rptf.core)
-			m_status.buttons = *(wm_core*)(data + rptf.core);
+			m_status.buttons = *(wm_buttons*)(data + rptf.core);
 	}
 	else
 	{
@@ -668,7 +668,7 @@ void Wiimote::Update()
 
 		// core buttons
 		if (rptf.core)
-			GetCoreData(data + rptf.core);
+			GetButtonData(data + rptf.core);
 
 		// acceleration
 		if (rptf.accel)
@@ -710,8 +710,8 @@ void Wiimote::Update()
 							// mix real-buttons with emu-buttons in the status struct, and in the report
 							if (real_rptf.core && rptf.core)
 							{
-								m_status.buttons |= *(wm_core*)(real_data + real_rptf.core);
-								*(wm_core*)(data + rptf.core) = m_status.buttons;
+								m_status.buttons.hex |= ((wm_buttons*)(real_data + real_rptf.core))->hex;
+								*(wm_buttons*)(data + rptf.core) = m_status.buttons;
 							}
 
 							// accel
@@ -725,7 +725,7 @@ void Wiimote::Update()
 							// ext
 							// use real-ext data if an emu-extention isn't chosen
 							if (real_rptf.ext && rptf.ext && (0 == m_extension->switch_extension))
-								memcpy(data + rptf.ext, real_data + real_rptf.ext, sizeof(wm_extension));
+								memcpy(data + rptf.ext, real_data + real_rptf.ext, sizeof(wm_nc));  // TODO: Why NC specific?
 						}
 						else if (WM_ACK_DATA != real_data[1] || m_extension->active_extension > 0)
 							rptf_size = 0;
@@ -764,7 +764,7 @@ void Wiimote::Update()
 	{
 		NetPlay_GetWiimoteData(m_index, data, rptf.size);
 		if (rptf.core)
-			m_status.buttons = *(wm_core*)(data + rptf.core);
+			m_status.buttons = *(wm_buttons*)(data + rptf.core);
 	}
 	if (!Movie::IsPlayingInput())
 	{

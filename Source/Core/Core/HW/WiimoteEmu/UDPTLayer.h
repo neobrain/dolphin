@@ -2,7 +2,7 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-//UDP Wiimote Translation Layer
+// UDP Wiimote Translation Layer
 
 #pragma once
 
@@ -11,28 +11,36 @@
 
 namespace UDPTLayer
 {
-	void GetButtons(UDPWrapper * m , wm_core * butt)
+	void GetButtons(UDPWrapper* m, wm_buttons* butt)
 	{
-		if (!(m->inst)) return;
-		if (!(m->updButt)) return;
+		if (!(m->inst))
+			return;
+
+		if (!(m->updButt))
+			return;
+
 		u32 mask = m->inst->getButtons();
-		*butt |= (mask & UDPWM_BA) ? WiimoteEmu::Wiimote::BUTTON_A : 0;
-		*butt |= (mask & UDPWM_BB) ? WiimoteEmu::Wiimote::BUTTON_B : 0;
-		*butt |= (mask & UDPWM_B1) ? WiimoteEmu::Wiimote::BUTTON_ONE : 0;
-		*butt |= (mask & UDPWM_B2) ? WiimoteEmu::Wiimote::BUTTON_TWO : 0;
-		*butt |= (mask & UDPWM_BP) ? WiimoteEmu::Wiimote::BUTTON_PLUS : 0;
-		*butt |= (mask & UDPWM_BM) ? WiimoteEmu::Wiimote::BUTTON_MINUS : 0;
-		*butt |= (mask & UDPWM_BH) ? WiimoteEmu::Wiimote::BUTTON_HOME : 0;
-		*butt |= (mask & UDPWM_BU) ? WiimoteEmu::Wiimote::PAD_UP : 0;
-		*butt |= (mask & UDPWM_BD) ? WiimoteEmu::Wiimote::PAD_DOWN : 0;
-		*butt |= (mask & UDPWM_BL) ? WiimoteEmu::Wiimote::PAD_LEFT : 0;
-		*butt |= (mask & UDPWM_BR) ? WiimoteEmu::Wiimote::PAD_RIGHT : 0;
+		butt->a |= (mask & UDPWM_BA);
+		butt->b |= (mask & UDPWM_BB);
+		butt->one |= (mask & UDPWM_B1);
+		butt->two |= (mask & UDPWM_B2);
+		butt->plus |= (mask & UDPWM_BP);
+		butt->minus |= (mask & UDPWM_BM);
+		butt->home |= (mask & UDPWM_BH);
+		butt->up |= (mask & UDPWM_BU);
+		butt->down |= (mask & UDPWM_BD);
+		butt->left |= (mask & UDPWM_BL);
+		butt->right |= (mask & UDPWM_BR);
 	}
 
-	void GetAcceleration(UDPWrapper * m , WiimoteEmu::AccelData * const data)
+	void GetAcceleration(UDPWrapper* m, WiimoteEmu::AccelData* const data)
 	{
-		if (!(m->inst)) return;
-		if (!(m->updAccel)) return;
+		if (!(m->inst))
+			return;
+
+		if (!(m->updAccel))
+			return;
+
 		float x, y, z;
 		m->inst->getAccel(x, y, z);
 		data->x = x;
@@ -40,11 +48,18 @@ namespace UDPTLayer
 		data->z = z;
 	}
 
-	void GetIR( UDPWrapper * m, float * x,  float * y,  float * z)
+	void GetIR(UDPWrapper* m, float* x,  float* y,  float* z)
 	{
-		if (!(m->inst)) return;
-		if (!(m->updIR)) return;
-		if ((*x >= -0.999) && (*x <= 0.999) && (*y >= -0.999) && (*y <= 0.999)) return; //the received values are used ONLY when the normal pointer is offscreen
+		if (!(m->inst))
+			return;
+
+		if (!(m->updIR))
+			return;
+
+		// the received values are used ONLY when the normal pointer is offscreen
+		if ((*x >= -0.999) && (*x <= 0.999) && (*y >= -0.999) && (*y <= 0.999))
+			return;
+
 		float _x, _y;
 		m->inst->getIR(_x, _y);
 		*x = _x * 2 - 1;

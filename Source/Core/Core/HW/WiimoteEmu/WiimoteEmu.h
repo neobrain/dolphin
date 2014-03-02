@@ -133,7 +133,7 @@ protected:
 	void HandleExtensionSwap();
 	void UpdateButtonsStatus(bool has_focus);
 
-	void GetCoreData(u8* const data);
+	void GetButtonData(u8* const data);
 	void GetAccelData(u8* const data);
 	void GetIRData(u8* const data, bool use_accel);
 	void GetExtData(u8* const data);
