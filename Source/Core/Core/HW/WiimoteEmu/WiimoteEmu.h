@@ -216,6 +216,18 @@ private:
 
 		// address 0xFA
 		u8 ext_identifier[6];
+		// ext_identifier[0]: write 0x55 => intialized 
+		// ext_identifier[2]: write 0xa4 => M+ active ????????
+		// ext_identifier[4]: write 0x04 => activates M+ as "active" extension?
+		// 									(Then: "A status report (0x20) will automatically be sent indicating that a normal extension has been plugged in, if and only if there was no extension plugged into the MotionPlus pass-through extension port.",
+		// 									00 00 A4 20 04 05)
+		// ext_identifier[0]: write 0x55 => deactivates M+ again, and actives the NC/CC/...
+		// 									(" A status report (0x20) will always be sent indicating that a normal extension has been unplugged.",
+		// 									00 00 A6 20 04 05,
+		// 									" Another status report (0x20) will always be sent indicating that a normal extension has been plugged in.")
+		// ext_identifier[4]: write 0x05 => NC pass-through
+		// ext_identifier[4]: write 0x07 => CC pass-through
+		// ext_identifier[4] == 0x00, ext_identifier[5] == 0x05 => games detect M+ as connected?
 	} m_reg_motion_plus;
 
 	struct IrReg

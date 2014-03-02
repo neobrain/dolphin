@@ -22,6 +22,7 @@
 #include "Core/HW/WiimoteEmu/Attachment/Nunchuk.h"
 #include "Core/HW/WiimoteEmu/Attachment/Turntable.h"
 #include "Core/HW/WiimoteReal/WiimoteReal.h"
+#include <libusbx/Makefile.in>
 
 
 inline double round(double x) { return (x-floor(x))>0.5 ? ceil(x) : floor(x); } //because damn MSVSC doesen't comply to C99
@@ -312,6 +313,7 @@ Wiimote::Wiimote( const unsigned int index )
 	m_options->settings.emplace_back(new ControlGroup::Setting(_trans("Background Input"), false));
 	m_options->settings.emplace_back(new ControlGroup::Setting(_trans("Sideways Wiimote"), false));
 	m_options->settings.emplace_back(new ControlGroup::Setting(_trans("Upright Wiimote"), false));
+	m_options->settings.emplace_back(new ControlGroup::Setting(_trans("Dummy Motion Plus"), false));
 
 	// TODO: This value should probably be re-read if SYSCONF gets changed
 	m_sensor_bar_on_top = SConfig::GetInstance().m_SYSCONF->GetData<u8>("BT.BAR") != 0;
@@ -601,18 +603,22 @@ void Wiimote::GetExtData(u8* const data)
 		switch (m_reg_motion_plus.ext_identifier[0x4])
 		{
 		// nunchuck pass-through mode
-		// Bit 7 of byte 5 is moved to bit 6 of byte 5, overwriting it
-		// Bit 0 of byte 4 is moved to bit 7 of byte 5
-		// Bit 3 of byte 5 is moved to bit 4 of byte 5, overwriting it
-		// Bit 1 of byte 5 is moved to bit 3 of byte 5
-		// Bit 0 of byte 5 is moved to bit 2 of byte 5, overwriting it
+		// TODO: Untested
 		case 0x5:
-			//data[5] & (1 << 7)
-			//data[4] & (1 << 0)
-			//data[5] & (1 << 3)
-			//data[5] & (1 << 1)
-			//data[5] & (1 << 0)
+		{
+			wm_nc* pt_nc = (wm_nc*)data; // passthrough data
+			wm_nc nc = *pt_nc; // returned data in "regular" format
+
+			 // TODO: Might want to replicate the MSB into the LSB for proper scaling in the accelerometer LSB fields?
+			nc.bt.acc_x_lsb = pt_nc->passthrough_data.acc_x_lsb << 1;
+			nc.bt.acc_y_lsb = pt_nc->passthrough_data.acc_y_lsb << 1;
+			nc.bt.acc_z_lsb = (pt_nc->passthrough_data.acc_z_lsb << 1) & 0x2;
+			nc.az = (pt_nc->passthrough_data.acc_z << 1) | (pt_nc->passthrough_data.acc_z_lsb >> 1);
+			nc.bt.c = pt_nc->passthrough_data.c;
+			nc.bt.z = pt_nc->passthrough_data.z;
+
 			break;
+		}
 
 		// classic controller/musical instrument pass-through mode
 		// Bit 0 of Byte 4 is overwritten
@@ -628,6 +634,7 @@ void Wiimote::GetExtData(u8* const data)
 			break;
 		}
 
+		// TODO: This looks iffy...
 		((wm_motionplus_data*)data)->is_mp_data = 0;
 		((wm_motionplus_data*)data)->extension_connected = m_extension->active_extension;
 	}
