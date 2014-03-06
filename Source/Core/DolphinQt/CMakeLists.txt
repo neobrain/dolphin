@@ -10,22 +10,22 @@ set(QT_USE_QTWEBKIT FALSE)
 set(QT_USE_QTXMLPATTERNS FALSE)
 set(QT_USE_PHONON FALSE)
 
-set(SRCS		Src/Config/ConfigAudio.cpp
-			Src/Config/ConfigGeneral.cpp
-			Src/Config/ConfigGfx.cpp
-			Src/Config/ConfigMain.cpp
-			Src/Config/ConfigPad.cpp
-			Src/Config/ConfigWiimote.cpp
-			Src/Util/Util.cpp
-			Src/Util/Resources.cpp
-			Src/GameList.cpp
-			Src/ISOFile.cpp
-			Src/IssueReporter.cpp
-			Src/LogWindow.cpp
-			Src/main.cpp
-			Src/MainWindow.cpp
-			Src/MainWindowEvents.cpp
-			Src/RenderWindow.cpp)
+set(SRCS	Config/ConfigAudio.cpp
+			Config/ConfigGeneral.cpp
+			Config/ConfigGfx.cpp
+			Config/ConfigMain.cpp
+			Config/ConfigPad.cpp
+			Config/ConfigWiimote.cpp
+			Util/Util.cpp
+			Util/Resources.cpp
+			GameList.cpp
+			ISOFile.cpp
+			IssueReporter.cpp
+			LogWindow.cpp
+			main.cpp
+			MainWindow.cpp
+			MainWindowEvents.cpp
+			RenderWindow.cpp)
 
 if(USE_EGL)
 	set(SRCS ${SRCS} ../DolphinWX/GLInterface/Platform.cpp
@@ -78,18 +78,18 @@ endif()
 
 set(EXEGUI dolphin-emu-qt4)
 
-qt_wrap_cpp(${EXEGUI} MOC_SRCS	Src/Config/ConfigAudio.h
-				Src/Config/ConfigGeneral.h
-				Src/Config/ConfigGfx.h
-				Src/Config/ConfigMain.h
-				Src/Config/ConfigPad.h
-				Src/Config/ConfigWiimote.h
-				Src/Util/Util.h
-				Src/IssueReporter.h
-				Src/GameList.h
-				Src/LogWindow.h
-				Src/MainWindow.h
-				Src/RenderWindow.h)
+qt_wrap_cpp(${EXEGUI} MOC_SRCS	Config/ConfigAudio.h
+				Config/ConfigGeneral.h
+				Config/ConfigGfx.h
+				Config/ConfigMain.h
+				Config/ConfigPad.h
+				Config/ConfigWiimote.h
+				Util/Util.h
+				IssueReporter.h
+				GameList.h
+				LogWindow.h
+				MainWindow.h
+				RenderWindow.h)
 add_executable(${EXEGUI} ${SRCS} ${MOC_SRCS})
 target_link_libraries(${EXEGUI} ${LIBS} ${QT_LIBRARIES})
 install(TARGETS ${EXEGUI} RUNTIME DESTINATION ${bindir})
