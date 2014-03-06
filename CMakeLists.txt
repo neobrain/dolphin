@@ -1,14 +1,12 @@
 ########################################
 # General setup
 #
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8)
 
 option(ANDROID "Enables a build for Android" OFF)
 option(USE_EGL "Enables EGL OpenGL Interface" OFF)
 option(USE_X11 "Enables X11 Support" ON)
 option(USE_WAYLAND "Enables Wayland Support" OFF)
-option(USE_GLES "Enables GLES2 And EGL, disables OGL" OFF)
-option(USE_GLES3 "Enables GLES3 and EGL" OFF)
 option(USE_UPNP "Enables UPnP port mapping support" ON)
 option(DISABLE_WX "Disable wxWidgets (use CLI interface)" OFF)
 option(ENABLE_PCH "Use PCH to speed up compilation" ON)
@@ -19,9 +17,8 @@ option(OPENMP "Enable OpenMP parallelization" ON)
 option(ENCODE_FRAMEDUMPS "Encode framedumps in AVI format" ON)
 ########################################
 # Optional Targets
-# TODO: Add DSPSpy and TestSuite.
+# TODO: Add DSPSpy
 option(DSPTOOL "Build dsptool" OFF)
-option(UNITTESTS "Build unitests" OFF)
 
 # Update compiler before calling project()
 if (APPLE)
@@ -118,27 +115,53 @@ if(DOLPHIN_IS_STABLE)
 else()
 	set(DOLPHIN_VERSION_PATCH ${DOLPHIN_WC_REVISION})
 endif()
+
+# Architecture detection and arch specific settings
 message(${CMAKE_SYSTEM_PROCESSOR})
-if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm")
-	set(_M_GENERIC 1)
+
+# Detect 64bit or 32bit
+# CMake doesn't provide a simple way to determine 32bit or 64bit
+# If we ever support a architecture that is 64bit with 32bit pointers then this'll break
+# Of course the chances of that are slim(x32?) so who cares
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+	set(_ARCH_64 1)
+	add_definitions(-D_ARCH_64=1)
+else()
+	set(_ARCH_32 1)
+	add_definitions(-D_ARCH_32=1)
+endif()
+
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^x86" OR ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	add_definitions(-msse2)
+	set(_M_X86 1)
+	add_definitions(-D_M_X86=1)
+	if(_ARCH_64)
+		set(_M_X86_64 1)
+		add_definitions(-D_M_X86_64=1)
+	else()
+		set(_M_X86_32 1)
+		add_definitions(-D_M_X86_32=1)
+	endif()
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm")
+	# This option only applies to 32bit ARM
 	set(_M_ARM 1)
-	if(${ANDROID_NDK_ABI_NAME} STREQUAL "armeabi-v7a")
+	set(_M_ARM_32 1)
+	add_definitions(-D_M_ARM=1 -D_M_ARM_32=1)
+	set(_M_GENERIC 1)
+	add_definitions(-D_M_GENERIC=1)
+	if(${ANDROID_NDK_ABI_NAME} MATCHES "armeabi-v7a")
 		add_definitions(-marm -march=armv7-a)
 	endif()
-	# Set generic options so you don't have to pass anything to cmake to build ARM
-	set(USE_GLES 1)
-endif()
-
-if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "mips")
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+	# This option only applies to 64bit ARM
+	set(_M_ARM 1)
+	set(_M_ARM_64 1)
+	add_definitions(-D_M_ARM=1 -D_M_ARM_64=1)
 	set(_M_GENERIC 1)
-endif()
-
-# Set these next two lines to test generic
-#set(_M_GENERIC 1)
-#add_definitions(-D_M_GENERIC=1)
-# Various compile flags
-if(NOT _M_GENERIC)
-	add_definitions(-msse2)
+	add_definitions(-D_M_GENERIC=1)
+else()
+	set(_M_GENERIC 1)
+	add_definitions(-D_M_GENERIC=1)
 endif()
 
 include(CheckCXXCompilerFlag)
@@ -246,6 +269,7 @@ if(APPLE)
 	find_library(IOK_LIBRARY IOKit)
 	find_library(QUICKTIME_LIBRARY QuickTime)
 	find_library(WEBKIT_LIBRARY WebKit)
+	find_library(FORCEFEEDBACK ForceFeedback)
 endif()
 
 if(WIN32)
@@ -290,25 +314,12 @@ if(ANDROID)
 	set(USE_X11 0)
 	set(USE_WAYLAND 0)
 	set(USE_UPNP 0)
-	set(USE_GLES3 1)
+	set(USE_EGL True)
+	add_definitions(-DUSE_EGL=1)
 endif()
 
-# For now GLES and EGL are tied to each other.
-# Enabling GLES also disables the OpenGL plugin.
-if(USE_GLES3)
-	message("GLES3 rendering enabled")
-	add_definitions(-DUSE_GLES=1 -DUSE_EGL=1 -DUSE_GLES3=1)
-	include_directories(Externals/GLES3)
-	set(USE_EGL True)
-	set(USE_GLES True)
-else()
-	if(USE_GLES)
-		message("GLES2 rendering enabled. OpenGL disabled")
-		add_definitions(-DUSE_GLES=1)
-		add_definitions(-DUSE_EGL=1)
-		set(USE_EGL True)
-	endif()
-endif()
+include_directories(Externals/GL)
+
 # For now Wayland and EGL are tied to each other.
 # The alternative would be an shm path
 if(USE_WAYLAND)
@@ -352,10 +363,7 @@ if(NOT ANDROID)
 
 	include(FindOpenGL)
 	include_directories(${OPENGL_INCLUDE_DIR})
-	if(NOT OPENGL_GLU_FOUND)
-		message(FATAL_ERROR "GLU is required but not found")
-	endif()
-	
+
 	include(FindALSA OPTIONAL)
 	if(ALSA_FOUND)
 		add_definitions(-DHAVE_ALSA=1)
@@ -383,7 +391,7 @@ if(NOT ANDROID)
 		message("bluez NOT found, disabling bluetooth support")
 	endif(BLUEZ_FOUND)
 
-	check_lib(PULSEAUDIO libpulse-simple QUIET)
+	check_lib(PULSEAUDIO libpulse QUIET)
 	if(PULSEAUDIO_FOUND)
 		add_definitions(-DHAVE_PULSEAUDIO=1)
 		message("PulseAudio found, enabling PulseAudio sound backend")
@@ -491,16 +499,7 @@ endif()
 ########################################
 # Setup include directories (and make sure they are preferred over the Externals)
 #
-include_directories(Source/Core/AudioCommon/Src)
-include_directories(Source/Core/Common/Src)
-include_directories(Source/Core/Core/Src)
-include_directories(Source/Core/DebuggerUICommon/Src)
-include_directories(Source/Core/DebuggerWX/Src)
-include_directories(Source/Core/DiscIO/Src)
-include_directories(Source/Core/DolphinWX/Src)
-include_directories(Source/Core/InputCommon/Src)
-include_directories(Source/Core/VideoCommon/Src)
-include_directories(Source/Core/VideoUICommon/Src)
+include_directories(Source/Core)
 
 ########################################
 # Process externals and setup their include directories
@@ -514,6 +513,21 @@ include_directories(Source/Core/VideoUICommon/Src)
 #
 add_subdirectory(Externals/Bochs_disasm)
 include_directories(Externals/Bochs_disasm)
+
+# If zlib has already been found on a previous run of cmake don't check again
+# as the check seems to take a long time.
+if(NOT ZLIB_FOUND)
+	include(FindZLIB OPTIONAL)
+endif()
+if(ZLIB_FOUND)
+	set(ZLIB_FOUND 1 CACHE INTERNAL "")
+	message("Using shared zlib")
+	include_directories(${ZLIB_INCLUDE_DIRS})
+else(ZLIB_FOUND)
+	message("Shared zlib not found, falling back to the static library")
+	add_subdirectory(Externals/zlib)
+	include_directories(Externals/zlib)
+endif(ZLIB_FOUND)
 
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND NOT ANDROID)
 	check_lib(LZO lzo2 lzo/lzo1x.h QUIET)
@@ -636,37 +650,6 @@ else()
 	include_directories(Externals/SOIL)
 endif()
 
-# If zlib has already been found on a previous run of cmake don't check again
-# as the check seems to take a long time.
-if(NOT ZLIB_FOUND)
-	include(FindZLIB OPTIONAL)
-endif()
-if(ZLIB_FOUND)
-	set(ZLIB_FOUND 1 CACHE INTERNAL "")
-	message("Using shared zlib")
-	include_directories(${ZLIB_INCLUDE_DIRS})
-else(ZLIB_FOUND)
-	message("Shared zlib not found, falling back to the static library")
-	add_subdirectory(Externals/zlib)
-	include_directories(Externals/zlib)
-endif(ZLIB_FOUND)
-
-if(WIN32)
-	find_library(GLEW glew32s PATHS Externals/GLew)
-	include_directories(Externals/GLew/include)
-else()
-	if(NOT USE_GLES3)
-		if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-			include(FindGLEW)
-		endif()
-		if(NOT GLEW_FOUND OR NOT GLEW_HAS_1_9_METHODS)
-			message("Using static GLEW from Externals")
-			add_subdirectory(Externals/GLew)
-			include_directories(Externals/GLew/include)
-		endif()
-	endif()
-endif()
-
 if (ANDROID)
 	message("Using static iconv from Externals")
 	include_directories(Externals/libiconv-1.14/include)
@@ -775,13 +758,23 @@ else()
 	set(DOLPHIN_WC_IS_MASTER "0")
 endif()
 
-file(WRITE ${PROJECT_BINARY_DIR}/Source/Core/Common/Src/scmrev.h
+file(WRITE ${PROJECT_BINARY_DIR}/Source/Core/Common/scmrev.h
 	"#define SCM_REV_STR \"" ${DOLPHIN_WC_REVISION} "\"\n"
 	"#define SCM_DESC_STR \"" ${DOLPHIN_WC_DESCRIBE} "\"\n"
 	"#define SCM_BRANCH_STR \"" ${DOLPHIN_WC_BRANCH} "\"\n"
 	"#define SCM_IS_MASTER " ${DOLPHIN_WC_IS_MASTER} "\n"
 	)
-include_directories("${PROJECT_BINARY_DIR}/Source/Core/Common/Src")
+include_directories("${PROJECT_BINARY_DIR}/Source/Core/Common")
+
+########################################
+# Unit testing.
+#
+include_directories(Externals/gtest/include)
+add_subdirectory(Externals/gtest)
+
+enable_testing()
+add_custom_target(unittests)
+add_custom_command(TARGET unittests POST_BUILD COMMAND ${CMAKE_CTEST_COMMAND})
 
 
 ########################################

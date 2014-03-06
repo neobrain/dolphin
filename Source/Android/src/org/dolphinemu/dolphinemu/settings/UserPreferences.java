@@ -91,7 +91,6 @@ public final class UserPreferences
 			editor.putString("externalFrameBuffer", "Real");
 		}
 
-		editor.putBoolean("cacheDisplayLists",       getConfig("gfx_opengl.ini", "Hacks", "DlistCachingEnable", "False").equals("True"));
 		editor.putBoolean("disableDestinationAlpha", getConfig("gfx_opengl.ini", "Settings", "DstAlphaPass", "False").equals("True"));
 		editor.putBoolean("fastDepthCalculation",    getConfig("gfx_opengl.ini", "Settings", "FastDepthCalc", "True").equals("True"));
 
@@ -146,9 +145,6 @@ public final class UserPreferences
 
 		// External frame buffer emulation. Falls back to disabled upon error.
 		String externalFrameBuffer = prefs.getString("externalFrameBuffer", "Disabled");
-
-		// Whether or not display list caching is enabled.
-		boolean dlistCachingEnabled = prefs.getBoolean("cacheDisplayLists", false);
 
 		// Whether or not to disable destination alpha.
 		boolean disableDstAlphaPass = prefs.getBoolean("disableDestinationAlpha", false);
@@ -234,7 +230,6 @@ public final class UserPreferences
 			NativeLibrary.SetConfig("gfx_opengl.ini", "Settings", "UseRealXFB", "True");
 		}
 
-		NativeLibrary.SetConfig("gfx_opengl.ini", "Hacks", "DlistCachingEnable", dlistCachingEnabled ? "True" : "False");
 		NativeLibrary.SetConfig("gfx_opengl.ini", "Settings", "DstAlphaPass", disableDstAlphaPass ? "True" : "False");
 		NativeLibrary.SetConfig("gfx_opengl.ini", "Settings", "FastDepthCalc", useFastDepthCalc ? "True" : "False");
 
