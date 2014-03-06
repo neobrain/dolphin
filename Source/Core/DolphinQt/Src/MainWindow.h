@@ -6,7 +6,8 @@
 #include "RenderWindow.h"
 #include "Util/Util.h"
 
-#include <Core.h>
+#include <Core/Core.h>
+
 class DLogWindow;
 class DLogSettingsDock;
 class DGameBrowser;

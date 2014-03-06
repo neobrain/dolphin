@@ -3,13 +3,14 @@
 #include <QMainWindow>
 #include "MainWindow.h"
 
-#include "CommonPaths.h"
-#include "CPUDetect.h"
-#include "ConfigManager.h"
-#include "LogManager.h"
-#include "HW/Wiimote.h"
+#include "Common/CommonPaths.h"
+#include "Common/CPUDetect.h"
+#include "Common/LogManager.h"
 
-#include "VideoBackendBase.h"
+#include "Core/ConfigManager.h"
+#include "Core/HW/Wiimote.h"
+
+#include "VideoCommon/VideoBackendBase.h"
 
 DMainWindow* mainWindow = NULL;
 

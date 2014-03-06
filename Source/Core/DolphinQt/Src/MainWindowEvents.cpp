@@ -6,10 +6,11 @@
 #include "Config/ConfigMain.h"
 #include "IssueReporter.h"
 
-#include "BootManager.h"
-#include "Common.h"
-#include "ConfigManager.h"
-#include "Core.h"
+#include "Common/Common.h"
+
+#include "Core/BootManager.h"
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
 
 
 void DMainWindow::StartGame(const std::string& filename)

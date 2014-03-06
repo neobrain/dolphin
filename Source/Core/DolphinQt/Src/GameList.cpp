@@ -4,10 +4,11 @@
 #include "GameList.h"
 #include "Util/Resources.h"
 
-#include "FileSearch.h"
-#include "ConfigManager.h"
-#include "CDUtils.h"
-#include "IniFile.h"
+#include "Common/FileSearch.h"
+#include "Common/CDUtils.h"
+#include "Common/IniFile.h"
+
+#include "Core/ConfigManager.h"
 
 
 // TODO: Clean this up!

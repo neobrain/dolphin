@@ -9,7 +9,7 @@
 #include "ConfigGeneral.h"
 #include "../Util/Util.h"
 
-#include "ConfigManager.h"
+#include "Core/ConfigManager.h"
 
 
 QWidget* DConfigMainGeneralTab::CreateCoreTabWidget(QWidget* parent)
@@ -24,7 +24,6 @@ QWidget* DConfigMainGeneralTab::CreateCoreTabWidget(QWidget* parent)
 	for (int i = 10; i <= 120; i += 5)      // from 10 to 120
                 chFramelimit->addItem(QString::number(i));
 	chFramelimit->setMaximumWidth(chFramelimit->minimumSizeHint().width());
-	cbFPSLimit = new QCheckBox(tr("Limit by FPS"));
 
 	rbCPUEngine = new QButtonGroup(tab);
 	rbCPUEngine->addButton(new QRadioButton(tr("Interpreter")), 0);
@@ -41,7 +40,6 @@ QWidget* DConfigMainGeneralTab::CreateCoreTabWidget(QWidget* parent)
 	QHBoxLayout* framelimitLayout = new QHBoxLayout;
 	framelimitLayout->addWidget(new QLabel(tr("Framelimit:")));
 	framelimitLayout->addWidget(chFramelimit);
-	framelimitLayout->addWidget(cbFPSLimit);
 
 	coreSettingsBox->addLayout(framelimitLayout);
 
@@ -71,7 +69,6 @@ QWidget* DConfigMainGeneralTab::CreateCoreTabWidget(QWidget* parent)
 	ctrlManager->RegisterControl(cbCheats, Startup.bEnableCheats);
 
 	ctrlManager->RegisterControl(chFramelimit, SConfig::GetInstance().m_Framelimit);
-	ctrlManager->RegisterControl(cbFPSLimit, SConfig::GetInstance().b_UseFPS);
 
 	ctrlManager->RegisterControl(reinterpret_cast<QRadioButton*>(rbCPUEngine->button(0)), (Startup.iCPUCore == 0));
 	ctrlManager->RegisterControl(reinterpret_cast<QRadioButton*>(rbCPUEngine->button(1)), (Startup.iCPUCore == 1));
@@ -153,7 +150,6 @@ void DConfigMainGeneralTab::Apply()
 	Startup.bEnableCheats = cbCheats->isChecked();
 
 	SConfig::GetInstance().m_Framelimit = chFramelimit->currentIndex();
-	SConfig::GetInstance().b_UseFPS = cbFPSLimit->isChecked();
 
 	Startup.iCPUCore = rbCPUEngine->checkedId();
 

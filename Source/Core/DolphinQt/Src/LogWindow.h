@@ -1,7 +1,7 @@
 #include <QDockWidget>
 #include <QVector>
 
-#include "LogManager.h"
+#include "Common/LogManager.h"
 
 class QPlainTextEdit;
 class QCheckBox;

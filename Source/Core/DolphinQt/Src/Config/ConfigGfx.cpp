@@ -6,9 +6,10 @@
 #include "ConfigGfx.h"
 #include "../Util/Util.h"
 
-#include "ConfigManager.h"
-#include "VideoBackendBase.h"
-#include "VideoConfig.h"
+#include "Core/ConfigManager.h"
+
+#include "VideoCommon/VideoBackendBase.h"
+#include "VideoCommon/VideoConfig.h"
 
 // TODO: Clean this up...
 static std::string GetIniName(VideoBackend* backend)

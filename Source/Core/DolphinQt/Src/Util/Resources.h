@@ -1,7 +1,7 @@
 #include <QPixmap>
 #include <QIcon>
 
-#include "Volume.h"
+#include "DiscIO/Volume.h"
 
 class Resources
 {

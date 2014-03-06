@@ -19,6 +19,7 @@
 #include "Common/StringUtil.h"
 #include "Common/Timer.h"
 
+#include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/Host.h"
 #include "Core/FifoPlayer/FifoRecorder.h"

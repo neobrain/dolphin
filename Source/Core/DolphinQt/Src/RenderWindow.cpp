@@ -1,4 +1,4 @@
-#include "ConfigManager.h"
+#include "Core/ConfigManager.h"
 
 #include "RenderWindow.h"
 

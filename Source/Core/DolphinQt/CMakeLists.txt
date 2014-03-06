@@ -28,22 +28,22 @@ set(SRCS		Src/Config/ConfigAudio.cpp
 			Src/RenderWindow.cpp)
 
 if(USE_EGL)
-	set(SRCS ${SRCS} ../DolphinWX/Src/GLInterface/Platform.cpp
-		../DolphinWX/Src/GLInterface/EGL.cpp)
+	set(SRCS ${SRCS} ../DolphinWX/GLInterface/Platform.cpp
+		../DolphinWX/GLInterface/EGL.cpp)
 	if(USE_WAYLAND)
-		set(SRCS ${SRCS} ../DolphinWX/Src/GLInterface/Wayland_Util.cpp)
+		set(SRCS ${SRCS} ../DolphinWX/GLInterface/Wayland_Util.cpp)
 	endif()
 	if(USE_X11)
-		set(SRCS ${SRCS} ../DolphinWX/Src/GLInterface/X11_Util.cpp)
+		set(SRCS ${SRCS} ../DolphinWX/GLInterface/X11_Util.cpp)
 	endif()
 else()
 	if(WIN32)
-		set(SRCS ${SRCS} ../DolphinWX/Src/GLInterface/WGL.cpp)
+		set(SRCS ${SRCS} ../DolphinWX/GLInterface/WGL.cpp)
 	elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-		set(SRCS ${SRCS} ../DolphinWX/Src/GLInterface/AGL.cpp)
+		set(SRCS ${SRCS} ../DolphinWX/GLInterface/AGL.cpp)
 	else()
-		set(SRCS ${SRCS} ../DolphinWX/Src/GLInterface/GLX.cpp
-			../DolphinWX/Src/GLInterface/X11_Util.cpp)
+		set(SRCS ${SRCS} ../DolphinWX/GLInterface/GLX.cpp
+			../DolphinWX/GLInterface/X11_Util.cpp)
 
 	endif()
 endif()

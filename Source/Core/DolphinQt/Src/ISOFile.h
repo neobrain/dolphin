@@ -8,8 +8,8 @@
 #include <vector>
 #include <string>
 
-#include "Volume.h"
-#include "VolumeCreator.h"
+#include "DiscIO/Volume.h"
+#include "DiscIO/VolumeCreator.h"
 
 #include <QImage>
 #include <QString>

@@ -5,23 +5,24 @@
 #include <string>
 #include <vector>
 #include <QDir>
-#include "Util/Resources.h"
 
-#include "Common.h"
-#include "CommonPaths.h"
+#include "Common/ChunkFile.h"
+#include "Common/Common.h"
+#include "Common/CommonPaths.h"
+#include "Common/FileSearch.h"
+#include "Common/FileUtil.h"
+#include "Common/Hash.h"
+#include "Common/IniFile.h"
+#include "Common/StringUtil.h"
 
-#include "FileUtil.h"
+#include "DiscIO/BannerLoader.h"
+#include "DiscIO/CompressedBlob.h"
+#include "DiscIO/Filesystem.h"
+
+#include "Core/ConfigManager.h"
+
 #include "ISOFile.h"
-#include "StringUtil.h"
-#include "Hash.h"
-#include "IniFile.h"
-
-#include "Filesystem.h"
-#include "BannerLoader.h"
-#include "FileSearch.h"
-#include "CompressedBlob.h"
-#include "ChunkFile.h"
-#include "ConfigManager.h"
+#include "Util/Resources.h"
 
 static const u32 CACHE_REVISION = 0x115;
 
@@ -37,7 +38,7 @@ GameListItem::GameListItem(std::string rFileName)
 	, m_BlobCompressed(false)
 	, m_ImageWidth(0)
 	, m_ImageHeight(0)
-{	
+{
 	bool hasBanner = false;
 
 	/* DON'T RUN THIS CODE. see note at SaveToCache below.

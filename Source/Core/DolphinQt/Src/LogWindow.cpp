@@ -2,8 +2,6 @@
 #include "LogWindow.h"
 #include "Util/Util.h"
 
-#include "LogManager.h"
-
 class DCheckBoxList : public QTreeView
 {
 public:

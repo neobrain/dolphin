@@ -32,7 +32,7 @@
 #include "../../resources/toolbar_stop.c"
 #include "../../resources/no_banner.cpp"
 
-#include "Volume.h"
+#include "DiscIO/Volume.h"
 
 Resources* Resources::instance = NULL;
 
