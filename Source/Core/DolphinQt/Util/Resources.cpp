@@ -17,22 +17,11 @@
 #include "../resources/rating4.c"
 #include "../resources/rating5.c"
 #include "../resources/Dolphin.c"
-#include "../resources/toolbar_file_open.c"
-#include "../resources/toolbar_browse.c"
-#include "../resources/toolbar_fullscreen.c"
 #include "../resources/toolbar_help.c"
-#include "../resources/toolbar_pause.c"
-#include "../resources/toolbar_play.c"
-#include "../resources/toolbar_plugin_dsp.c"
-#include "../resources/toolbar_plugin_gfx.c"
-#include "../resources/toolbar_plugin_options.c"
-#include "../resources/toolbar_plugin_pad.c"
-#include "../resources/toolbar_plugin_wiimote.c"
-#include "../resources/toolbar_refresh.c"
-#include "../resources/toolbar_stop.c"
 #include "../resources/no_banner.cpp"
 
 #include "DiscIO/Volume.h"
+#include "Core/ConfigManager.h"
 
 Resources* Resources::instance = NULL;
 
@@ -49,6 +38,8 @@ Resources::~Resources()
 void Resources::Init()
 {
 	instance = new Resources;
+
+	QString dir = QString::fromStdString(File::GetThemeDir(SConfig::GetInstance().m_LocalCoreStartupParameter.theme_name));
 
 	instance->regions.resize(DiscIO::IVolume::NUMBER_OF_COUNTRIES);
 	instance->regions[DiscIO::IVolume::COUNTRY_EUROPE].loadFromData(flag_europe_png, sizeof(flag_europe_png));
@@ -76,20 +67,20 @@ void Resources::Init()
 	instance->ratings[5].loadFromData(rating5_png, sizeof(rating5_png));
 
 	instance->pixmaps.resize(NUM_ICONS);
-	instance->pixmaps[TOOLBAR_OPEN].loadFromData(toolbar_file_open_png, sizeof(toolbar_file_open_png));
-	instance->pixmaps[TOOLBAR_REFRESH].loadFromData(toolbar_refresh_png, sizeof(toolbar_refresh_png));
-	instance->pixmaps[TOOLBAR_BROWSE].loadFromData(toolbar_browse_png, sizeof(toolbar_browse_png));
-	instance->pixmaps[TOOLBAR_PLAY].loadFromData(toolbar_play_png, sizeof(toolbar_play_png));
-	instance->pixmaps[TOOLBAR_STOP].loadFromData(toolbar_stop_png, sizeof(toolbar_stop_png));
-	instance->pixmaps[TOOLBAR_FULLSCREEN].loadFromData(toolbar_fullscreen_png, sizeof(toolbar_fullscreen_png));
-	instance->pixmaps[TOOLBAR_SCREENSHOT].loadFromData(toolbar_fullscreen_png, sizeof(toolbar_fullscreen_png));
-	instance->pixmaps[TOOLBAR_CONFIGURE].loadFromData(toolbar_plugin_options_png, sizeof(toolbar_plugin_options_png));
-	instance->pixmaps[TOOLBAR_PLUGIN_GFX].loadFromData(toolbar_plugin_gfx_png, sizeof(toolbar_plugin_gfx_png));
-	instance->pixmaps[TOOLBAR_PLUGIN_DSP].loadFromData(toolbar_plugin_dsp_png, sizeof(toolbar_plugin_dsp_png));
-	instance->pixmaps[TOOLBAR_PLUGIN_GCPAD].loadFromData(toolbar_plugin_pad_png, sizeof(toolbar_plugin_pad_png));
-	instance->pixmaps[TOOLBAR_PLUGIN_WIIMOTE].loadFromData(toolbar_plugin_wiimote_png, sizeof(toolbar_plugin_wiimote_png));
+	instance->pixmaps[TOOLBAR_OPEN].load(dir + "open.png");
+	instance->pixmaps[TOOLBAR_REFRESH].load(dir + "refresh.png");
+	instance->pixmaps[TOOLBAR_BROWSE].load(dir + "browse.png");
+	instance->pixmaps[TOOLBAR_PLAY].load(dir + "play.png");
+	instance->pixmaps[TOOLBAR_STOP].load(dir + "stop.png");
+	instance->pixmaps[TOOLBAR_FULLSCREEN].load(dir + "fullscreen.png");
+	instance->pixmaps[TOOLBAR_SCREENSHOT].load(dir + "screenshot.png");
+	instance->pixmaps[TOOLBAR_CONFIGURE].load(dir + "config.png");
+	instance->pixmaps[TOOLBAR_PLUGIN_GFX].load(dir + "graphics.png");
+	instance->pixmaps[TOOLBAR_PLUGIN_DSP].load(dir + "dsp.png");
+	instance->pixmaps[TOOLBAR_PLUGIN_GCPAD].load(dir + "gcpad.png");
+	instance->pixmaps[TOOLBAR_PLUGIN_WIIMOTE].load(dir + "wiimote.png");
+	instance->pixmaps[TOOLBAR_PAUSE].load(dir + "pause.png");
 	instance->pixmaps[TOOLBAR_HELP].loadFromData(toolbar_help_png, sizeof(toolbar_help_png));
-	instance->pixmaps[TOOLBAR_PAUSE].loadFromData(toolbar_pause_png, sizeof(toolbar_pause_png));
 	// TODO: instance->toolbar[MEMCARD];
 	// TODO: instance->toolbar[HOTKEYS];
 	instance->pixmaps[DOLPHIN_LOGO].loadFromData(dolphin_ico32x32, sizeof(dolphin_ico32x32));

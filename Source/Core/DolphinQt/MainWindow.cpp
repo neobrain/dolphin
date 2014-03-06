@@ -202,14 +202,14 @@ void DMainWindow::CreateMenus()
 void DMainWindow::CreateToolBars()
 {
 	toolBar = addToolBar(tr("Main Toolbar"));
-	toolBar->setIconSize(style()->standardIcon(QStyle::SP_DialogOpenButton).actualSize(QSize(24,24)));
+	toolBar->setIconSize(Resources::GetIcon(Resources::TOOLBAR_OPEN).actualSize(QSize(32,32)));
 	toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-	openAction = toolBar->addAction(style()->standardIcon(QStyle::SP_DialogOpenButton), tr("Open"));
-	refreshAction = toolBar->addAction(style()->standardIcon(QStyle::SP_BrowserReload), tr("Refresh"));
+	openAction = toolBar->addAction(Resources::GetIcon(Resources::TOOLBAR_OPEN), tr("Open"));
+	refreshAction = toolBar->addAction(Resources::GetIcon(Resources::TOOLBAR_REFRESH), tr("Refresh"));
 	toolBar->addSeparator();
 
-	playAction = toolBar->addAction(style()->standardIcon(QStyle::SP_MediaPlay), tr("Play"));
-	stopAction = toolBar->addAction(style()->standardIcon(QStyle::SP_MediaStop), tr("Stop"));
+	playAction = toolBar->addAction(Resources::GetIcon(Resources::TOOLBAR_PLAY), tr("Play"));
+	stopAction = toolBar->addAction(Resources::GetIcon(Resources::TOOLBAR_STOP), tr("Stop"));
 	toolBar->addSeparator();
 
 	QAction* configAction = toolBar->addAction(Resources::GetIcon(Resources::TOOLBAR_CONFIGURE), tr("Config"));
