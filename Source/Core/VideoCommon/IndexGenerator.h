@@ -5,9 +5,9 @@
 // This is currently only used by the DX backend, but it may make sense to
 // use it in the GL backend or a future DX10 backend too.
 
-#ifndef _INDEXGENERATOR_H
-#define _INDEXGENERATOR_H
-#include "CommonTypes.h"
+#pragma once
+
+#include "Common/CommonTypes.h"
 
 class IndexGenerator
 {
@@ -45,5 +45,3 @@ private:
 	static u16 *BASEIptr;
 	static u32 base_index;
 };
-
-#endif  // _INDEXGENERATOR_H

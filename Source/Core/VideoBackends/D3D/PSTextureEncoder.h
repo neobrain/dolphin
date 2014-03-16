@@ -2,10 +2,9 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _PSTEXTUREENCODER_H
-#define _PSTEXTUREENCODER_H
+#pragma once
 
-#include "TextureEncoder.h"
+#include "VideoBackends/D3D/TextureEncoder.h"
 
 struct ID3D11Texture2D;
 struct ID3D11RenderTargetView;
@@ -102,5 +101,3 @@ private:
 };
 
 }
-
-#endif

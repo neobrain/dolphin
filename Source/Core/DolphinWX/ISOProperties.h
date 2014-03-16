@@ -2,33 +2,40 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef __ISOPROPERTIES_h__
-#define __ISOPROPERTIES_h__
+#pragma once
 
-#include <wx/wx.h>
-#include <wx/sizer.h>
-#include <wx/filepicker.h>
-#include <wx/statbmp.h>
-#include <wx/imaglist.h>
-#include <wx/fontmap.h>
-#include <wx/treectrl.h>
-#include <wx/gbsizer.h>
-#include <wx/notebook.h>
-#include <wx/mimetype.h>
+#include <cstddef>
+#include <set>
 #include <string>
+#include <vector>
+#include <wx/arrstr.h>
+#include <wx/dialog.h>
+#include <wx/event.h>
+#include <wx/gdicmn.h>
+#include <wx/string.h>
+#include <wx/toplevel.h>
+#include <wx/translation.h>
+#include <wx/treebase.h>
+#include <wx/windowid.h>
 
-#include "ISOFile.h"
-#include "Filesystem.h"
-#include "IniFile.h"
-#include "PatchEngine.h"
-#include "ActionReplay.h"
-#include "GeckoCodeDiag.h"
+#include "Common/IniFile.h"
+
+class GameListItem;
+class wxButton;
+class wxCheckBox;
+class wxCheckListBox;
+class wxChoice;
+class wxStaticBitmap;
+class wxTextCtrl;
+class wxTreeCtrl;
+class wxWindow;
+namespace DiscIO { struct SFileInfo; }
+namespace Gecko { class CodeConfigPanel; }
 
 struct PHackData
 {
 	bool PHackSZNear;
 	bool PHackSZFar;
-	bool PHackExP;
 	std::string PHZNear;
 	std::string PHZFar;
 };
@@ -214,4 +221,3 @@ private:
 	void SetCheckboxValueFromGameini(const char* section, const char* key, wxCheckBox* checkbox);
 	void SaveGameIniValueFrom3StateCheckbox(const char* section, const char* key, wxCheckBox* checkbox);
 };
-#endif

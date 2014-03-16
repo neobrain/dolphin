@@ -2,11 +2,11 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include <math.h>
-#include "Common.h"
-#include "MathUtil.h"
-#include "Interpreter.h"
-#include "Interpreter_FPUtils.h"
+#include <cmath>
+#include "Common/Common.h"
+#include "Common/MathUtil.h"
+#include "Core/PowerPC/Interpreter/Interpreter.h"
+#include "Core/PowerPC/Interpreter/Interpreter_FPUtils.h"
 
 using namespace MathUtil;
 
@@ -354,100 +354,22 @@ void Interpreter::ps_madds1(UGeckoInstruction _inst)
 
 void Interpreter::ps_cmpu0(UGeckoInstruction _inst)
 {
-	double fa = rPS0(_inst.FA);
-	double fb = rPS0(_inst.FB);
-	int compareResult;
-
-	if (fa < fb)         		compareResult = 8;
-	else if (fa > fb)        	compareResult = 4;
-	else if (fa == fb)			compareResult = 2;
-	else
-	{
-		compareResult = 1;
-		if (IsSNAN(fa) || IsSNAN(fb))
-		{
-			SetFPException(FPSCR_VXSNAN);
-		}
-	}
-	FPSCR.FPRF = compareResult;
-	SetCRField(_inst.CRFD, compareResult);
+	Helper_FloatCompareUnordered(_inst, rPS0(_inst.FA), rPS0(_inst.FB));
 }
 
 void Interpreter::ps_cmpo0(UGeckoInstruction _inst)
 {
-	double fa = rPS0(_inst.FA);
-	double fb = rPS0(_inst.FB);
-	int compareResult;
-
-	if (fa < fb)         		compareResult = 8;
-	else if (fa > fb)        	compareResult = 4;
-	else if (fa == fb)			compareResult = 2;
-	else
-	{
-		compareResult = 1;
-		if (IsSNAN(fa) || IsSNAN(fb))
-		{
-			SetFPException(FPSCR_VXSNAN);
-			if (!FPSCR.VE)
-				SetFPException(FPSCR_VXVC);
-		}
-		else
-		{
-			//if (IsQNAN(fa) || IsQNAN(fb)) // this is always true
-			SetFPException(FPSCR_VXVC);
-		}
-	}
-	FPSCR.FPRF = compareResult;
-	SetCRField(_inst.CRFD, compareResult);
+	Helper_FloatCompareOrdered(_inst, rPS0(_inst.FA), rPS0(_inst.FB));
 }
 
 void Interpreter::ps_cmpu1(UGeckoInstruction _inst)
 {
-	double fa = rPS1(_inst.FA);
-	double fb = rPS1(_inst.FB);
-	int compareResult;
-
-	if (fa < fb)         		compareResult = 8;
-	else if (fa > fb)        	compareResult = 4;
-	else if (fa == fb)			compareResult = 2;
-	else
-	{
-		compareResult = 1;
-		if (IsSNAN(fa) || IsSNAN(fb))
-		{
-			SetFPException(FPSCR_VXSNAN);
-		}
-	}
-	FPSCR.FPRF = compareResult;
-	SetCRField(_inst.CRFD, compareResult);
+	Helper_FloatCompareUnordered(_inst, rPS1(_inst.FA), rPS1(_inst.FB));
 }
 
 void Interpreter::ps_cmpo1(UGeckoInstruction _inst)
 {
-	double fa = rPS1(_inst.FA);
-	double fb = rPS1(_inst.FB);
-	int compareResult;
-
-	if (fa < fb)         		compareResult = 8;
-	else if (fa > fb)        	compareResult = 4;
-	else if (fa == fb)			compareResult = 2;
-	else
-	{
-		compareResult = 1;
-		if (IsSNAN(fa) || IsSNAN(fb))
-		{
-			SetFPException(FPSCR_VXSNAN);
-			if (!FPSCR.VE)
-				SetFPException(FPSCR_VXVC);
-		}
-		else
-		{
-			//if (IsQNAN(fa) || IsQNAN(fb)) // this is always true
-			SetFPException(FPSCR_VXVC);
-		}
-	}
-	FPSCR.FPRF = compareResult;
-	SetCRField(_inst.CRFD, compareResult);
+	Helper_FloatCompareOrdered(_inst, rPS1(_inst.FA), rPS1(_inst.FB));
 }
 
 // __________________________________________________________________________________________________

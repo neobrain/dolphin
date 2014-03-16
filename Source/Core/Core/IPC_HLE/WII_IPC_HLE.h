@@ -2,18 +2,17 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _WII_IPC_HLE_H_
-#define _WII_IPC_HLE_H_
+#pragma once
 
-#include "ChunkFile.h"
+#include "Common/ChunkFile.h"
 
 class IWII_IPC_HLE_Device;
 
 namespace WII_IPC_HLE_Interface
 {
 
-#define IPC_FIRST_ID	0x00		// first IPC device ID
-#define IPC_MAX_FILES	0x10		// first IPC file ID
+#define IPC_FIRST_ID  0x00 // First IPC device ID
+#define IPC_MAX_FILES 0x10 // First IPC file ID
 
 void EnqueReplyCallback(u64 userdata, int =0);
 
@@ -55,16 +54,13 @@ void EnqReply(u32 _Address, int cycles_in_future = 0);
 
 enum ECommandType
 {
-	COMMAND_OPEN_DEVICE		= 1,
-	COMMAND_CLOSE_DEVICE	= 2,
-	COMMAND_READ			= 3,
-	COMMAND_WRITE			= 4,
-	COMMAND_SEEK			= 5,
-	COMMAND_IOCTL			= 6,
-	COMMAND_IOCTLV			= 7,
+	COMMAND_OPEN_DEVICE  = 1,
+	COMMAND_CLOSE_DEVICE = 2,
+	COMMAND_READ         = 3,
+	COMMAND_WRITE        = 4,
+	COMMAND_SEEK         = 5,
+	COMMAND_IOCTL        = 6,
+	COMMAND_IOCTLV       = 7,
 };
 
 } // end of namespace WII_IPC_HLE_Interface
-
-#endif
-

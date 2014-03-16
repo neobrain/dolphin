@@ -4,37 +4,36 @@
 
 #include <cinttypes>
 #include <cmath>
-
-#include "Timer.h"
-
-#include "Debugger.h"
-#include "DLCache.h"
-#include "EmuWindow.h"
-#include "Fifo.h"
-#include "OnScreenDisplay.h"
-#include "PixelEngine.h"
-#include "Statistics.h"
-#include "VertexShaderManager.h"
-#include "VideoConfig.h"
-
-#include "D3DBase.h"
-#include "D3DUtil.h"
-#include "FramebufferManager.h"
-#include "GfxState.h"
-#include "PixelShaderCache.h"
-#include "Render.h"
-#include "TextureCache.h"
-#include "VertexShaderCache.h"
-#include "Core.h"
-#include "Movie.h"
-#include "Television.h"
-#include "Host.h"
-#include "BPFunctions.h"
-#include "AVIDump.h"
-#include "FPSCounter.h"
-#include "ConfigManager.h"
 #include <strsafe.h>
-#include "ImageWrite.h"
+
+#include "Common/Timer.h"
+
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
+#include "Core/Host.h"
+#include "Core/Movie.h"
+
+#include "VideoBackends/D3D/D3DBase.h"
+#include "VideoBackends/D3D/D3DUtil.h"
+#include "VideoBackends/D3D/FramebufferManager.h"
+#include "VideoBackends/D3D/GfxState.h"
+#include "VideoBackends/D3D/PixelShaderCache.h"
+#include "VideoBackends/D3D/Render.h"
+#include "VideoBackends/D3D/Television.h"
+#include "VideoBackends/D3D/TextureCache.h"
+#include "VideoBackends/D3D/VertexShaderCache.h"
+
+#include "VideoCommon/AVIDump.h"
+#include "VideoCommon/BPFunctions.h"
+#include "VideoCommon/EmuWindow.h"
+#include "VideoCommon/Fifo.h"
+#include "VideoCommon/FPSCounter.h"
+#include "VideoCommon/ImageWrite.h"
+#include "VideoCommon/OnScreenDisplay.h"
+#include "VideoCommon/PixelEngine.h"
+#include "VideoCommon/Statistics.h"
+#include "VideoCommon/VertexShaderManager.h"
+#include "VideoCommon/VideoConfig.h"
 
 namespace DX11
 {
@@ -45,14 +44,14 @@ static u32 s_LastAA = 0;
 
 static Television s_television;
 
-ID3D11Buffer* access_efb_cbuf = NULL;
-ID3D11BlendState* clearblendstates[4] = {NULL};
-ID3D11DepthStencilState* cleardepthstates[3] = {NULL};
-ID3D11BlendState* resetblendstate = NULL;
-ID3D11DepthStencilState* resetdepthstate = NULL;
-ID3D11RasterizerState* resetraststate = NULL;
+ID3D11Buffer* access_efb_cbuf = nullptr;
+ID3D11BlendState* clearblendstates[4] = {nullptr};
+ID3D11DepthStencilState* cleardepthstates[3] = {nullptr};
+ID3D11BlendState* resetblendstate = nullptr;
+ID3D11DepthStencilState* resetdepthstate = nullptr;
+ID3D11RasterizerState* resetraststate = nullptr;
 
-static ID3D11Texture2D* s_screenshot_texture = NULL;
+static ID3D11Texture2D* s_screenshot_texture = nullptr;
 
 
 // GX pipeline state
@@ -82,16 +81,16 @@ void SetupDeviceObjects()
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)access_efb_cbuf, "constant buffer for Renderer::AccessEFB");
 
 	D3D11_DEPTH_STENCIL_DESC ddesc;
-	ddesc.DepthEnable	  = FALSE;
+	ddesc.DepthEnable      = FALSE;
 	ddesc.DepthWriteMask   = D3D11_DEPTH_WRITE_MASK_ZERO;
-	ddesc.DepthFunc		= D3D11_COMPARISON_ALWAYS;
-	ddesc.StencilEnable	= FALSE;
+	ddesc.DepthFunc        = D3D11_COMPARISON_ALWAYS;
+	ddesc.StencilEnable    = FALSE;
 	ddesc.StencilReadMask  = D3D11_DEFAULT_STENCIL_READ_MASK;
 	ddesc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
 	hr = D3D::device->CreateDepthStencilState(&ddesc, &cleardepthstates[0]);
 	CHECK(hr==S_OK, "Create depth state for Renderer::ClearScreen");
 	ddesc.DepthWriteMask   = D3D11_DEPTH_WRITE_MASK_ALL;
-	ddesc.DepthEnable	  = TRUE;
+	ddesc.DepthEnable      = TRUE;
 	hr = D3D::device->CreateDepthStencilState(&ddesc, &cleardepthstates[1]);
 	CHECK(hr==S_OK, "Create depth state for Renderer::ClearScreen");
 	ddesc.DepthWriteMask   = D3D11_DEPTH_WRITE_MASK_ZERO;
@@ -131,12 +130,12 @@ void SetupDeviceObjects()
 	hr = D3D::device->CreateBlendState(&blenddesc, &clearblendstates[3]);
 	CHECK(hr==S_OK, "Create blend state for Renderer::ClearScreen");
 
-	ddesc.DepthEnable	   = FALSE;
-	ddesc.DepthWriteMask	= D3D11_DEPTH_WRITE_MASK_ZERO;
-	ddesc.DepthFunc		 = D3D11_COMPARISON_LESS;
-	ddesc.StencilEnable	 = FALSE;
-	ddesc.StencilReadMask   = D3D11_DEFAULT_STENCIL_READ_MASK;
-	ddesc.StencilWriteMask  = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+	ddesc.DepthEnable      = FALSE;
+	ddesc.DepthWriteMask   = D3D11_DEPTH_WRITE_MASK_ZERO;
+	ddesc.DepthFunc        = D3D11_COMPARISON_LESS;
+	ddesc.StencilEnable    = FALSE;
+	ddesc.StencilReadMask  = D3D11_DEFAULT_STENCIL_READ_MASK;
+	ddesc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
 	hr = D3D::device->CreateDepthStencilState(&ddesc, &resetdepthstate);
 	CHECK(hr==S_OK, "Create depth state for Renderer::ResetAPIState");
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)resetdepthstate, "depth stencil state for Renderer::ResetAPIState");
@@ -146,7 +145,7 @@ void SetupDeviceObjects()
 	CHECK(hr==S_OK, "Create rasterizer state for Renderer::ResetAPIState");
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)resetraststate, "rasterizer state for Renderer::ResetAPIState");
 
-	s_screenshot_texture = NULL;
+	s_screenshot_texture = nullptr;
 }
 
 // Kill off all device objects
@@ -173,7 +172,7 @@ void TeardownDeviceObjects()
 void CreateScreenshotTexture(const TargetRectangle& rc)
 {
 	D3D11_TEXTURE2D_DESC scrtex_desc = CD3D11_TEXTURE2D_DESC(DXGI_FORMAT_R8G8B8A8_UNORM, rc.GetWidth(), rc.GetHeight(), 1, 1, 0, D3D11_USAGE_STAGING, D3D11_CPU_ACCESS_READ|D3D11_CPU_ACCESS_WRITE);
-	HRESULT hr = D3D::device->CreateTexture2D(&scrtex_desc, NULL, &s_screenshot_texture);
+	HRESULT hr = D3D::device->CreateTexture2D(&scrtex_desc, nullptr, &s_screenshot_texture);
 	CHECK(hr==S_OK, "Create screenshot staging texture");
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)s_screenshot_texture, "staging screenshot texture");
 }
@@ -217,12 +216,12 @@ Renderer::Renderer()
 	gx_state.blenddc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 
 	memset(&gx_state.depthdc, 0, sizeof(gx_state.depthdc));
-	gx_state.depthdc.DepthEnable        = TRUE;
-	gx_state.depthdc.DepthWriteMask     = D3D11_DEPTH_WRITE_MASK_ALL;
-	gx_state.depthdc.DepthFunc          = D3D11_COMPARISON_LESS;
-	gx_state.depthdc.StencilEnable      = FALSE;
-	gx_state.depthdc.StencilReadMask    = D3D11_DEFAULT_STENCIL_READ_MASK;
-	gx_state.depthdc.StencilWriteMask   = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+	gx_state.depthdc.DepthEnable      = TRUE;
+	gx_state.depthdc.DepthWriteMask   = D3D11_DEPTH_WRITE_MASK_ALL;
+	gx_state.depthdc.DepthFunc        = D3D11_COMPARISON_LESS;
+	gx_state.depthdc.StencilEnable    = FALSE;
+	gx_state.depthdc.StencilReadMask  = D3D11_DEFAULT_STENCIL_READ_MASK;
+	gx_state.depthdc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
 
 	// TODO: Do we need to enable multisampling here?
 	gx_state.rastdc = CD3D11_RASTERIZER_DESC(D3D11_FILL_SOLID, D3D11_CULL_NONE, false, 0, 0.f, 0, false, true, false, false);
@@ -234,7 +233,7 @@ Renderer::Renderer()
 											0.f, 1 << g_ActiveConfig.iMaxAnisotropy,
 											D3D11_COMPARISON_ALWAYS, border,
 											-D3D11_FLOAT32_MAX, D3D11_FLOAT32_MAX);
-		if(g_ActiveConfig.iMaxAnisotropy != 0) gx_state.sampdc[k].Filter = D3D11_FILTER_ANISOTROPIC;
+		if (g_ActiveConfig.iMaxAnisotropy != 0) gx_state.sampdc[k].Filter = D3D11_FILTER_ANISOTROPIC;
 	}
 
 	// Clear EFB textures
@@ -256,7 +255,7 @@ Renderer::~Renderer()
 	D3D::Close();
 }
 
-void Renderer::RenderText(const char *text, int left, int top, u32 color)
+void Renderer::RenderText(const std::string& text, int left, int top, u32 color)
 {
 	D3D::font.DrawTextScaled((float)left, (float)top, 20.f, 0.0f, color, text);
 }
@@ -304,9 +303,10 @@ bool Renderer::CheckForResize()
 	return false;
 }
 
-void Renderer::SetScissorRect(const TargetRectangle& rc)
+void Renderer::SetScissorRect(const EFBRectangle& rc)
 {
-	D3D::context->RSSetScissorRects(1, rc.AsRECT());
+	TargetRectangle trc = ConvertEFBRectangle(rc);
+	D3D::context->RSSetScissorRects(1, trc.AsRECT());
 }
 
 void Renderer::SetColorMask()
@@ -328,15 +328,15 @@ void Renderer::SetColorMask()
 // and EFB pokes (which will change the color or depth of a pixel).
 //
 // The behavior of EFB peeks can only be modified by:
-//	- GX_PokeAlphaRead
+//  - GX_PokeAlphaRead
 // The behavior of EFB pokes can be modified by:
-//	- GX_PokeAlphaMode (TODO)
-//	- GX_PokeAlphaUpdate (TODO)
-//	- GX_PokeBlendMode (TODO)
-//	- GX_PokeColorUpdate (TODO)
-//	- GX_PokeDither (TODO)
-//	- GX_PokeDstAlpha (TODO)
-//	- GX_PokeZMode (TODO)
+//  - GX_PokeAlphaMode (TODO)
+//  - GX_PokeAlphaUpdate (TODO)
+//  - GX_PokeBlendMode (TODO)
+//  - GX_PokeColorUpdate (TODO)
+//  - GX_PokeDither (TODO)
+//  - GX_PokeDstAlpha (TODO)
+//  - GX_PokeZMode (TODO)
 u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 {
 	// TODO: This function currently is broken if anti-aliasing is enabled
@@ -362,7 +362,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 
 	// Take the mean of the resulting dimensions; TODO: Don't use the center pixel, compute the average color instead
 	D3D11_RECT RectToLock;
-	if(type == PEEK_COLOR || type == PEEK_Z)
+	if (type == PEEK_COLOR || type == PEEK_Z)
 	{
 		RectToLock.left = (targetPixelRc.left + targetPixelRc.right) / 2;
 		RectToLock.top = (targetPixelRc.top + targetPixelRc.bottom) / 2;
@@ -385,7 +385,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		D3D11_VIEWPORT vp = CD3D11_VIEWPORT(0.f, 0.f, 1.f, 1.f);
 		D3D::context->RSSetViewports(1, &vp);
 		D3D::context->PSSetConstantBuffers(0, 1, &access_efb_cbuf);
-		D3D::context->OMSetRenderTargets(1, &FramebufferManager::GetEFBDepthReadTexture()->GetRTV(), NULL);
+		D3D::context->OMSetRenderTargets(1, &FramebufferManager::GetEFBDepthReadTexture()->GetRTV(), nullptr);
 		D3D::SetPointCopySampler();
 		D3D::drawShadedTexQuad(FramebufferManager::GetEFBDepthTexture()->GetSRV(),
 								&RectToLock,
@@ -409,7 +409,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 
 		float val = *(float*)map.pData;
 		u32 ret = 0;
-		if(bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
+		if (bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
 		{
 			// if Z is in 16 bit format you must return a 16 bit integer
 			ret = ((u32)(val * 0xffff));
@@ -433,13 +433,12 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		// read the data from system memory
 		D3D::context->Map(read_tex, 0, D3D11_MAP_READ, 0, &map);
 		u32 ret = 0;
-		if(map.pData)
+		if (map.pData)
 			ret = *(u32*)map.pData;
 		D3D::context->Unmap(read_tex, 0);
 
 		// check what to do with the alpha channel (GX_PokeAlphaRead)
-		PixelEngine::UPEAlphaReadReg alpha_read_mode;
-		PixelEngine::Read16((u16&)alpha_read_mode, PE_ALPHAREAD);
+		PixelEngine::UPEAlphaReadReg alpha_read_mode = PixelEngine::GetAlphaReadMode();
 
 		if (bpmem.zcontrol.pixel_format == PIXELFMT_RGBA6_Z24)
 		{
@@ -449,13 +448,13 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		{
 			ret = RGBA8ToRGB565ToRGBA8(ret);
 		}
-		if(bpmem.zcontrol.pixel_format != PIXELFMT_RGBA6_Z24)
+		if (bpmem.zcontrol.pixel_format != PIXELFMT_RGBA6_Z24)
 		{
 			ret |= 0xFF000000;
 		}
 
-		if(alpha_read_mode.ReadMode == 2) return ret; // GX_READ_NONE
-		else if(alpha_read_mode.ReadMode == 1) return (ret | 0xFF000000); // GX_READ_FF
+		if (alpha_read_mode.ReadMode == 2) return ret; // GX_READ_NONE
+		else if (alpha_read_mode.ReadMode == 1) return (ret | 0xFF000000); // GX_READ_FF
 		else /*if(alpha_read_mode.ReadMode == 0)*/ return (ret & 0x00FFFFFF); // GX_READ_00
 	}
 	else //if(type == POKE_COLOR)
@@ -465,11 +464,11 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		// TODO: The first five PE registers may change behavior of EFB pokes, this isn't implemented, yet.
 		ResetAPIState();
 
-		D3D::context->OMSetRenderTargets(1, &FramebufferManager::GetEFBColorTexture()->GetRTV(), NULL);
+		D3D::context->OMSetRenderTargets(1, &FramebufferManager::GetEFBColorTexture()->GetRTV(), nullptr);
 		D3D::drawColorQuad(rgbaColor, (float)RectToLock.left   * 2.f / (float)Renderer::GetTargetWidth()  - 1.f,
-									- (float)RectToLock.top	* 2.f / (float)Renderer::GetTargetHeight() + 1.f,
-									  (float)RectToLock.right  * 2.f / (float)Renderer::GetTargetWidth()  - 1.f,
-									- (float)RectToLock.bottom * 2.f / (float)Renderer::GetTargetHeight() + 1.f);
+		                            - (float)RectToLock.top    * 2.f / (float)Renderer::GetTargetHeight() + 1.f,
+		                              (float)RectToLock.right  * 2.f / (float)Renderer::GetTargetWidth()  - 1.f,
+		                            - (float)RectToLock.bottom * 2.f / (float)Renderer::GetTargetHeight() + 1.f);
 
 		RestoreAPIState();
 		return 0;
@@ -477,8 +476,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 }
 
 
-// Called from VertexShaderManager
-void Renderer::UpdateViewport()
+void Renderer::SetViewport()
 {
 	// reversed gxsetviewport(xorig, yorig, width, height, nearz, farz)
 	// [0] = width/2
@@ -487,6 +485,10 @@ void Renderer::UpdateViewport()
 	// [3] = xorig + width/2 + 342
 	// [4] = yorig + height/2 + 342
 	// [5] = 16777215 * farz
+
+	// D3D crashes for zero viewports
+	if (xfregs.viewport.wd == 0 || xfregs.viewport.ht == 0)
+		return;
 
 	int scissorXOff = bpmem.scissorOffset.x * 2;
 	int scissorYOff = bpmem.scissorOffset.y * 2;
@@ -513,10 +515,9 @@ void Renderer::UpdateViewport()
 	Ht = (Y + Ht <= GetTargetHeight()) ? Ht : (GetTargetHeight() - Y);
 
 	// Some games set invalid values for z-min and z-max so fix them to the max and min allowed and let the shaders do this work
-	D3D11_VIEWPORT vp = CD3D11_VIEWPORT(X, Y,
-										Wd, Ht,
-										0.f,	// (xfregs.viewport.farZ - xfregs.viewport.zRange) / 16777216.0f;
-										1.f);   //  xfregs.viewport.farZ / 16777216.0f;
+	D3D11_VIEWPORT vp = CD3D11_VIEWPORT(X, Y, Wd, Ht,
+										0.f,  // (xfregs.viewport.farZ - xfregs.viewport.zRange) / 16777216.0f;
+										1.f); //  xfregs.viewport.farZ / 16777216.0f;
 	D3D::context->RSSetViewports(1, &vp);
 }
 
@@ -569,7 +570,7 @@ void Renderer::ReinterpretPixelData(unsigned int convtype)
 	D3D11_VIEWPORT vp = CD3D11_VIEWPORT(0.f, 0.f, (float)g_renderer->GetTargetWidth(), (float)g_renderer->GetTargetHeight());
 	D3D::context->RSSetViewports(1, &vp);
 
-	D3D::context->OMSetRenderTargets(1, &FramebufferManager::GetEFBColorTempTexture()->GetRTV(), NULL);
+	D3D::context->OMSetRenderTargets(1, &FramebufferManager::GetEFBColorTempTexture()->GetRTV(), nullptr);
 	D3D::SetPointCopySampler();
 	D3D::drawShadedTexQuad(FramebufferManager::GetEFBColorTexture()->GetSRV(), &source, g_renderer->GetTargetWidth(), g_renderer->GetTargetHeight(), pixel_shader, VertexShaderCache::GetSimpleVertexShader(), VertexShaderCache::GetSimpleInputLayout());
 
@@ -726,7 +727,7 @@ void formatBufferDump(const u8* in, u8* out, int w, int h, int p)
 }
 
 // This function has the final picture. We adjust the aspect ratio here.
-void Renderer::Swap(u32 xfbAddr, u32 fbWidth, u32 fbHeight,const EFBRectangle& rc,float Gamma)
+void Renderer::SwapImpl(u32 xfbAddr, u32 fbWidth, u32 fbHeight,const EFBRectangle& rc,float Gamma)
 {
 	if (g_bSkipCurrentFrame || (!XFBWrited && !g_ActiveConfig.RealXFBEnabled()) || !fbWidth || !fbHeight)
 	{
@@ -769,7 +770,7 @@ void Renderer::Swap(u32 xfbAddr, u32 fbWidth, u32 fbHeight,const EFBRectangle& r
 	if (Height > (s_backbuffer_height - Y)) Height = s_backbuffer_height - Y;
 	D3D11_VIEWPORT vp = CD3D11_VIEWPORT((float)X, (float)Y, (float)Width, (float)Height);
 	D3D::context->RSSetViewports(1, &vp);
-	D3D::context->OMSetRenderTargets(1, &D3D::GetBackBuffer()->GetRTV(), NULL);
+	D3D::context->OMSetRenderTargets(1, &D3D::GetBackBuffer()->GetRTV(), nullptr);
 
 	float ClearColor[4] = { 0.f, 0.f, 0.f, 1.f };
 	D3D::context->ClearRenderTargetView(D3D::GetBackBuffer()->GetRTV(), ClearColor);
@@ -783,7 +784,7 @@ void Renderer::Swap(u32 xfbAddr, u32 fbWidth, u32 fbHeight,const EFBRectangle& r
 		s_television.Submit(xfbAddr, fbWidth, fbHeight);
 		s_television.Render();
 	}
-	else if(g_ActiveConfig.bUseXFB)
+	else if (g_ActiveConfig.bUseXFB)
 	{
 		const XFBSourceBase* xfbSource;
 
@@ -946,11 +947,7 @@ void Renderer::Swap(u32 xfbAddr, u32 fbWidth, u32 fbHeight,const EFBRectangle& r
 
 	OSD::DrawMessages();
 	D3D::EndFrame();
-	frameCount++;
 
-	GFX_DEBUGGER_PAUSE_AT(NEXT_FRAME, true);
-
-	DLCache::ProgressiveCleanup();
 	TextureCache::Cleanup();
 
 	// Enable configuration changes
@@ -975,11 +972,6 @@ void Renderer::Swap(u32 xfbAddr, u32 fbWidth, u32 fbHeight,const EFBRectangle& r
 	// update FPS counter
 	if (XFBWrited)
 		s_fps = UpdateFPSCounter();
-
-	// Begin new frame
-	// Set default viewport and scissor, for the clear to work correctly
-	// New frame
-	stats.ResetFrame();
 
 	// Flip/present backbuffer to frontbuffer here
 	D3D::Present();
@@ -1007,7 +999,7 @@ void Renderer::Swap(u32 xfbAddr, u32 fbWidth, u32 fbHeight,const EFBRectangle& r
 		s_LastEFBScale = g_ActiveConfig.iEFBScale;
 		CalculateTargetSize(s_backbuffer_width, s_backbuffer_height);
 
-		D3D::context->OMSetRenderTargets(1, &D3D::GetBackBuffer()->GetRTV(), NULL);
+		D3D::context->OMSetRenderTargets(1, &D3D::GetBackBuffer()->GetRTV(), nullptr);
 
 		delete g_framebuffer_manager;
 		g_framebuffer_manager = new FramebufferManager;
@@ -1020,10 +1012,7 @@ void Renderer::Swap(u32 xfbAddr, u32 fbWidth, u32 fbHeight,const EFBRectangle& r
 	RestoreAPIState();
 	D3D::BeginFrame();
 	D3D::context->OMSetRenderTargets(1, &FramebufferManager::GetEFBColorTexture()->GetRTV(), FramebufferManager::GetEFBDepthTexture()->GetDSV());
-	UpdateViewport();
-
-	Core::Callback_VideoCopiedToXFB(XFBWrited || (g_ActiveConfig.bUseXFB && g_ActiveConfig.bUseRealXFB));
-	XFBWrited = false;
+	SetViewport();
 }
 
 // ALWAYS call RestoreAPIState for each ResetAPIState call you're doing
@@ -1040,7 +1029,7 @@ void Renderer::RestoreAPIState()
 	D3D::stateman->PopBlendState();
 	D3D::stateman->PopDepthState();
 	D3D::stateman->PopRasterizerState();
-	UpdateViewport();
+	SetViewport();
 	BPFunctions::SetScissor();
 }
 
@@ -1095,12 +1084,12 @@ void Renderer::ApplyState(bool bUseDstAlpha)
 		// TODO: unnecessary state changes, we should store a list of shader resources
 		//if (shader_resources[stage])
 		{
-			if(g_ActiveConfig.iMaxAnisotropy > 0) gx_state.sampdc[stage].Filter = D3D11_FILTER_ANISOTROPIC;
+			if (g_ActiveConfig.iMaxAnisotropy > 0) gx_state.sampdc[stage].Filter = D3D11_FILTER_ANISOTROPIC;
 			hr = D3D::device->CreateSamplerState(&gx_state.sampdc[stage], &samplerstate[stage]);
 			if (FAILED(hr)) PanicAlert("Fail %s %d, stage=%d\n", __FILE__, __LINE__, stage);
 			else D3D::SetDebugObjectName((ID3D11DeviceChild*)samplerstate[stage], "sampler state used to emulate the GX pipeline");
 		}
-		// else samplerstate[stage] = NULL;
+		// else samplerstate[stage] = nullptr;
 	}
 	D3D::context->PSSetSamplers(0, 8, samplerstate);
 	for (unsigned int stage = 0; stage < 8; stage++)
@@ -1118,13 +1107,13 @@ void Renderer::ApplyState(bool bUseDstAlpha)
 	D3D::context->PSSetConstantBuffers(0, 1, &PixelShaderCache::GetConstantBuffer());
 	D3D::context->VSSetConstantBuffers(0, 1, &VertexShaderCache::GetConstantBuffer());
 
-	D3D::context->PSSetShader(PixelShaderCache::GetActiveShader(), NULL, 0);
-	D3D::context->VSSetShader(VertexShaderCache::GetActiveShader(), NULL, 0);
+	D3D::context->PSSetShader(PixelShaderCache::GetActiveShader(), nullptr, 0);
+	D3D::context->VSSetShader(VertexShaderCache::GetActiveShader(), nullptr, 0);
 }
 
 void Renderer::RestoreState()
 {
-	ID3D11ShaderResourceView* shader_resources[8] = { NULL };
+	ID3D11ShaderResourceView* shader_resources[8] = { nullptr };
 	D3D::context->PSSetShaderResources(0, 8, shader_resources);
 
 	D3D::stateman->PopBlendState();
@@ -1201,22 +1190,22 @@ void Renderer::SetLogicOpMode()
 	// D3D11 doesn't support logic blending, so this is a huge hack
 	// TODO: Make use of D3D11.1's logic blending support
 
-	//		0	0x00
-	//		1	Source & destination
-	//		2	Source & ~destination
-	//		3	Source
-	//		4	~Source & destination
-	//		5	Destination
-	//		6	Source ^ destination =  Source & ~destination | ~Source & destination
-	//		7	Source | destination
-	//		8	~(Source | destination)
-	//		9	~(Source ^ destination) = ~Source & ~destination | Source & destination
-	//		10	~Destination
-	//		11	Source | ~destination
-	//		12	~Source
-	//		13	~Source | destination
-	//		14	~(Source & destination)
-	//		15	0xff
+	// 0   0x00
+	// 1   Source & destination
+	// 2   Source & ~destination
+	// 3   Source
+	// 4   ~Source & destination
+	// 5   Destination
+	// 6   Source ^ destination =  Source & ~destination | ~Source & destination
+	// 7   Source | destination
+	// 8   ~(Source | destination)
+	// 9   ~(Source ^ destination) = ~Source & ~destination | Source & destination
+	// 10  ~Destination
+	// 11  Source | ~destination
+	// 12  ~Source
+	// 13  ~Source | destination
+	// 14  ~(Source & destination)
+	// 15  0xff
 	const D3D11_BLEND_OP d3dLogicOps[16] =
 	{
 		D3D11_BLEND_OP_ADD,//0
@@ -1324,7 +1313,8 @@ void Renderer::SetSamplerState(int stage, int texindex)
 
 	unsigned int mip = d3dMipFilters[tm0.min_filter & 3];
 
-	if (texindex) stage += 4;
+	if (texindex)
+		stage += 4;
 
 	if (g_ActiveConfig.bForceFiltering)
 	{

@@ -7,11 +7,10 @@
 // Video backend must define these functions
 // ------------------------------------------
 
-#ifndef _BPFUNCTIONS_H
-#define _BPFUNCTIONS_H
+#pragma once
 
-#include "BPMemory.h"
-#include "VideoCommon.h"
+#include "VideoCommon/BPMemory.h"
+#include "VideoCommon/VideoCommon.h"
 
 namespace BPFunctions
 {
@@ -41,5 +40,3 @@ bool GetConfig(const int &type);
 void SetTextureMode(const BPCmd &bp);
 void SetInterlacingMode(const BPCmd &bp);
 };
-
-#endif // _BPFUNCTIONS_H

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -53,7 +53,6 @@
     <ClCompile Include="Boot\Boot_WiiWAD.cpp" />
     <ClCompile Include="Boot\ElfReader.cpp" />
     <ClCompile Include="ConfigManager.cpp" />
-    <ClCompile Include="Console.cpp" />
     <ClCompile Include="Core.cpp" />
     <ClCompile Include="CoreParameter.cpp" />
     <ClCompile Include="CoreTiming.cpp" />
@@ -61,8 +60,8 @@
     <ClCompile Include="Debugger\Dump.cpp" />
     <ClCompile Include="Debugger\PPCDebugInterface.cpp" />
     <ClCompile Include="DSPEmulator.cpp" />
-    <ClCompile Include="DSP\assemble.cpp" />
-    <ClCompile Include="DSP\disassemble.cpp" />
+    <ClCompile Include="DSP\DSPAssembler.cpp" />
+    <ClCompile Include="DSP\DSPDisassembler.cpp" />
     <ClCompile Include="DSP\DSPAccelerator.cpp" />
     <ClCompile Include="DSP\DSPAnalyzer.cpp" />
     <ClCompile Include="DSP\DSPCodeUtil.cpp" />
@@ -145,6 +144,7 @@
     <ClCompile Include="HW\Memmap.cpp" />
     <ClCompile Include="HW\MemmapFunctions.cpp" />
     <ClCompile Include="HW\MemoryInterface.cpp" />
+    <ClCompile Include="HW\MMIO.cpp" />
     <ClCompile Include="HW\ProcessorInterface.cpp" />
     <ClCompile Include="HW\SI.cpp" />
     <ClCompile Include="HW\SI_Device.cpp" />
@@ -170,7 +170,6 @@
     <ClCompile Include="HW\WiimoteEmu\WiimoteEmu.cpp" />
     <ClCompile Include="HW\WiimoteReal\IOWin.cpp" />
     <ClCompile Include="HW\WiimoteReal\WiimoteReal.cpp" />
-    <ClCompile Include="HW\WII_IOB.cpp" />
     <ClCompile Include="HW\WII_IPC.cpp" />
     <ClCompile Include="IPC_HLE\ICMPWin.cpp" />
     <ClCompile Include="IPC_HLE\WiiMote_HID_Attr.cpp" />
@@ -258,7 +257,6 @@
     <ClInclude Include="Boot\ElfReader.h" />
     <ClInclude Include="Boot\ElfTypes.h" />
     <ClInclude Include="ConfigManager.h" />
-    <ClInclude Include="Console.h" />
     <ClInclude Include="Core.h" />
     <ClInclude Include="CoreParameter.h" />
     <ClInclude Include="CoreTiming.h" />
@@ -267,8 +265,8 @@
     <ClInclude Include="Debugger\GCELF.h" />
     <ClInclude Include="Debugger\PPCDebugInterface.h" />
     <ClInclude Include="DSPEmulator.h" />
-    <ClInclude Include="DSP\assemble.h" />
-    <ClInclude Include="DSP\disassemble.h" />
+    <ClInclude Include="DSP\DSPAssembler.h" />
+    <ClInclude Include="DSP\DSPDisassembler.h" />
     <ClInclude Include="DSP\DSPAccelerator.h" />
     <ClInclude Include="DSP\DSPAnalyzer.h" />
     <ClInclude Include="DSP\DSPBreakpoints.h" />
@@ -342,6 +340,8 @@
     <ClInclude Include="HW\HW.h" />
     <ClInclude Include="HW\Memmap.h" />
     <ClInclude Include="HW\MemoryInterface.h" />
+    <ClInclude Include="HW\MMIO.h" />
+    <ClInclude Include="HW\MMIOHandlers.h" />
     <ClInclude Include="HW\ProcessorInterface.h" />
     <ClInclude Include="HW\SI.h" />
     <ClInclude Include="HW\SI_Device.h" />
@@ -368,7 +368,6 @@
     <ClInclude Include="HW\WiimoteEmu\WiimoteHid.h" />
     <ClInclude Include="HW\WiimoteReal\WiimoteReal.h" />
     <ClInclude Include="HW\WiimoteReal\WiimoteRealBase.h" />
-    <ClInclude Include="HW\WII_IOB.h" />
     <ClInclude Include="HW\WII_IPC.h" />
     <ClInclude Include="IPC_HLE\fakepoll.h" />
     <ClInclude Include="IPC_HLE\hci.h" />

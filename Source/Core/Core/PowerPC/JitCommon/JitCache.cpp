@@ -9,17 +9,16 @@
 // performance hit, it's not enabled by default, but it's useful for
 // locating performance issues.
 
-#include "Common.h"
+#include "disasm.h"
+
+#include "Common/Common.h"
+#include "Common/MemoryUtil.h"
+#include "Core/PowerPC/JitInterface.h"
+#include "Core/PowerPC/JitCommon/JitBase.h"
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
-
-#include "JitBase.h"
-#include "MemoryUtil.h"
-#include "disasm.h"
-
-#include "../JitInterface.h"
 
 #if defined USE_OPROFILE && USE_OPROFILE
 #include <opagent.h>
@@ -35,8 +34,6 @@ op_agent_t agent;
 
 using namespace Gen;
 
-#define INVALID_EXIT 0xFFFFFFFF
-
 	bool JitBaseBlockCache::IsFull() const
 	{
 		return GetNumBlocks() >= MAX_NUM_BLOCKS - 1;
@@ -49,7 +46,7 @@ using namespace Gen;
 #endif
 		blocks = new JitBlock[MAX_NUM_BLOCKS];
 		blockCodePointers = new const u8*[MAX_NUM_BLOCKS];
-		if (iCache == 0 && iCacheEx == 0 && iCacheVMEM == 0)
+		if (iCache == nullptr && iCacheEx == nullptr && iCacheVMEM == nullptr)
 		{
 			iCache = new u8[JIT_ICACHE_SIZE];
 			iCacheEx = new u8[JIT_ICACHEEX_SIZE];
@@ -59,7 +56,7 @@ using namespace Gen;
 		{
 			PanicAlert("JitBaseBlockCache::Init() - iCache is already initialized");
 		}
-		if (iCache == 0 || iCacheEx == 0 || iCacheVMEM == 0)
+		if (iCache == nullptr || iCacheEx == nullptr || iCacheVMEM == nullptr)
 		{
 			PanicAlert("JitBaseBlockCache::Init() - unable to allocate iCache");
 		}
@@ -73,24 +70,24 @@ using namespace Gen;
 	{
 		delete[] blocks;
 		delete[] blockCodePointers;
-		if (iCache != 0)
+		if (iCache != nullptr)
 			delete[] iCache;
-		iCache = 0;
-		if (iCacheEx != 0)
+		iCache = nullptr;
+		if (iCacheEx != nullptr)
 			delete[] iCacheEx;
-		iCacheEx = 0;
-		if (iCacheVMEM != 0)
+		iCacheEx = nullptr;
+		if (iCacheVMEM != nullptr)
 			delete[] iCacheVMEM;
-		iCacheVMEM = 0;
-		blocks = 0;
-		blockCodePointers = 0;
+		iCacheVMEM = nullptr;
+		blocks = nullptr;
+		blockCodePointers = nullptr;
 		num_blocks = 0;
 #if defined USE_OPROFILE && USE_OPROFILE
 		op_close_agent(agent);
 #endif
 
 #ifdef USE_VTUNE
-		iJIT_NotifyEvent(iJVM_EVENT_TYPE_SHUTDOWN, NULL);
+		iJIT_NotifyEvent(iJVM_EVENT_TYPE_SHUTDOWN, nullptr);
 #endif
 	}
 
@@ -167,12 +164,7 @@ using namespace Gen;
 		JitBlock &b = blocks[num_blocks];
 		b.invalid = false;
 		b.originalAddress = em_address;
-		b.exitAddress[0] = INVALID_EXIT;
-		b.exitAddress[1] = INVALID_EXIT;
-		b.exitPtrs[0] = 0;
-		b.exitPtrs[1] = 0;
-		b.linkStatus[0] = false;
-		b.linkStatus[1] = false;
+		b.linkData.clear();
 		num_blocks++; //commit the current block
 		return num_blocks - 1;
 	}
@@ -193,10 +185,9 @@ using namespace Gen;
 		block_map[std::make_pair(pAddr + 4 * b.originalSize - 1, pAddr)] = block_num;
 		if (block_link)
 		{
-			for (int i = 0; i < 2; i++)
+			for (const auto& e : b.linkData)
 			{
-				if (b.exitAddress[i] != INVALID_EXIT)
-					links_to.insert(std::pair<u32, int>(b.exitAddress[i], block_num));
+				links_to.insert(std::pair<u32, int>(e.exitAddress, block_num));
 			}
 
 			LinkBlock(block_num);
@@ -275,15 +266,15 @@ using namespace Gen;
 			// This block is dead. Don't relink it.
 			return;
 		}
-		for (int e = 0; e < 2; e++)
+		for (auto& e : b.linkData)
 		{
-			if (b.exitAddress[e] != INVALID_EXIT && !b.linkStatus[e])
+			if (!e.linkStatus)
 			{
-				int destinationBlock = GetBlockNumberFromStartAddress(b.exitAddress[e]);
+				int destinationBlock = GetBlockNumberFromStartAddress(e.exitAddress);
 				if (destinationBlock != -1)
 				{
-					WriteLinkBlock(b.exitPtrs[e], blocks[destinationBlock].checkedEntry);
-					b.linkStatus[e] = true;
+					WriteLinkBlock(e.exitPtrs, blocks[destinationBlock].checkedEntry);
+					e.linkStatus = true;
 				}
 			}
 		}
@@ -316,12 +307,13 @@ using namespace Gen;
 			return;
 		for (multimap<u32, int>::iterator iter = ppp.first; iter != ppp.second; ++iter) {
 			JitBlock &sourceBlock = blocks[iter->second];
-			for (int e = 0; e < 2; e++)
+			for (auto& e : sourceBlock.linkData)
 			{
-				if (sourceBlock.exitAddress[e] == b.originalAddress)
-					sourceBlock.linkStatus[e] = false;
+				if (e.exitAddress == b.originalAddress)
+					e.linkStatus = false;
 			}
 		}
+		links_to.erase(b.originalAddress);
 	}
 
 	void JitBaseBlockCache::DestroyBlock(int block_num, bool invalidate)
@@ -374,7 +366,7 @@ using namespace Gen;
 				JitBlock &b = blocks[it2->second];
 				*GetICachePtr(b.originalAddress) = JIT_ICACHE_INVALID_WORD;
 				DestroyBlock(it2->second, true);
-				it2++;
+				++it2;
 			}
 			if (it1 != it2)
 			{

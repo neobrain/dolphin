@@ -2,8 +2,7 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _LOG_H_
-#define _LOG_H_
+#pragma once
 
 #define NOTICE_LEVEL  1  // VERY important information that is NOT errors. Like startup and OSReports.
 #define ERROR_LEVEL   2  // Critical errors
@@ -48,7 +47,6 @@ enum LOG_TYPE
 	STREAMINGINTERFACE,
 	VIDEO,
 	VIDEOINTERFACE,
-	WII_IOB,
 	WII_IPC,
 	WII_IPC_DVD,
 	WII_IPC_ES,
@@ -76,6 +74,8 @@ enum LOG_LEVELS
 	LINFO    = INFO_LEVEL,
 	LDEBUG   = DEBUG_LEVEL,
 };
+
+static const char LOG_LEVEL_TO_CHAR[7] = "-NEWID";
 
 #define LOGTYPES_LEVELS LogTypes::LOG_LEVELS
 #define LOGTYPES_TYPE LogTypes::LOG_TYPE
@@ -140,12 +140,12 @@ void GenericLog(LOGTYPES_LEVELS level, LOGTYPES_TYPE type,
 
 #ifndef GEKKO
 #ifdef _WIN32
-#define _assert_msg_(_t_, _a_, _fmt_, ...)		\
+#define _assert_msg_(_t_, _a_, _fmt_, ...) \
 	if (!(_a_)) {\
 		if (!PanicYesNo(_fmt_, __VA_ARGS__)) {Crash();} \
 	}
 #else // not win32
-#define _assert_msg_(_t_, _a_, _fmt_, ...)		\
+#define _assert_msg_(_t_, _a_, _fmt_, ...) \
 	if (!(_a_)) {\
 		if (!PanicYesNo(_fmt_, ##__VA_ARGS__)) {Crash();} \
 	}
@@ -153,5 +153,3 @@ void GenericLog(LOGTYPES_LEVELS level, LOGTYPES_TYPE type,
 #else // GEKKO
 #define _assert_msg_(_t_, _a_, _fmt_, ...)
 #endif
-
-#endif // _LOG_H_

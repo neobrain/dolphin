@@ -2,10 +2,9 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _UCODE_ROM
-#define _UCODE_ROM
+#pragma once
 
-#include "UCodes.h"
+#include "Core/HW/DSPHLE/UCodes/UCodes.h"
 
 class CUCode_Rom : public IUCode
 {
@@ -35,6 +34,3 @@ private:
 
 	void BootUCode();
 };
-
-#endif
-

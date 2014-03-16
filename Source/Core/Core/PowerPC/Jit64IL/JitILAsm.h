@@ -2,11 +2,10 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _JITASM_H
-#define _JITASM_H
+#pragma once
 
-#include "x64Emitter.h"
-#include "../JitCommon/JitAsmCommon.h"
+#include "Common/x64Emitter.h"
+#include "Core/PowerPC/JitCommon/JitAsmCommon.h"
 
 // In Dolphin, we don't use inline assembly. Instead, we generate all machine-near
 // code at runtime. In the case of fixed code like this, after writing it, we write
@@ -41,5 +40,3 @@ public:
 };
 
 extern JitILAsmRoutineManager jitil_asm_routines;
-
-#endif

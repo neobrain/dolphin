@@ -2,11 +2,11 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _COREPARAMETER_H
-#define _COREPARAMETER_H
+#pragma once
 
-#include "IniFile.h"
 #include <string>
+
+#include "Common/IniFile.h"
 
 enum Hotkey
 {
@@ -213,5 +213,3 @@ struct SCoreStartupParameter
 	IniFile LoadLocalGameIni() const;
 	IniFile LoadGameIni() const;
 };
-
-#endif

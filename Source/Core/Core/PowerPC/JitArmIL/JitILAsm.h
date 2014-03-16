@@ -1,11 +1,12 @@
-// Copyright 2013 Dolphin Emulator Project
+// Copyright 2014 Dolphin Emulator Project
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _JITARMILASM_H
-#define _JITARMILASM_H
-#include "ArmEmitter.h"
-#include "../JitCommon/JitAsmCommon.h"
+#pragma once
+
+#include "Common/ArmEmitter.h"
+#include "Core/PowerPC/JitCommon/JitAsmCommon.h"
+
 using namespace ArmGen;
 class JitArmILAsmRoutineManager : public CommonAsmRoutinesBase, public ARMXCodeBlock
 {
@@ -26,7 +27,3 @@ public:
 };
 
 extern JitArmILAsmRoutineManager armil_asm_routines;
-
-#endif
-
-

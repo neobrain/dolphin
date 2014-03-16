@@ -2,24 +2,22 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "Common.h"
-#include "VideoConfig.h"
-#include "MathUtil.h"
-
 #include <cmath>
 #include <sstream>
 
-#include "Statistics.h"
+#include "Common/Common.h"
+#include "Common/MathUtil.h"
+#include "VideoCommon/BPMemory.h"
+#include "VideoCommon/CPMemory.h"
+#include "VideoCommon/RenderBase.h"
+#include "VideoCommon/Statistics.h"
+#include "VideoCommon/VertexManagerBase.h"
+#include "VideoCommon/VertexShaderGen.h"
+#include "VideoCommon/VertexShaderManager.h"
+#include "VideoCommon/VideoCommon.h"
+#include "VideoCommon/VideoConfig.h"
+#include "VideoCommon/XFMemory.h"
 
-#include "VertexShaderGen.h"
-#include "VertexShaderManager.h"
-#include "BPMemory.h"
-#include "CPMemory.h"
-#include "XFMemory.h"
-#include "VideoCommon.h"
-#include "VertexManagerBase.h"
-
-#include "RenderBase.h"
 float GC_ALIGNED16(g_fProjectionMatrix[16]);
 
 // track changes
@@ -53,7 +51,6 @@ namespace
 // Control Variables
 static ProjectionHack g_ProjHack1;
 static ProjectionHack g_ProjHack2;
-static bool g_ProjHack3;
 } // Namespace
 
 float PHackValue(std::string sValue)
@@ -92,7 +89,6 @@ void UpdateProjectionHack(int iPhackvalue[], std::string sPhackvalue[])
 {
 	float fhackvalue1 = 0, fhackvalue2 = 0;
 	float fhacksign1 = 1.0, fhacksign2 = 1.0;
-	bool bProjHack3 = false;
 	const char *sTemp[2];
 
 	if (iPhackvalue[0] == 1)
@@ -110,17 +106,11 @@ void UpdateProjectionHack(int iPhackvalue[], std::string sPhackvalue[])
 		fhackvalue2 = PHackValue(sPhackvalue[1]);
 		NOTICE_LOG(VIDEO, "- zFar Correction =  (%f + zFar)%s", fhackvalue2, sTemp[1]);
 
-		sTemp[0] = "DISABLED";
-		bProjHack3 = (iPhackvalue[3] == 1) ? true : bProjHack3;
-		if (bProjHack3)
-			sTemp[0] = "ENABLED";
-		NOTICE_LOG(VIDEO, "- Extra Parameter: %s", sTemp[0]);
 	}
 
 	// Set the projections hacks
 	g_ProjHack1 = ProjectionHack(fhacksign1, fhackvalue1);
 	g_ProjHack2 = ProjectionHack(fhacksign2, fhackvalue2);
-	g_ProjHack3 = bProjHack3;
 }
 
 
@@ -146,22 +136,22 @@ static void ViewportCorrectionMatrix(Matrix44& result)
 	float intendedWd = 2.0f * xfregs.viewport.wd;
 	float intendedHt = -2.0f * xfregs.viewport.ht;
 	
-        if (intendedWd < 0.f)
-        {
-                intendedX += intendedWd;
-                intendedWd = -intendedWd;
-        }
-        if (intendedHt < 0.f)
-        {
-                intendedY += intendedHt;
-                intendedHt = -intendedHt;
-        }
+	if (intendedWd < 0.f)
+	{
+		intendedX += intendedWd;
+		intendedWd = -intendedWd;
+	}
+	if (intendedHt < 0.f)
+	{
+		intendedY += intendedHt;
+		intendedHt = -intendedHt;
+	}
 
 	// fit to EFB size
-        float X = (intendedX >= 0.f) ? intendedX : 0.f;
-        float Y = (intendedY >= 0.f) ? intendedY : 0.f;
-        float Wd = (X + intendedWd <= EFB_WIDTH) ? intendedWd : (EFB_WIDTH - X);
-        float Ht = (Y + intendedHt <= EFB_HEIGHT) ? intendedHt : (EFB_HEIGHT - Y);
+	float X = (intendedX >= 0.f) ? intendedX : 0.f;
+	float Y = (intendedY >= 0.f) ? intendedY : 0.f;
+	float Wd = (X + intendedWd <= EFB_WIDTH) ? intendedWd : (EFB_WIDTH - X);
+	float Ht = (Y + intendedHt <= EFB_HEIGHT) ? intendedHt : (EFB_HEIGHT - Y);
 	
 	Matrix44::LoadIdentity(result);
 	if (Wd == 0 || Ht == 0)
@@ -172,8 +162,6 @@ static void ViewportCorrectionMatrix(Matrix44& result)
 	result.data[4*1+1] = intendedHt / Ht;
 	result.data[4*1+3] = (-intendedHt + 2.f * (Y - intendedY)) / Ht + 1.f;
 }
-
-void UpdateViewport();
 
 void VertexShaderManager::Init()
 {
@@ -237,7 +225,7 @@ void VertexShaderManager::SetConstants()
 	{
 		int startn = nNormalMatricesChanged[0] / 3;
 		int endn = (nNormalMatricesChanged[1] + 2) / 3;
-		for(int i=startn; i<endn; i++)
+		for (int i=startn; i<endn; i++)
 		{
 			memcpy(constants.normalmatrices[i], &xfmem[XFMEM_NORMALMATRICES + 3*i], 12);
 		}
@@ -256,6 +244,7 @@ void VertexShaderManager::SetConstants()
 
 	if (nLightsChanged[0] >= 0)
 	{
+		// TODO: Outdated comment
 		// lights don't have a 1 to 1 mapping, the color component needs to be converted to 4 floats
 		int istart = nLightsChanged[0] / 0x10;
 		int iend = (nLightsChanged[1] + 15) / 0x10;
@@ -264,10 +253,10 @@ void VertexShaderManager::SetConstants()
 		for (int i = istart; i < iend; ++i)
 		{
 			u32 color = *(const u32*)(xfmemptr + 3);
-			constants.lights[5*i][0] = ((color >> 24) & 0xFF) / 255.0f;
-			constants.lights[5*i][1] = ((color >> 16) & 0xFF) / 255.0f;
-			constants.lights[5*i][2] = ((color >> 8)  & 0xFF) / 255.0f;
-			constants.lights[5*i][3] = ((color)       & 0xFF) / 255.0f;
+			constants.light_colors[i][0] = (color >> 24) & 0xFF;
+			constants.light_colors[i][1] = (color >> 16) & 0xFF;
+			constants.light_colors[i][2] = (color >> 8)  & 0xFF;
+			constants.light_colors[i][3] = (color)       & 0xFF;
 			xfmemptr += 4;
 
 			for (int j = 0; j < 4; ++j, xfmemptr += 3)
@@ -278,12 +267,12 @@ void VertexShaderManager::SetConstants()
 					fabs(xfmemptr[2]) < 0.00001f)
 				{
 					// dist attenuation, make sure not equal to 0!!!
-					constants.lights[5*i+j+1][0] = 0.00001f;
+					constants.lights[4*i+j][0] = 0.00001f;
 				}
 				else
-					constants.lights[5*i+j+1][0] = xfmemptr[0];
-				constants.lights[5*i+j+1][1] = xfmemptr[1];
-				constants.lights[5*i+j+1][2] = xfmemptr[2];
+					constants.lights[4*i+j][0] = xfmemptr[0];
+				constants.lights[4*i+j][1] = xfmemptr[1];
+				constants.lights[4*i+j][2] = xfmemptr[2];
 			}
 		}
 		dirty = true;
@@ -298,10 +287,10 @@ void VertexShaderManager::SetConstants()
 			if (nMaterialsChanged & (1 << i))
 			{
 				u32 data = *(xfregs.ambColor + i);
-				constants.materials[i][0] = ((data >> 24) & 0xFF) / 255.0f;
-				constants.materials[i][1] = ((data >> 16) & 0xFF) / 255.0f;
-				constants.materials[i][2] = ((data >>  8) & 0xFF) / 255.0f;
-				constants.materials[i][3] = ( data        & 0xFF) / 255.0f;
+				constants.materials[i][0] = (data >> 24) & 0xFF;
+				constants.materials[i][1] = (data >> 16) & 0xFF;
+				constants.materials[i][2] = (data >>  8) & 0xFF;
+				constants.materials[i][3] =  data        & 0xFF;
 			}
 		}
 
@@ -310,10 +299,10 @@ void VertexShaderManager::SetConstants()
 			if (nMaterialsChanged & (1 << (i + 2)))
 			{
 				u32 data = *(xfregs.matColor + i);
-				constants.materials[i+2][0] = ((data >> 24) & 0xFF) / 255.0f;
-				constants.materials[i+2][1] = ((data >> 16) & 0xFF) / 255.0f;
-				constants.materials[i+2][2] = ((data >>  8) & 0xFF) / 255.0f;
-				constants.materials[i+2][3] = ( data        & 0xFF) / 255.0f;
+				constants.materials[i+2][0] = (data >> 24) & 0xFF;
+				constants.materials[i+2][1] = (data >> 16) & 0xFF;
+				constants.materials[i+2][2] = (data >>  8) & 0xFF;
+				constants.materials[i+2][3] =  data        & 0xFF;
 			}
 		}
 		dirty = true;
@@ -373,13 +362,13 @@ void VertexShaderManager::SetConstants()
 		constants.depthparams[1] = xfregs.viewport.zRange / 16777216.0f;
 		dirty = true;
 		// This is so implementation-dependent that we can't have it here.
-		UpdateViewport();
+		g_renderer->SetViewport();
 		
 		// Update projection if the viewport isn't 1:1 useable
-		if(!g_ActiveConfig.backend_info.bSupportsOversizedViewports)
+		if (!g_ActiveConfig.backend_info.bSupportsOversizedViewports)
 		{
 			ViewportCorrectionMatrix(s_viewportCorrection);
-			bProjectionChanged = true;			
+			bProjectionChanged = true;
 		}
 	}
 
@@ -389,7 +378,7 @@ void VertexShaderManager::SetConstants()
 
 		float *rawProjection = xfregs.projection.rawProjection;
 
-		switch(xfregs.projection.type)
+		switch (xfregs.projection.type)
 		{
 		case GX_PERSPECTIVE:
 
@@ -455,15 +444,8 @@ void VertexShaderManager::SetConstants()
 			g_fProjectionMatrix[12] = 0.0f;
 			g_fProjectionMatrix[13] = 0.0f;
 
-			/*
-			projection hack for metroid other m...attempt to remove black projection layer from cut scenes.
-			g_fProjectionMatrix[15] = 1.0f was the default setting before
-			this hack was added...setting g_fProjectionMatrix[14] to -1 might make the hack more stable, needs more testing.
-			Only works for OGL and DX9...this is not helping DX11
-			*/
-
 			g_fProjectionMatrix[14] = 0.0f;
-			g_fProjectionMatrix[15] = (g_ProjHack3 && rawProjection[0] == 2.0f ? 0.0f : 1.0f);  //causes either the efb copy or bloom layer not to show if proj hack enabled
+			g_fProjectionMatrix[15] = 1.0f;
 
 			SETSTAT_FT(stats.g2proj_0, g_fProjectionMatrix[0]);
 			SETSTAT_FT(stats.g2proj_1, g_fProjectionMatrix[1]);

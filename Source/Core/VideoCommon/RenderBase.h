@@ -12,17 +12,16 @@
 // Next frame, that one is scanned out and the other one gets the copy. = double buffering.
 // ---------------------------------------------------------------------------------------------
 
-#ifndef _COMMON_RENDERBASE_H_
-#define _COMMON_RENDERBASE_H_
-
-#include "VideoCommon.h"
-#include "Thread.h"
-#include "MathUtil.h"
-#include "NativeVertexFormat.h"
-#include "FramebufferManagerBase.h"
-#include "BPMemory.h"
+#pragma once
 
 #include <string>
+
+#include "Common/MathUtil.h"
+#include "Common/Thread.h"
+#include "VideoCommon/BPMemory.h"
+#include "VideoCommon/FramebufferManagerBase.h"
+#include "VideoCommon/NativeVertexFormat.h"
+#include "VideoCommon/VideoCommon.h"
 
 // TODO: Move these out of here.
 extern int frameCount;
@@ -50,7 +49,7 @@ public:
 
 	virtual void SetColorMask() = 0;
 	virtual void SetBlendMode(bool forceUpdate) = 0;
-	virtual void SetScissorRect(const TargetRectangle& rc) = 0;
+	virtual void SetScissorRect(const EFBRectangle& rc) = 0;
 	virtual void SetGenerationMode() = 0;
 	virtual void SetDepthMode() = 0;
 	virtual void SetLogicOpMode() = 0;
@@ -58,6 +57,7 @@ public:
 	virtual void SetLineWidth() = 0;
 	virtual void SetSamplerState(int stage,int texindex) = 0;
 	virtual void SetInterlacingMode() = 0;
+	virtual void SetViewport() = 0;
 
 	virtual void ApplyState(bool bUseDstAlpha) = 0;
 	virtual void RestoreState() = 0;
@@ -90,10 +90,10 @@ public:
 	static float EFBToScaledYf(float y) { return y * ((float)GetTargetHeight() / (float)EFB_HEIGHT); }
 
 	// Random utilities
-	static void SetScreenshot(const char *filename);
+	static void SetScreenshot(const std::string& filename);
 	static void DrawDebugText();
 
-	virtual void RenderText(const char* pstr, int left, int top, u32 color) = 0;
+	virtual void RenderText(const std::string& text, int left, int top, u32 color) = 0;
 
 	virtual void ClearScreen(const EFBRectangle& rc, bool colorEnable, bool alphaEnable, bool zEnable, u32 color, u32 z) = 0;
 	virtual void ReinterpretPixelData(unsigned int convtype) = 0;
@@ -106,9 +106,8 @@ public:
 	virtual void RestoreAPIState() = 0;
 
 	// Finish up the current frame, print some stats
-	virtual void Swap(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& rc,float Gamma = 1.0f) = 0;
-
-	virtual void UpdateViewport() = 0;
+	static void Swap(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& rc,float Gamma = 1.0f);
+	virtual void SwapImpl(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& rc,float Gamma = 1.0f) = 0;
 
 	virtual bool SaveScreenshot(const std::string &filename, const TargetRectangle &rc) = 0;
 
@@ -151,8 +150,6 @@ protected:
 	static bool s_skipSwap;
 	static bool XFBWrited;
 
-	static bool s_EnableDLCachingAfterRecording;
-
 private:
 	static unsigned int prev_efb_format;
 	static unsigned int efb_scale_numeratorX;
@@ -163,6 +160,3 @@ private:
 
 extern Renderer *g_renderer;
 
-void UpdateViewport();
-
-#endif // _COMMON_RENDERBASE_H_

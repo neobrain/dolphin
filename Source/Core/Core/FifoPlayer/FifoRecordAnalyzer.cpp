@@ -2,22 +2,21 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "FifoAnalyzer.h"
-#include "FifoRecordAnalyzer.h"
-#include "FifoRecorder.h"
+#include "Core/Core.h"
+#include "Core/FifoPlayer/FifoAnalyzer.h"
+#include "Core/FifoPlayer/FifoRecordAnalyzer.h"
+#include "Core/FifoPlayer/FifoRecorder.h"
+#include "Core/HW/Memmap.h"
 
-#include "Core.h"
-#include "HW/Memmap.h"
-
-#include "OpcodeDecoding.h"
-#include "TextureDecoder.h"
+#include "VideoCommon/OpcodeDecoding.h"
+#include "VideoCommon/TextureDecoder.h"
 
 using namespace FifoAnalyzer;
 
 
 FifoRecordAnalyzer::FifoRecordAnalyzer() :
 	m_DrawingObject(false),
-	m_BpMem(NULL)
+	m_BpMem(nullptr)
 {
 }
 

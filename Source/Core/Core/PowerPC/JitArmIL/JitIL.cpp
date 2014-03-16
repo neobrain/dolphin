@@ -1,25 +1,25 @@
-// Copyright 2013 Dolphin Emulator Project
+// Copyright 2014 Dolphin Emulator Project
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
 #include <map>
 
-#include "Common.h"
-#include "../../HLE/HLE.h"
-#include "../../Core.h"
-#include "../../PatchEngine.h"
-#include "../../CoreTiming.h"
-#include "../../ConfigManager.h"
-#include "../PowerPC.h"
-#include "../Profiler.h"
-#include "../PPCTables.h"
-#include "../PPCAnalyst.h"
-#include "../../HW/Memmap.h"
-#include "../../HW/GPFifo.h"
-#include "JitIL.h"
-#include "JitIL_Tables.h"
-#include "ArmEmitter.h"
-#include "../JitInterface.h"
+#include "Common/ArmEmitter.h"
+#include "Common/Common.h"
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
+#include "Core/CoreTiming.h"
+#include "Core/PatchEngine.h"
+#include "Core/HLE/HLE.h"
+#include "Core/HW/GPFifo.h"
+#include "Core/HW/Memmap.h"
+#include "Core/PowerPC/JitInterface.h"
+#include "Core/PowerPC/PowerPC.h"
+#include "Core/PowerPC/PPCAnalyst.h"
+#include "Core/PowerPC/PPCTables.h"
+#include "Core/PowerPC/Profiler.h"
+#include "Core/PowerPC/JitArmIL/JitIL.h"
+#include "Core/PowerPC/JitArmIL/JitIL_Tables.h"
 
 using namespace ArmGen;
 using namespace PowerPC;
@@ -50,13 +50,13 @@ void JitArmIL::Shutdown()
 }
 void JitArmIL::unknown_instruction(UGeckoInstruction inst)
 {
-	//	CCPU::Break();
+	// CCPU::Break();
 	PanicAlert("unknown_instruction %08x - Fix me ;)", inst.hex);
 }
 
-void JitArmIL::Default(UGeckoInstruction _inst)
+void JitArmIL::FallBackToInterpreter(UGeckoInstruction _inst)
 {
-	ibuild.EmitInterpreterFallback(
+	ibuild.EmitFallBackToInterpreter(
 		ibuild.EmitIntConst(_inst.hex),
 		ibuild.EmitIntConst(js.compilerPC));
 }
@@ -81,7 +81,7 @@ void JitArmIL::DoDownCount()
 	ARMReg rB = R12;
 	MOVI2R(rA, (u32)&CoreTiming::downcount);
 	LDR(rB, rA);
-	if(js.downcountAmount < 255) // We can enlarge this if we used rotations
+	if (js.downcountAmount < 255) // We can enlarge this if we used rotations
 	{
 		SUBS(rB, rB, js.downcountAmount);
 		STR(rB, rA);
@@ -117,21 +117,23 @@ void JitArmIL::WriteExceptionExit()
 	MOVI2R(R14, (u32)asm_routines.testExceptions);
 	B(R14);
 }
-void JitArmIL::WriteExit(u32 destination, int exit_num)
+void JitArmIL::WriteExit(u32 destination)
 {
 	DoDownCount();
 	//If nobody has taken care of this yet (this can be removed when all branches are done)
 	JitBlock *b = js.curBlock;
-	b->exitAddress[exit_num] = destination;
-	b->exitPtrs[exit_num] = GetWritableCodePtr();
+	JitBlock::LinkData linkData;
+	linkData.exitAddress = destination;
+	linkData.exitPtrs = GetWritableCodePtr();
+	linkData.linkStatus = false;
 
 	// Link opportunity!
-	int block = blocks.GetBlockNumberFromStartAddress(destination);
-	if (block >= 0 && jo.enableBlocklink)
+	int block; 
+	if (jo.enableBlocklink && (block = blocks.GetBlockNumberFromStartAddress(destination)) >= 0)
 	{
 		// It exists! Joy of joy!
 		B(blocks.GetBlock(block)->checkedEntry);
-		b->linkStatus[exit_num] = true;
+		linkData.linkStatus = true;
 	}
 	else
 	{
@@ -140,6 +142,8 @@ void JitArmIL::WriteExit(u32 destination, int exit_num)
 		MOVI2R(R14, (u32)asm_routines.dispatcher);
 		B(R14);
 	}
+
+	b->linkData.push_back(linkData);
 }
 void JitArmIL::PrintDebug(UGeckoInstruction inst, u32 level)
 {
@@ -151,19 +155,19 @@ void JitArmIL::PrintDebug(UGeckoInstruction inst, u32 level)
 		printf("\tOuts\n");
 		if (Info->flags & FL_OUT_A)
 			printf("\t-OUT_A: %x\n", inst.RA);
-		if(Info->flags & FL_OUT_D)
+		if (Info->flags & FL_OUT_D)
 			printf("\t-OUT_D: %x\n", inst.RD);
 		printf("\tIns\n");
 		// A, AO, B, C, S
-		if(Info->flags & FL_IN_A)
+		if (Info->flags & FL_IN_A)
 			printf("\t-IN_A: %x\n", inst.RA);
-		if(Info->flags & FL_IN_A0)
+		if (Info->flags & FL_IN_A0)
 			printf("\t-IN_A0: %x\n", inst.RA);
-		if(Info->flags & FL_IN_B)
+		if (Info->flags & FL_IN_B)
 			printf("\t-IN_B: %x\n", inst.RB);
-		if(Info->flags & FL_IN_C)
+		if (Info->flags & FL_IN_C)
 			printf("\t-IN_C: %x\n", inst.RC);
-		if(Info->flags & FL_IN_S)
+		if (Info->flags & FL_IN_S)
 			printf("\t-IN_S: %x\n", inst.RS);
 	}
 }
@@ -344,15 +348,15 @@ const u8* JitArmIL::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitB
 	}
 	if (memory_exception)
 		BKPT(0x500);
-	if	(broken_block)
+	if (broken_block)
 	{
 		printf("Broken Block going to 0x%08x\n", nextPC);
-		WriteExit(nextPC, 0);
+		WriteExit(nextPC);
 	}
 
 	// Perform actual code generation
 
-	WriteCode();
+	WriteCode(nextPC);
 	b->flags = js.block_flags;
 	b->codeSize = (u32)(GetCodePtr() - normalEntry);
 	b->originalSize = size;

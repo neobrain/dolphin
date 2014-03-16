@@ -2,15 +2,16 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include <string>
 #include <cinttypes>
+#include <string>
 
-#include "Common.h"
 #include "disasm.h"
-#include "JitBase.h"
-#include "JitBackpatch.h"
 
-#include "StringUtil.h"
+#include "Common/Common.h"
+#include "Common/StringUtil.h"
+#include "Core/PowerPC/JitCommon/JitBackpatch.h"
+#include "Core/PowerPC/JitCommon/JitBase.h"
+
 #ifdef _WIN32
 	#include <windows.h>
 #endif
@@ -20,13 +21,13 @@ using namespace Gen;
 
 extern u8 *trampolineCodePtr;
 
-#ifdef _M_X64
+#if _M_X86_64
 static void BackPatchError(const std::string &text, u8 *codePtr, u32 emAddress) {
 	u64 code_addr = (u64)codePtr;
 	disassembler disasm;
 	char disbuf[256];
 	memset(disbuf, 0, 256);
-#ifdef _M_IX86
+#if _M_X86_32
 	disasm.disasm32(0, code_addr, codePtr, disbuf);
 #else
 	disasm.disasm64(0, code_addr, codePtr, disbuf);
@@ -56,7 +57,7 @@ const u8 *TrampolineCache::GetReadTrampoline(const InstructionInfo &info, u32 re
 		PanicAlert("Trampoline cache full");
 
 	const u8 *trampoline = GetCodePtr();
-#ifdef _M_X64
+#if _M_X86_64
 	X64Reg addrReg = (X64Reg)info.scaledReg;
 	X64Reg dataReg = (X64Reg)info.regOperandReg;
 
@@ -104,7 +105,7 @@ const u8 *TrampolineCache::GetWriteTrampoline(const InstructionInfo &info, u32 r
 
 	const u8 *trampoline = GetCodePtr();
 
-#ifdef _M_X64
+#if _M_X86_64
 	X64Reg dataReg = (X64Reg)info.regOperandReg;
 	X64Reg addrReg = (X64Reg)info.scaledReg;
 
@@ -166,30 +167,31 @@ const u8 *TrampolineCache::GetWriteTrampoline(const InstructionInfo &info, u32 r
 //    that many of them in a typical program/game.
 const u8 *Jitx86Base::BackPatch(u8 *codePtr, u32 emAddress, void *ctx_void)
 {
-#ifdef _M_X64
+#if _M_X86_64
 	SContext *ctx = (SContext *)ctx_void;
 
 	if (!jit->IsInCodeSpace(codePtr))
-		return 0;  // this will become a regular crash real soon after this
+		return nullptr;  // this will become a regular crash real soon after this
 
-	InstructionInfo info;
+	InstructionInfo info = {};
+
 	if (!DisassembleMov(codePtr, &info)) {
 		BackPatchError("BackPatch - failed to disassemble MOV instruction", codePtr, emAddress);
-		return 0;
+		return nullptr;
 	}
 
 	if (info.otherReg != RBX)
 	{
 		PanicAlert("BackPatch : Base reg not RBX."
 		           "\n\nAttempted to access %08x.", emAddress);
-		return 0;
+		return nullptr;
 	}
 
 	auto it = registersInUseAtLoc.find(codePtr);
 	if (it == registersInUseAtLoc.end())
 	{
 		PanicAlert("BackPatch: no register use entry for address %p", codePtr);
-		return 0;
+		return nullptr;
 	}
 
 	u32 registersInUse = it->second;

@@ -2,27 +2,27 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
+#include <string>
 #include <windows.h>
 
-#include "VideoConfig.h"
-#include "EmuWindow.h"
-#include "Fifo.h"
-#include "VideoBackendBase.h"
-#include "Core.h"
-#include "Host.h"
-#include "ConfigManager.h"
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
+#include "Core/Host.h"
+
+#include "VideoCommon/EmuWindow.h"
+#include "VideoCommon/Fifo.h"
+#include "VideoCommon/VideoBackendBase.h"
+#include "VideoCommon/VideoConfig.h"
 
 namespace EmuWindow
 {
-HWND m_hWnd = NULL;
-HWND m_hParent = NULL;
-HINSTANCE m_hInstance = NULL;
+HWND m_hWnd = nullptr;
+HWND m_hParent = nullptr;
+HINSTANCE m_hInstance = nullptr;
 WNDCLASSEX wndClass;
 const TCHAR m_szClassName[] = _T("DolphinEmuWnd");
 int g_winstyle;
 static volatile bool s_sizing;
-static const int TITLE_TEXT_BUF_SIZE = 1024;
-TCHAR m_titleTextBuffer[TITLE_TEXT_BUF_SIZE];
 static const int WM_SETTEXT_CUSTOM = WM_USER + WM_SETTEXT;
 
 bool IsSizing()
@@ -42,7 +42,7 @@ HWND GetParentWnd()
 
 LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 {
-	switch( iMsg )
+	switch ( iMsg )
 	{
 	case WM_PAINT:
 		{
@@ -64,7 +64,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 	/* Post the mouse events to the main window, it's necessary, because the difference between the
 	   keyboard inputs is that these events only appear here, not in the parent window or any other WndProc()*/
 	case WM_LBUTTONDOWN:
-		if(g_ActiveConfig.backend_info.bSupports3DVision && g_ActiveConfig.b3DVision)
+		if (g_ActiveConfig.backend_info.bSupports3DVision && g_ActiveConfig.b3DVision)
 		{
 			// This basically throws away the left button down input when b3DVision is activated so WX
 			// can't get access to it, stopping focus pulling on mouse click.
@@ -80,7 +80,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 	case WM_CLOSE:
 		// When the user closes the window, we post an event to the main window to call Stop()
 		// Which then handles all the necessary steps to Shutdown the core
-		if (m_hParent == NULL)
+		if (m_hParent == nullptr)
 		{
 			// Stop the game
 			//PostMessage(m_hParent, WM_USER, WM_USER_STOP, 0);
@@ -125,12 +125,12 @@ HWND OpenWindow(HWND parent, HINSTANCE hInstance, int width, int height, const T
 	wndClass.cbClsExtra = 0;
 	wndClass.cbWndExtra = 0;
 	wndClass.hInstance = hInstance;
-	wndClass.hIcon = LoadIcon( NULL, IDI_APPLICATION );
-	wndClass.hCursor = NULL;
+	wndClass.hIcon = LoadIcon( nullptr, IDI_APPLICATION );
+	wndClass.hCursor = nullptr;
 	wndClass.hbrBackground = (HBRUSH)GetStockObject( BLACK_BRUSH );
-	wndClass.lpszMenuName = NULL;
+	wndClass.lpszMenuName = nullptr;
 	wndClass.lpszClassName = m_szClassName;
-	wndClass.hIconSm = LoadIcon( NULL, IDI_APPLICATION );
+	wndClass.hIconSm = LoadIcon( nullptr, IDI_APPLICATION );
 
 	m_hInstance = hInstance;
 	RegisterClassEx( &wndClass );
@@ -138,7 +138,7 @@ HWND OpenWindow(HWND parent, HINSTANCE hInstance, int width, int height, const T
 	m_hParent = parent;
 
 	m_hWnd = CreateWindow(m_szClassName, title, (g_ActiveConfig.backend_info.bSupports3DVision && g_ActiveConfig.b3DVision) ? WS_EX_TOPMOST | WS_POPUP : WS_CHILD,
-		0, 0, width, height, m_hParent, NULL, hInstance, NULL);
+		0, 0, width, height, m_hParent, nullptr, hInstance, nullptr);
 
 	return m_hWnd;
 }
@@ -155,8 +155,7 @@ HWND Create(HWND hParent, HINSTANCE hInstance, const TCHAR *title)
 {
 	// TODO:
 	// 1. Remove redundant window manipulation,
-	// 2. Make DX9 in fullscreen can be overlapped by other dialogs
-	// 3. Request window sizes which actually make the client area map to a common resolution
+	// 2. Request window sizes which actually make the client area map to a common resolution
 	HWND Ret;
 	int x=0, y=0, width=640, height=480;
 	Host_GetRenderWindowSize(x, y, width, height);
@@ -193,27 +192,11 @@ void SetSize(int width, int height)
 	MoveWindow(m_hWnd, rc.left, rc.top, rc.right-rc.left, rc.bottom-rc.top, TRUE);
 }
 
-void SetWindowText(const TCHAR* text)
+void SetWindowText(const std::string& text)
 {
-	// the simple way.
-	// we don't do this because it's a blocking call and the GUI thread might be waiting for us.
-	//::SetWindowText(m_hWnd, text);
-
-	// copy to m_titleTextBuffer in such a way that
-	// it remains null-terminated and without garbage data at every point in time,
-	// in case another thread reads it while we're doing this.
-	for (int i = 0; i < TITLE_TEXT_BUF_SIZE-1; ++i)
-	{
-		m_titleTextBuffer[i+1] = 0;
-		TCHAR c = text[i];
-		m_titleTextBuffer[i] = c;
-		if (!c)
-			break;
-	}
-
 	// the OS doesn't allow posting WM_SETTEXT,
 	// so we post our own message and convert it to that in WndProc
-	PostMessage(m_hWnd, WM_SETTEXT_CUSTOM, 0, (LPARAM)m_titleTextBuffer);
+	PostMessage(m_hWnd, WM_SETTEXT_CUSTOM, 0, (LPARAM)text.c_str());
 }
 
 }

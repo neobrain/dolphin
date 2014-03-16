@@ -4,18 +4,19 @@
 
 #pragma once
 
-#include <dxgi.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
-#include "Common.h"
+#include <dxgi.h>
 #include <vector>
+
+#include "Common/Common.h"
 
 namespace DX11
 {
 
-#define SAFE_RELEASE(x) { if (x) (x)->Release(); (x) = NULL; }
-#define SAFE_DELETE(x) { delete (x); (x) = NULL; }
-#define SAFE_DELETE_ARRAY(x) { delete[] (x); (x) = NULL; }
+#define SAFE_RELEASE(x) { if (x) (x)->Release(); (x) = nullptr; }
+#define SAFE_DELETE(x) { delete (x); (x) = nullptr; }
+#define SAFE_DELETE_ARRAY(x) { delete[] (x); (x) = nullptr; }
 #define CHECK(cond, Message, ...) if (!(cond)) { PanicAlert(__FUNCTION__ "Failed in %s at line %d: " Message, __FILE__, __LINE__, __VA_ARGS__); }
 
 class D3DTexture2D;

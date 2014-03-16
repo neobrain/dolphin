@@ -2,11 +2,10 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _DSOUNDSTREAM_H_
-#define _DSOUNDSTREAM_H_
+#pragma once
 
-#include "SoundStream.h"
-#include "Thread.h"
+#include "AudioCommon/SoundStream.h"
+#include "Common/Thread.h"
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -76,5 +75,3 @@ public:
 	{}
 #endif
 };
-
-#endif //_DSOUNDSTREAM_H_

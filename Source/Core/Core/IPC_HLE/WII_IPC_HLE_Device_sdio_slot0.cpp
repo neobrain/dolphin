@@ -2,24 +2,23 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "Common.h"
-#include "../ConfigManager.h"
+#include "Common/Common.h"
+#include "Common/SDCardUtil.h"
 
-#include "SDCardUtil.h"
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
+#include "Core/HW/CPU.h"
+#include "Core/HW/Memmap.h"
+#include "Core/IPC_HLE/WII_IPC_HLE.h"
+#include "Core/IPC_HLE/WII_IPC_HLE_Device_sdio_slot0.h"
 
-#include "WII_IPC_HLE.h"
-#include "WII_IPC_HLE_Device_sdio_slot0.h"
-
-#include "../HW/CPU.h"
-#include "../HW/Memmap.h"
-#include "../Core.h"
 
 CWII_IPC_HLE_Device_sdio_slot0::CWII_IPC_HLE_Device_sdio_slot0(u32 _DeviceID, const std::string& _rDeviceName)
 	: IWII_IPC_HLE_Device(_DeviceID, _rDeviceName)
 	, m_Status(CARD_NOT_EXIST)
 	, m_BlockLength(0)
 	, m_BusWidth(0)
-	, m_Card(NULL)
+	, m_Card(nullptr)
 {}
 
 void CWII_IPC_HLE_Device_sdio_slot0::DoState(PointerWrap& p)
@@ -54,7 +53,7 @@ void CWII_IPC_HLE_Device_sdio_slot0::OpenInternal()
 	if (!m_Card)
 	{
 		WARN_LOG(WII_IPC_SD, "Failed to open SD Card image, trying to create a new 128MB image...");
-		if (SDCardCreate(128, filename.c_str()))
+		if (SDCardCreate(128, filename))
 		{
 			WARN_LOG(WII_IPC_SD, "Successfully created %s", filename.c_str());
 			m_Card.Open(filename, "r+b");
@@ -97,17 +96,18 @@ bool CWII_IPC_HLE_Device_sdio_slot0::IOCtl(u32 _CommandAddress)
 {
 	u32 Cmd = Memory::Read_U32(_CommandAddress + 0xC);
 
-	u32 BufferIn		= Memory::Read_U32(_CommandAddress + 0x10);
-	u32 BufferInSize	= Memory::Read_U32(_CommandAddress + 0x14);
-	u32 BufferOut		= Memory::Read_U32(_CommandAddress + 0x18);
-	u32 BufferOutSize	= Memory::Read_U32(_CommandAddress + 0x1C);
+	u32 BufferIn      = Memory::Read_U32(_CommandAddress + 0x10);
+	u32 BufferInSize  = Memory::Read_U32(_CommandAddress + 0x14);
+	u32 BufferOut     = Memory::Read_U32(_CommandAddress + 0x18);
+	u32 BufferOutSize = Memory::Read_U32(_CommandAddress + 0x1C);
 
 	// As a safety precaution we fill the out buffer with zeros to avoid
 	// returning nonsense values
 	Memory::Memset(BufferOut, 0, BufferOutSize);
 
 	u32 ReturnValue = 0;
-	switch (Cmd) {
+	switch (Cmd)
+	{
 	case IOCTL_WRITEHCR:
 		{
 		u32 reg = Memory::Read_U32(BufferIn);
@@ -203,10 +203,10 @@ bool CWII_IPC_HLE_Device_sdio_slot0::IOCtl(u32 _CommandAddress)
 		break;
 	}
 
-// 	INFO_LOG(WII_IPC_SD, "InBuffer");
-// 	DumpCommands(BufferIn, BufferInSize / 4, LogTypes::WII_IPC_SD);
-// 	INFO_LOG(WII_IPC_SD, "OutBuffer");
-// 	DumpCommands(BufferOut, BufferOutSize/4, LogTypes::WII_IPC_SD);
+	// INFO_LOG(WII_IPC_SD, "InBuffer");
+	// DumpCommands(BufferIn, BufferInSize / 4, LogTypes::WII_IPC_SD);
+	// INFO_LOG(WII_IPC_SD, "OutBuffer");
+	// DumpCommands(BufferOut, BufferOutSize/4, LogTypes::WII_IPC_SD);
 
 	if (ReturnValue == RET_EVENT_REGISTER)
 	{
@@ -244,14 +244,14 @@ bool CWII_IPC_HLE_Device_sdio_slot0::IOCtlV(u32 _CommandAddress)
 
 	// Prepare the out buffer(s) with zeros as a safety precaution
 	// to avoid returning bad values
-	for(u32 i = 0; i < CommandBuffer.NumberPayloadBuffer; i++)
+	for (u32 i = 0; i < CommandBuffer.NumberPayloadBuffer; i++)
 	{
 		Memory::Memset(CommandBuffer.PayloadBuffer[i].m_Address, 0,
 			CommandBuffer.PayloadBuffer[i].m_Size);
 	}
 
 	u32 ReturnValue = 0;
-	switch(CommandBuffer.Parameter) {
+	switch (CommandBuffer.Parameter) {
 	case IOCTLV_SENDCMD:
 		INFO_LOG(WII_IPC_SD, "IOCTLV_SENDCMD 0x%08x", Memory::Read_U32(CommandBuffer.InBuffer[0].m_Address));
 		ReturnValue = ExecuteCommand(
@@ -273,8 +273,8 @@ bool CWII_IPC_HLE_Device_sdio_slot0::IOCtlV(u32 _CommandAddress)
 }
 
 u32 CWII_IPC_HLE_Device_sdio_slot0::ExecuteCommand(u32 _BufferIn, u32 _BufferInSize,
-												   u32 _rwBuffer, u32 _rwBufferSize,
-												   u32 _BufferOut, u32 _BufferOutSize)
+                                                   u32 _rwBuffer, u32 _rwBufferSize,
+                                                   u32 _BufferOut, u32 _BufferOutSize)
 {
 	// The game will send us a SendCMD with this information. To be able to read and write
 	// to a file we need to prepare a 0x10 byte output buffer as response.
@@ -291,14 +291,14 @@ u32 CWII_IPC_HLE_Device_sdio_slot0::ExecuteCommand(u32 _BufferIn, u32 _BufferInS
 	} req;
 
 	req.command = Memory::Read_U32(_BufferIn + 0);
-	req.type	= Memory::Read_U32(_BufferIn + 4);
-	req.resp	= Memory::Read_U32(_BufferIn + 8);
-	req.arg		= Memory::Read_U32(_BufferIn + 12);
-	req.blocks	= Memory::Read_U32(_BufferIn + 16);
-	req.bsize	= Memory::Read_U32(_BufferIn + 20);
-	req.addr	= Memory::Read_U32(_BufferIn + 24);
-	req.isDMA	= Memory::Read_U32(_BufferIn + 28);
-	req.pad0	= Memory::Read_U32(_BufferIn + 32);
+	req.type    = Memory::Read_U32(_BufferIn + 4);
+	req.resp    = Memory::Read_U32(_BufferIn + 8);
+	req.arg     = Memory::Read_U32(_BufferIn + 12);
+	req.blocks  = Memory::Read_U32(_BufferIn + 16);
+	req.bsize   = Memory::Read_U32(_BufferIn + 20);
+	req.addr    = Memory::Read_U32(_BufferIn + 24);
+	req.isDMA   = Memory::Read_U32(_BufferIn + 28);
+	req.pad0    = Memory::Read_U32(_BufferIn + 32);
 
 	// Note: req.addr is the virtual address of _rwBuffer
 
@@ -332,7 +332,7 @@ u32 CWII_IPC_HLE_Device_sdio_slot0::ExecuteCommand(u32 _BufferIn, u32 _BufferInS
 	case SEND_CSD:
 		DEBUG_LOG(WII_IPC_SD, "SEND_CSD");
 		// <WntrMute> shuffle2_, OCR: 0x80ff8000 CID: 0x38a00000 0x480032d5 0x3c608030 0x8803d420
-		//	CSD: 0xff928040 0xc93efbcf 0x325f5a83 0x00002600
+		// CSD: 0xff928040 0xc93efbcf 0x325f5a83 0x00002600
 
 		// Values used currently are from lpfaint99
 		Memory::Write_U32(0x80168000, _BufferOut);

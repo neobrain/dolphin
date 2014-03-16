@@ -2,11 +2,10 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _AUDIO_COMMON_H_
-#define _AUDIO_COMMON_H_
+#pragma once
 
-#include "Common.h"
-#include "SoundStream.h"
+#include "AudioCommon/SoundStream.h"
+#include "Common/Common.h"
 
 
 class CMixer;
@@ -47,5 +46,3 @@ namespace AudioCommon
 	void PauseAndLock(bool doLock, bool unpauseOnUnlock=true);
 	void UpdateSoundStream();
 }
-
-#endif // _AUDIO_COMMON_H_

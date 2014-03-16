@@ -2,11 +2,10 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _AOSOUNDSTREAM_H_
-#define _AOSOUNDSTREAM_H_
+#pragma once
 
-#include "SoundStream.h"
-#include "Thread.h"
+#include "AudioCommon/SoundStream.h"
+#include "Common/Thread.h"
 
 #if defined(HAVE_AO) && HAVE_AO
 #include <ao/ao.h>
@@ -32,11 +31,11 @@ public:
 
 	virtual ~AOSound();
 
-	virtual bool Start();
+	virtual bool Start() override;
 
-	virtual void SoundLoop();
+	virtual void SoundLoop() override;
 
-	virtual void Stop();
+	virtual void Stop() override;
 
 	static bool isValid() {
 		return true;
@@ -46,12 +45,10 @@ public:
 		return true;
 	}
 
-	virtual void Update();
+	virtual void Update() override;
 
 #else
 public:
 	AOSound(CMixer *mixer) : SoundStream(mixer) {}
 #endif
 };
-
-#endif //_AOSOUNDSTREAM_H_

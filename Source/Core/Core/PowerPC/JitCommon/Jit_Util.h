@@ -2,11 +2,13 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included./
 
-#ifndef _JITUTIL_H
-#define _JITUTIL_H
+#pragma once
 
-#include "x64Emitter.h"
 #include <unordered_map>
+
+#include "Common/x64Emitter.h"
+
+namespace MMIO { class Mapping; }
 
 #define MEMCHECK_START \
 	FixupBranch memException; \
@@ -28,6 +30,11 @@ public:
 	// these return the address of the MOV, for backpatching
 	u8 *UnsafeWriteRegToReg(Gen::X64Reg reg_value, Gen::X64Reg reg_addr, int accessSize, s32 offset = 0, bool swap = true);
 	u8 *UnsafeLoadToReg(Gen::X64Reg reg_value, Gen::OpArg opAddress, int accessSize, s32 offset, bool signExtend);
+
+	// Generate a load/write from the MMIO handler for a given address. Only
+	// call for known addresses in MMIO range (MMIO::IsMMIOAddress).
+	void MMIOLoadToReg(MMIO::Mapping* mmio, Gen::X64Reg reg_value, u32 registers_in_use, u32 address, int access_size, bool sign_extend);
+
 	enum SafeLoadStoreFlags
 	{
 		SAFE_LOADSTORE_NO_SWAP = 1,
@@ -48,8 +55,10 @@ public:
 
 	void ForceSinglePrecisionS(Gen::X64Reg xmm);
 	void ForceSinglePrecisionP(Gen::X64Reg xmm);
+
+	// AX might get trashed
+	void ConvertSingleToDouble(Gen::X64Reg dst, Gen::X64Reg src, bool src_is_gpr = false);
+	void ConvertDoubleToSingle(Gen::X64Reg dst, Gen::X64Reg src);
 protected:
 	std::unordered_map<u8 *, u32> registersInUseAtLoc;
 };
-
-#endif  // _JITUTIL_H

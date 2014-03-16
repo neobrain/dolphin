@@ -2,19 +2,20 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include <string>
 #include <queue>
+#include <string>
 
-#include "StringUtil.h"
-#include "Interpreter/Interpreter.h"
-#include "../HW/Memmap.h"
-#include "JitInterface.h"
-#include "PPCTables.h"
-#include "PPCSymbolDB.h"
-#include "SignatureDB.h"
-#include "PPCAnalyst.h"
-#include "../ConfigManager.h"
-#include "../GeckoCode.h"
+#include "Common/StringUtil.h"
+
+#include "Core/ConfigManager.h"
+#include "Core/GeckoCode.h"
+#include "Core/HW/Memmap.h"
+#include "Core/PowerPC/JitInterface.h"
+#include "Core/PowerPC/PPCAnalyst.h"
+#include "Core/PowerPC/PPCSymbolDB.h"
+#include "Core/PowerPC/PPCTables.h"
+#include "Core/PowerPC/SignatureDB.h"
+#include "Core/PowerPC/Interpreter/Interpreter.h"
 
 // Analyzes PowerPC code in memory to find functions
 // After running, for each function we will know what functions it calls
@@ -196,7 +197,7 @@ void AnalyzeFunction2(Symbol *func)
 	u32 flags = func->flags;
 
 	bool nonleafcall = false;
-	for (auto c : func->calls)
+	for (const SCall& c : func->calls)
 	{
 		Symbol *called_func = g_symbolDB.GetSymbolFromAddr(c.function);
 		if (called_func && (called_func->flags & FFLAG_LEAF) == 0)
@@ -287,7 +288,7 @@ u32 Flatten(u32 address, int *realsize, BlockStats *st, BlockRegStats *gpa,
 	// Disabled the following optimization in preference of FAST_ICACHE
 	//UGeckoInstruction previnst = Memory::Read_Opcode_JIT_LC(address - 4);
 	//if (previnst.hex == 0x4e800020)
-	//	st->isFirstBlockOfFunction = true;
+	//    st->isFirstBlockOfFunction = true;
 
 	gpa->any = true;
 	fpa->any = false;
@@ -603,10 +604,10 @@ void FindFunctionsAfterBLR(PPCSymbolDB *func_db)
 {
 	vector<u32> funcAddrs;
 
-	for (PPCSymbolDB::XFuncMap::iterator iter = func_db->GetIterator(); iter != func_db->End(); ++iter)
-		funcAddrs.push_back(iter->second.address + iter->second.size);
+	for (const auto& func : func_db->Symbols())
+		funcAddrs.push_back(func.second.address + func.second.size);
 
-	for (auto location : funcAddrs)
+	for (u32& location : funcAddrs)
 	{
 		while (true)
 		{
@@ -637,15 +638,15 @@ void FindFunctions(u32 startAddr, u32 endAddr, PPCSymbolDB *func_db)
 	int numLeafs = 0, numNice = 0, numUnNice = 0;
 	int numTimer = 0, numRFI = 0, numStraightLeaf = 0;
 	int leafSize = 0, niceSize = 0, unniceSize = 0;
-	for (PPCSymbolDB::XFuncMap::iterator iter = func_db->GetIterator(); iter != func_db->End(); ++iter)
+	for (auto& func : func_db->AccessSymbols())
 	{
-		if (iter->second.address == 4)
+		if (func.second.address == 4)
 		{
 			WARN_LOG(OSHLE, "Weird function");
 			continue;
 		}
-		AnalyzeFunction2(&(iter->second));
-		Symbol &f = iter->second;
+		AnalyzeFunction2(&(func.second));
+		Symbol &f = func.second;
 		if (f.name.substr(0, 3) == "zzz")
 		{
 			if (f.flags & FFLAG_LEAF)

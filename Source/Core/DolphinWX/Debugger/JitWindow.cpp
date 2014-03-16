@@ -2,30 +2,34 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
+#include <cstdio>
+#include <cstring>
+#include <disasm.h>        // Bochs
+#include <PowerPCDisasm.h> // Bochs
 #include <wx/button.h>
+#include <wx/chartype.h>
+#include <wx/defs.h>
+#include <wx/event.h>
+#include <wx/gdicmn.h>
+#include <wx/listbase.h>
+#include <wx/listctrl.h>
+#include <wx/panel.h>
+#include <wx/sizer.h>
+#include <wx/string.h>
 #include <wx/textctrl.h>
-#include <wx/listctrl.h>
-#include <wx/thread.h>
-#include <wx/listctrl.h>
+#include <wx/translation.h>
+#include <wx/window.h>
+#include <wx/windowid.h>
 
-#include "JitWindow.h"
-#include "HW/CPU.h"
-#include "PowerPC/PowerPC.h"
-#include "PowerPC/JitCommon/JitBase.h"
-#include "PowerPC/JitCommon/JitCache.h"
-#include "PowerPC/PPCAnalyst.h"
-#include "PowerPCDisasm.h"
-#include "disasm.h"
-
-#include "Debugger/PPCDebugInterface.h"
-#include "Debugger/Debugger_SymbolMap.h"
-
-#include "Core.h"
-#include "StringUtil.h"
-#include "LogManager.h"
-#include "../WxUtils.h"
-
-#include "../Globals.h"
+#include "Common/Common.h"
+#include "Common/StringUtil.h"
+#include "Core/PowerPC/Gekko.h"
+#include "Core/PowerPC/PPCAnalyst.h"
+#include "Core/PowerPC/JitCommon/JitBase.h"
+#include "Core/PowerPC/JitCommon/JitCache.h"
+#include "DolphinWX/Globals.h"
+#include "DolphinWX/WxUtils.h"
+#include "DolphinWX/Debugger/JitWindow.h"
 
 enum
 {
@@ -59,11 +63,11 @@ CJitWindow::CJitWindow(wxWindow* parent, wxWindowID id, const wxPoint& pos,
 				wxLC_REPORT | wxSUNKEN_BORDER | wxLC_ALIGN_LEFT | wxLC_SINGLE_SEL | wxLC_SORT_ASCENDING),
 				0, wxEXPAND);
 	sizerBig->Add(sizerSplit, 2, wxEXPAND);
-//	sizerBig->Add(memview, 5, wxEXPAND);
-//	sizerBig->Add(sizerRight, 0, wxEXPAND | wxALL, 3);
+	// sizerBig->Add(memview, 5, wxEXPAND);
+	// sizerBig->Add(sizerRight, 0, wxEXPAND | wxALL, 3);
 	sizerBig->Add(button_refresh = new wxButton(this, IDM_REFRESH_LIST, _("&Refresh")));
-//	sizerRight->Add(addrbox = new wxTextCtrl(this, IDM_ADDRBOX, _T("")));
-//	sizerRight->Add(new wxButton(this, IDM_SETPC, _("S&et PC")));
+	// sizerRight->Add(addrbox = new wxTextCtrl(this, IDM_ADDRBOX, _T("")));
+	// sizerRight->Add(new wxButton(this, IDM_SETPC, _("S&et PC")));
 
 	SetSizer(sizerBig);
 
@@ -132,7 +136,7 @@ void CJitWindow::Compare(u32 em_address)
 	int num_x86_instructions = 0;
 	while ((u8*)disasmPtr < end)
 	{
-#ifdef _M_X64
+#if _M_X86_64
 		disasmPtr += x64disasm.disasm64(disasmPtr, disasmPtr, (u8*)disasmPtr, sptr);
 #else
 		disasmPtr += x64disasm.disasm32(disasmPtr, disasmPtr, (u8*)disasmPtr, sptr);

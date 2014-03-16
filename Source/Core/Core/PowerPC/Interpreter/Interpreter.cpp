@@ -2,19 +2,19 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
+#include <cinttypes>
 
-#include "Interpreter.h"
 #include "PowerPCDisasm.h"
-#include "../PPCTables.h"
-#include "../../Debugger/Debugger_SymbolMap.h"
-#include "../../Host.h"
-#include "../../IPC_HLE/WII_IPC_HLE.h"
+
+#include "Core/Host.h"
+#include "Core/Debugger/Debugger_SymbolMap.h"
+#include "Core/IPC_HLE/WII_IPC_HLE.h"
+#include "Core/PowerPC/PPCTables.h"
+#include "Core/PowerPC/Interpreter/Interpreter.h"
 
 #ifdef USE_GDBSTUB
-#include "../GDBStub.h"
+#include "Core/PowerPC/GDBStub.h"
 #endif
-
-#include <cinttypes>
 
 namespace {
 	u32 last_pc;
@@ -327,7 +327,7 @@ void Interpreter::ClearCache()
 
 const char *Interpreter::GetName()
 {
-#ifdef _M_X64
+#ifdef _ARCH_64
 		return "Interpreter64";
 #else
 		return "Interpreter32";

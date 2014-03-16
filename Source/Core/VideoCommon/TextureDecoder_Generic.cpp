@@ -15,18 +15,14 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "Common.h"
-//#include "VideoCommon.h" // to get debug logs
-
-#include "CPUDetect.h"
-#include "TextureDecoder.h"
-#include "VideoConfig.h"
-
-#include "LookUpTables.h"
-
 #include <cmath>
 
-
+#include "Common/Common.h"
+#include "Common/CPUDetect.h"
+#include "VideoCommon/LookUpTables.h"
+#include "VideoCommon/TextureDecoder.h"
+//#include "VideoCommon/VideoCommon.h" // to get debug logs
+#include "VideoCommon/VideoConfig.h"
 
 bool TexFmt_Overlay_Enable=false;
 bool TexFmt_Overlay_Center=false;
@@ -732,7 +728,7 @@ PC_TexFormat TexDecoder_Decode_real(u8 *dst, const u8 *src, int width, int heigh
 					{
 						u16 *ptr = (u16 *)dst + (y + iy) * width + x;
 						u16 *s = (u16 *)(src + 8 * xStep);
-						for(int j = 0; j < 4; j++)
+						for (int j = 0; j < 4; j++)
 							*ptr++ = Common::swap16(*s++);
 					}
 		}
@@ -762,7 +758,7 @@ PC_TexFormat TexDecoder_Decode_real(u8 *dst, const u8 *src, int width, int heigh
 					{
 						u16 *ptr = (u16 *)dst + (y + iy) * width + x;
 						u16 *s = (u16 *)(src + 8 * xStep);
-						for(int j = 0; j < 4; j++)
+						for (int j = 0; j < 4; j++)
 							*ptr++ = Common::swap16(*s++);
 					}
 		}
@@ -861,7 +857,7 @@ PC_TexFormat TexDecoder_Decode_RGBA(u32 * dst, const u8 * src, int width, int he
 					for (int iy = 0, xStep =  8 * yStep; iy < 8; iy++,xStep++)
 						decodebytesC4_5A3_To_rgba32(dst + (y + iy) * width + x, src + 4 * xStep, tlutaddr);
 		}
-		else if(tlutfmt == 0)
+		else if (tlutfmt == 0)
 		{
 			for (int y = 0; y < height; y += 8)
 				for (int x = 0, yStep = (y / 8) * Wsteps8; x < width; x += 8,yStep++)
@@ -923,7 +919,7 @@ PC_TexFormat TexDecoder_Decode_RGBA(u32 * dst, const u8 * src, int width, int he
 					for (int iy = 0, xStep = 4 * yStep; iy < 4; iy++, xStep++)
 						decodebytesC8_5A3_To_RGBA32((u32*)dst + (y + iy) * width + x, src + 8 * xStep, tlutaddr);
 		}
-		else if(tlutfmt == 0)
+		else if (tlutfmt == 0)
 		{
 			for (int y = 0; y < height; y += 4)
 				for (int x = 0, yStep = (y / 4) * Wsteps8; x < width; x += 8, yStep++)
@@ -996,7 +992,7 @@ PC_TexFormat TexDecoder_Decode_RGBA(u32 * dst, const u8 * src, int width, int he
 					{
 						u32 *ptr = dst + (y + iy) * width + x;
 						u16 *s = (u16 *)src;
-						for(int j = 0; j < 4; j++)
+						for (int j = 0; j < 4; j++)
 							*ptr++ = decode565RGBA(Common::swap16(*s++));
 					}
 		}
@@ -1097,7 +1093,7 @@ PC_TexFormat TexDecoder_Decode(u8 *dst, const u8 *src, int width, int height, in
 		{
 			for (int x=0; x < xcnt; x++)
 			{
-				switch(retval)
+				switch (retval)
 				{
 				case PC_TEX_FMT_I8:
 					{
@@ -1468,25 +1464,25 @@ PC_TexFormat TexDecoder_DecodeRGBA8FromTmem(u8* dst, const u8 *src_ar, const u8 
 
 const char* texfmt[] = {
 	// pixel
-	"I4",		"I8",		"IA4",		"IA8",
-	"RGB565",	"RGB5A3",	"RGBA8",	"0x07",
-	"C4",		"C8",		"C14X2",	"0x0B",
-	"0x0C",		"0x0D",		"CMPR",		"0x0F",
+	"I4",      "I8",      "IA4",     "IA8",
+	"RGB565",  "RGB5A3",  "RGBA8",   "0x07",
+	"C4",      "C8",      "C14X2",   "0x0B",
+	"0x0C",    "0x0D",    "CMPR",    "0x0F",
 	// Z-buffer
-	"0x10",		"Z8",		"0x12",		"Z16",
-	"0x14",		"0x15",		"Z24X8",	"0x17",
-	"0x18",		"0x19",		"0x1A",		"0x1B",
-	"0x1C",		"0x1D",		"0x1E",		"0x1F",
+	"0x10",    "Z8",      "0x12",    "Z16",
+	"0x14",    "0x15",    "Z24X8",   "0x17",
+	"0x18",    "0x19",    "0x1A",    "0x1B",
+	"0x1C",    "0x1D",    "0x1E",    "0x1F",
 	// pixel + copy
-	"CR4",		"0x21",		"CRA4",		"CRA8",
-	"0x24",		"0x25",		"CYUVA8",	"CA8",
-	"CR8",		"CG8",		"CB8",		"CRG8",
-	"CGB8",		"0x2D",		"0x2E",		"0x2F",
+	"CR4",     "0x21",    "CRA4",    "CRA8",
+	"0x24",    "0x25",    "CYUVA8",  "CA8",
+	"CR8",     "CG8",     "CB8",     "CRG8",
+	"CGB8",    "0x2D",    "0x2E",    "0x2F",
 	// Z + copy
-	"CZ4",		"0x31",		"0x32",		"0x33",
-	"0x34",		"0x35",		"0x36",		"0x37",
-	"0x38",		"CZ8M",		"CZ8L",		"0x3B",
-	"CZ16L",	"0x3D",		"0x3E",		"0x3F",
+	"CZ4",     "0x31",    "0x32",    "0x33",
+	"0x34",    "0x35",    "0x36",    "0x37",
+	"0x38",    "CZ8M",    "CZ8L",    "0x3B",
+	"CZ16L",   "0x3D",    "0x3E",    "0x3F",
 };
 
 const unsigned char sfont_map[] = {

@@ -2,12 +2,12 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "CommonTypes.h"
-#include "VideoCommon.h"
 #include <vector>
 
-#ifndef _STATISTICS_H
-#define _STATISTICS_H
+#include "Common/CommonTypes.h"
+#include "VideoCommon/VideoCommon.h"
+
+#pragma once
 
 struct Statistics
 {
@@ -91,5 +91,3 @@ extern Statistics stats;
 #define ADDSTAT(a,b) ;
 #define SETSTAT(a,x) ;
 #endif
-
-#endif  // _STATISTICS_H

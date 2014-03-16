@@ -36,57 +36,58 @@ Make AA apply instantly during gameplay if possible
 
 */
 
-#include "Globals.h"
-#include "Atomic.h"
-#include "CommonPaths.h"
-#include "Thread.h"
-#include "LogManager.h"
-
-#include <cstdarg>
 #include <algorithm>
+#include <cstdarg>
+
+#include "Common/Atomic.h"
+#include "Common/CommonPaths.h"
+#include "Common/LogManager.h"
+#include "Common/Thread.h"
+
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
+#include "Core/Host.h"
+
+#include "VideoBackends/OGL/FramebufferManager.h"
+#include "VideoBackends/OGL/Globals.h"
+#include "VideoBackends/OGL/GLUtil.h"
+#include "VideoBackends/OGL/PerfQuery.h"
+#include "VideoBackends/OGL/PostProcessing.h"
+#include "VideoBackends/OGL/ProgramShaderCache.h"
+#include "VideoBackends/OGL/Render.h"
+#include "VideoBackends/OGL/SamplerCache.h"
+#include "VideoBackends/OGL/TextureCache.h"
+#include "VideoBackends/OGL/TextureConverter.h"
+#include "VideoBackends/OGL/VertexManager.h"
+#include "VideoBackends/OGL/VideoBackend.h"
+
+#include "VideoCommon/BPStructs.h"
+#include "VideoCommon/CommandProcessor.h"
+#include "VideoCommon/Fifo.h"
+#include "VideoCommon/ImageWrite.h"
+#include "VideoCommon/IndexGenerator.h"
+#include "VideoCommon/LookUpTables.h"
+#include "VideoCommon/MainBase.h"
+#include "VideoCommon/OnScreenDisplay.h"
+#include "VideoCommon/OpcodeDecoding.h"
+#include "VideoCommon/PixelEngine.h"
+#include "VideoCommon/PixelShaderManager.h"
+#include "VideoCommon/VertexLoader.h"
+#include "VideoCommon/VertexLoaderManager.h"
+#include "VideoCommon/VertexShaderManager.h"
+#include "VideoCommon/VideoConfig.h"
+#include "VideoCommon/VideoState.h"
+
 
 #ifdef _WIN32
-#include "EmuWindow.h"
-#include "IniFile.h"
+#include "Common/IniFile.h"
+#include "VideoCommon/EmuWindow.h"
 #endif
 
 #if defined(HAVE_WX) && HAVE_WX
-#include "VideoConfigDiag.h"
-#include "Debugger/DebuggerPanel.h"
+#include "DolphinWX/VideoConfigDiag.h"
+#include "DolphinWX/Debugger/DebuggerPanel.h"
 #endif // HAVE_WX
-
-#include "MainBase.h"
-#include "VideoConfig.h"
-#include "LookUpTables.h"
-#include "ImageWrite.h"
-#include "Render.h"
-#include "GLUtil.h"
-#include "Fifo.h"
-#include "OpcodeDecoding.h"
-#include "TextureCache.h"
-#include "BPStructs.h"
-#include "VertexLoader.h"
-#include "VertexLoaderManager.h"
-#include "VertexManager.h"
-#include "PixelShaderManager.h"
-#include "VertexShaderManager.h"
-#include "ProgramShaderCache.h"
-#include "CommandProcessor.h"
-#include "PixelEngine.h"
-#include "TextureConverter.h"
-#include "PostProcessing.h"
-#include "OnScreenDisplay.h"
-#include "DLCache.h"
-#include "FramebufferManager.h"
-#include "Core.h"
-#include "Host.h"
-#include "SamplerCache.h"
-#include "PerfQuery.h"
-
-#include "VideoState.h"
-#include "IndexGenerator.h"
-#include "VideoBackend.h"
-#include "ConfigManager.h"
 
 namespace OGL
 {
@@ -98,7 +99,7 @@ std::string VideoBackend::GetName()
 
 std::string VideoBackend::GetDisplayName()
 {
-	if (g_renderer && GLInterface->GetMode() == GLInterfaceMode::MODE_OPENGLES3)
+	if (GLInterface != nullptr && GLInterface->GetMode() == GLInterfaceMode::MODE_OPENGLES3)
 		return "OpenGLES";
 	else
 		return "OpenGL";
@@ -122,7 +123,7 @@ void GetShaders(std::vector<std::string> &shaders)
 		File::ScanDirectoryTree(directory, entry);
 		for (auto& file : entry.children)
 		{
-			std::string name = file.virtualName.c_str();
+			std::string name = file.virtualName;
 			if (name.size() < 5)
 				continue;
 			if (strcasecmp(name.substr(name.size() - 5).c_str(), ".glsl"))
@@ -175,7 +176,7 @@ bool VideoBackend::Initialize(void *&window_handle)
 
 	frameCount = 0;
 
-	g_Config.Load((File::GetUserPath(D_CONFIG_IDX) + "gfx_opengl.ini").c_str());
+	g_Config.Load(File::GetUserPath(D_CONFIG_IDX) + "gfx_opengl.ini");
 	g_Config.GameIniLoad();
 	g_Config.UpdateProjectionHack();
 	g_Config.VerifyValidity();
@@ -225,9 +226,6 @@ void VideoBackend::Video_Prepare()
 	GL_REPORT_ERRORD();
 	VertexLoaderManager::Init();
 	TextureConverter::Init();
-#ifndef _M_GENERIC
-	DLCache::Init();
-#endif
 
 	// Notify the core that the video backend is ready
 	Host_Message(WM_USER_CREATE);
@@ -250,9 +248,6 @@ void VideoBackend::Video_Cleanup() {
 		s_efbAccessRequested = false;
 		s_FifoShuttingDown = false;
 		s_swapRequested = false;
-#ifndef _M_GENERIC
-		DLCache::Shutdown();
-#endif
 		Fifo_Shutdown();
 
 		// The following calls are NOT Thread Safe
@@ -261,20 +256,20 @@ void VideoBackend::Video_Cleanup() {
 		TextureConverter::Shutdown();
 		VertexLoaderManager::Shutdown();
 		delete g_sampler_cache;
-		g_sampler_cache = NULL;
+		g_sampler_cache = nullptr;
 		delete g_texture_cache;
-		g_texture_cache = NULL;
+		g_texture_cache = nullptr;
 		PostProcessing::Shutdown();
 		ProgramShaderCache::Shutdown();
 		VertexShaderManager::Shutdown();
 		PixelShaderManager::Shutdown();
 		delete g_perf_query;
-		g_perf_query = NULL;
+		g_perf_query = nullptr;
 		delete g_vertex_manager;
-		g_vertex_manager = NULL;
+		g_vertex_manager = nullptr;
 		OpcodeDecoder_Shutdown();
 		delete g_renderer;
-		g_renderer = NULL;
+		g_renderer = nullptr;
 		GLInterface->ClearCurrent();
 	}
 }

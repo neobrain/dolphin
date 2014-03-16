@@ -1,26 +1,27 @@
 // Copyright 2013 Dolphin Emulator Project
 // Licensed under GPLv2
 // Refer to the license.txt file included.
+//
+#define AX_WII // Used in UCode_AX_Voice.
 
-#include "StringUtil.h"
+#include "AudioCommon/Mixer.h"
+#include "Common/MathUtil.h"
+#include "Common/StringUtil.h"
 
-#include "../MailHandler.h"
-#include "Mixer.h"
+#include "Core/HW/DSPHLE/MailHandler.h"
 
-#include "UCodes.h"
-#include "UCode_AXStructs.h"
-#include "UCode_AXWii.h"
-
-#define AX_WII
-#include "UCode_AX_Voice.h"
+#include "Core/HW/DSPHLE/UCodes/UCode_AX_Voice.h"
+#include "Core/HW/DSPHLE/UCodes/UCode_AXStructs.h"
+#include "Core/HW/DSPHLE/UCodes/UCode_AXWii.h"
+#include "Core/HW/DSPHLE/UCodes/UCodes.h"
 
 
 CUCode_AXWii::CUCode_AXWii(DSPHLE *dsp_hle, u32 l_CRC)
 	: CUCode_AX(dsp_hle, l_CRC),
 	  m_last_main_volume(0x8000)
 {
-	for (int i = 0; i < 3; ++i)
-		m_last_aux_volumes[i] = 0x8000;
+	for (u16& volume : m_last_aux_volumes)
+		volume = 0x8000;
 
 	WARN_LOG(DSPHLE, "Instantiating CUCode_AXWii");
 
@@ -40,10 +41,10 @@ void CUCode_AXWii::HandleCommandList()
 
 	u32 pb_addr = 0;
 
-//	WARN_LOG(DSPHLE, "Command list:");
-//	for (u32 i = 0; m_cmdlist[i] != CMD_END; ++i)
-//		WARN_LOG(DSPHLE, "%04x", m_cmdlist[i]);
-//	WARN_LOG(DSPHLE, "-------------");
+	// WARN_LOG(DSPHLE, "Command list:");
+	// for (u32 i = 0; m_cmdlist[i] != CMD_END; ++i)
+	//     WARN_LOG(DSPHLE, "%04x", m_cmdlist[i]);
+	// WARN_LOG(DSPHLE, "-------------");
 
 	u32 curr_idx = 0;
 	bool end = false;
@@ -466,7 +467,7 @@ void CUCode_AXWii::ProcessPBList(u32 pb_addr)
 				ApplyUpdatesForMs(curr_ms, (u16*)&pb, num_updates, updates);
 				ProcessVoice(pb, buffers, 32,
 				             ConvertMixerControl(HILO_TO_32(pb.mixer_control)),
-				             m_coeffs_available ? m_coeffs : NULL);
+				             m_coeffs_available ? m_coeffs : nullptr);
 
 				// Forward the buffers
 				for (u32 i = 0; i < sizeof (buffers.ptrs) / sizeof (buffers.ptrs[0]); ++i)
@@ -478,7 +479,7 @@ void CUCode_AXWii::ProcessPBList(u32 pb_addr)
 		{
 			ProcessVoice(pb, buffers, 96,
 			             ConvertMixerControl(HILO_TO_32(pb.mixer_control)),
-			             m_coeffs_available ? m_coeffs : NULL);
+			             m_coeffs_available ? m_coeffs : nullptr);
 		}
 
 		WritePB(pb_addr, pb);
@@ -492,7 +493,7 @@ void CUCode_AXWii::MixAUXSamples(int aux_id, u32 write_addr, u32 read_addr, u16 
 	GenerateVolumeRamp(volume_ramp, m_last_aux_volumes[aux_id], volume, 96);
 	m_last_aux_volumes[aux_id] = volume;
 
-	int* buffers[3] = { 0 };
+	int* buffers[3] = { nullptr };
 	int* main_buffers[3] = {
 		m_samples_left,
 		m_samples_right,
@@ -617,10 +618,8 @@ void CUCode_AXWii::OutputSamples(u32 lr_addr, u32 surround_addr, u16 volume,
 		left = ((s64)left * volume_ramp[i]) >> 15;
 		right = ((s64)right * volume_ramp[i]) >> 15;
 
-		if (left < -32767)  left = -32767;
-		if (left > 32767)   left = 32767;
-		if (right < -32767) right = -32767;
-		if (right >  32767) right = 32767;
+		MathUtil::Clamp(&left, -32767, 32767);
+		MathUtil::Clamp(&right, -32767, 32767);
 
 		m_samples_left[i] = left;
 		m_samples_right[i] = right;
@@ -655,8 +654,7 @@ void CUCode_AXWii::OutputWMSamples(u32* addresses)
 		for (u32 j = 0; j < 3 * 6; ++j)
 		{
 			int sample = in[j];
-			if (sample < -32767) sample = -32767;
-			if (sample > 32767) sample = 32767;
+			MathUtil::Clamp(&sample, -32767, 32767);
 			out[j] = Common::swap16((u16)sample);
 		}
 	}

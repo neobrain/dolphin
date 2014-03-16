@@ -2,12 +2,11 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _VERTEXMANAGER_H
-#define _VERTEXMANAGER_H
+#pragma once
 
-#include "VertexManagerBase.h"
-#include "LineGeometryShader.h"
-#include "PointGeometryShader.h"
+#include "VideoBackends/D3D/LineGeometryShader.h"
+#include "VideoBackends/D3D/PointGeometryShader.h"
+#include "VideoCommon/VertexManagerBase.h"
 
 namespace DX11
 {
@@ -31,7 +30,7 @@ private:
 	void PrepareDrawBuffers();
 	void Draw(u32 stride);
 	// temp
-	void vFlush();
+	void vFlush(bool useDstAlpha);
 
 	u32 m_vertex_buffer_cursor;
 	u32 m_vertex_draw_offset;
@@ -51,5 +50,3 @@ private:
 };
 
 }  // namespace
-
-#endif

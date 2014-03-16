@@ -1,8 +1,7 @@
+#pragma once
 
-#ifndef DX11_VIDEO_BACKEND_H_
-#define DX11_VIDEO_BACKEND_H_
-
-#include "VideoBackendBase.h"
+#include <string>
+#include "VideoCommon/VideoBackendBase.h"
 
 namespace DX11
 {
@@ -20,10 +19,9 @@ class VideoBackend : public VideoBackendHardware
 
 	void ShowConfig(void* parent);
 
-	void UpdateFPSDisplay(const char*);
+	void UpdateFPSDisplay(const std::string&);
 	unsigned int PeekMessages();
 };
 
 }
 
-#endif

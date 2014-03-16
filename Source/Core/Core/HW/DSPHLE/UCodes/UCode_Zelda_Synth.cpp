@@ -2,13 +2,13 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include <math.h>
+#include <cmath>
 
-#include "UCodes.h"
-#include "UCode_Zelda.h"
-#include "AudioCommon.h"
+#include "AudioCommon/AudioCommon.h"
+#include "AudioCommon/Mixer.h"
 
-#include "Mixer.h"
+#include "Core/HW/DSPHLE/UCodes/UCode_Zelda.h"
+#include "Core/HW/DSPHLE/UCodes/UCodes.h"
 
 void CUCode_Zelda::RenderSynth_RectWave(ZeldaVoicePB &PB, s32* _Buffer, int _Size)
 {
@@ -55,7 +55,7 @@ _lRestart:
 		}
 	}
 
-	while(i < _Size)
+	while (i < _Size)
 	{
 		s16 sample = ((pos[1] & mask) == mask) ? 0xc000 : 0x4000;
 
@@ -131,7 +131,7 @@ void CUCode_Zelda::RenderSynth_WaveTable(ZeldaVoicePB &PB, s32* _Buffer, int _Si
 {
 	u16 address;
 
-	switch(PB.Format)
+	switch (PB.Format)
 	{
 	default:
 	case 0x0004:
@@ -161,7 +161,7 @@ void CUCode_Zelda::RenderSynth_WaveTable(ZeldaVoicePB &PB, s32* _Buffer, int _Si
 	address = AddValueToReg(address, ((ACC0 >> 16) & 0xffff));
 	ACC0 &= 0xffff0000ffffULL;
 
-	for(int i = 0; i < 0x50; i++)
+	for (int i = 0; i < 0x50; i++)
 	{
 		_Buffer[i] = m_MiscTable[address];
 

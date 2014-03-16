@@ -2,13 +2,15 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "UCode_AX.h"
-#include "../../DSP.h"
-#include "FileUtil.h"
-#include "ConfigManager.h"
+#include "Common/FileUtil.h"
+#include "Common/MathUtil.h"
+
+#include "Core/ConfigManager.h"
+#include "Core/HW/DSP.h"
+#include "Core/HW/DSPHLE/UCodes/UCode_AX.h"
 
 #define AX_GC
-#include "UCode_AX_Voice.h"
+#include "Core/HW/DSPHLE/UCodes/UCode_AX_Voice.h"
 
 CUCode_AX::CUCode_AX(DSPHLE* dsp_hle, u32 crc)
 	: IUCode(dsp_hle, crc)
@@ -33,7 +35,7 @@ CUCode_AX::~CUCode_AX()
 {
 	if (m_run_on_thread)
 	{
-		m_cmdlist_size = (u16)-1;	// Special value to signal end
+		m_cmdlist_size = (u16)-1; // Special value to signal end
 		NotifyAXThread();
 		m_axthread.join();
 	}
@@ -93,7 +95,7 @@ void CUCode_AX::AXThread()
 				m_cmdlist_cv.wait(lk);
 		}
 
-		if (m_cmdlist_size == (u16)-1)	// End of thread signal
+		if (m_cmdlist_size == (u16)-1) // End of thread signal
 			break;
 
 		m_processing.lock();
@@ -201,12 +203,12 @@ void CUCode_AX::HandleCommandList()
 				SetMainLR(HILO_TO_32(addr));
 				break;
 
-			case CMD_UNK_08: curr_idx += 10; break;	// TODO: check
+			case CMD_UNK_08: curr_idx += 10; break; // TODO: check
 
 			case CMD_MIX_AUXB_NOWRITE:
 				addr_hi = m_cmdlist[curr_idx++];
 				addr_lo = m_cmdlist[curr_idx++];
-				MixAUXSamples(false, 0, HILO_TO_32(addr));
+				MixAUXSamples(1, 0, HILO_TO_32(addr));
 				break;
 
 			case CMD_COMPRESSOR_TABLE_ADDR: curr_idx += 2; break;
@@ -466,7 +468,7 @@ void CUCode_AX::ProcessPBList(u32 pb_addr)
 			ApplyUpdatesForMs(curr_ms, (u16*)&pb, pb.updates.num_updates, updates);
 
 			ProcessVoice(pb, buffers, spms, ConvertMixerControl(pb.mixer_control),
-			             m_coeffs_available ? m_coeffs : NULL);
+			             m_coeffs_available ? m_coeffs : nullptr);
 
 			// Forward the buffers
 			for (u32 i = 0; i < sizeof (buffers.ptrs) / sizeof (buffers.ptrs[0]); ++i)
@@ -480,7 +482,7 @@ void CUCode_AX::ProcessPBList(u32 pb_addr)
 
 void CUCode_AX::MixAUXSamples(int aux_id, u32 write_addr, u32 read_addr)
 {
-	int* buffers[3] = { 0 };
+	int* buffers[3] = { nullptr };
 
 	switch (aux_id)
 	{
@@ -559,12 +561,10 @@ void CUCode_AX::OutputSamples(u32 lr_addr, u32 surround_addr)
 		int left  = m_samples_left[i];
 		int right = m_samples_right[i];
 
-		if (left < -32767)  left = -32767;
-		if (left > 32767)   left = 32767;
-		if (right < -32767) right = -32767;
-		if (right >  32767) right = 32767;
+		MathUtil::Clamp(&left, -32767, 32767);
+		MathUtil::Clamp(&right, -32767, 32767);
 
-		buffer[2 * i] = Common::swap16(right);
+		buffer[2 * i + 0] = Common::swap16(right);
 		buffer[2 * i + 1] = Common::swap16(left);
 	}
 

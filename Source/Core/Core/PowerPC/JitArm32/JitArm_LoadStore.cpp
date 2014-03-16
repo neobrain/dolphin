@@ -1,34 +1,20 @@
-// Copyright (C) 2003 Dolphin Project.
+// Copyright 2014 Dolphin Emulator Project
+// Licensed under GPLv2
+// Refer to the license.txt file included.
 
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, version 2.0.
+#include "Common/ArmEmitter.h"
+#include "Common/Common.h"
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License 2.0 for more details.
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
+#include "Core/CoreTiming.h"
+#include "Core/HW/Memmap.h"
+#include "Core/PowerPC/PowerPC.h"
+#include "Core/PowerPC/PPCTables.h"
 
-// A copy of the GPL 2.0 should have been included with the program.
-// If not, see http://www.gnu.org/licenses/
-
-// Official SVN repository and contact information can be found at
-// http://code.google.com/p/dolphin-emu/
-
-#include "Common.h"
-
-#include "../../Core.h"
-#include "../PowerPC.h"
-#include "../../ConfigManager.h"
-#include "../../CoreTiming.h"
-#include "../PPCTables.h"
-#include "ArmEmitter.h"
-#include "../../HW/Memmap.h"
-
-
-#include "Jit.h"
-#include "JitRegCache.h"
-#include "JitAsm.h"
+#include "Core/PowerPC/JitArm32/Jit.h"
+#include "Core/PowerPC/JitArm32/JitAsm.h"
+#include "Core/PowerPC/JitArm32/JitRegCache.h"
 
 void JitArm::UnsafeStoreFromReg(ARMReg dest, ARMReg value, int accessSize, s32 offset)
 {
@@ -103,7 +89,7 @@ void JitArm::SafeStoreFromReg(bool fastmem, s32 dest, u32 value, s32 regOffset, 
 	if (regOffset != -1)
 		RB = gpr.R(regOffset);
 	ARMReg RS = gpr.R(value);
-	switch(accessSize)
+	switch (accessSize)
 	{
 		case 32:
 			MOVI2R(rA, (u32)&Memory::Write_U32);
@@ -143,7 +129,7 @@ void JitArm::stX(UGeckoInstruction inst)
 	bool zeroA = true;
 	bool update = false;
 	bool fastmem = false;
-	switch(inst.OPCD)
+	switch (inst.OPCD)
 	{
 		case 45: // sthu
 			update = true;
@@ -328,10 +314,10 @@ void JitArm::lXX(UGeckoInstruction inst)
 	bool reverse = false;
 	bool fastmem = false;
 
-	switch(inst.OPCD)
+	switch (inst.OPCD)
 	{
 		case 31:
-			switch(inst.SUBOP10)
+			switch (inst.SUBOP10)
 			{
 				case 55: // lwzux
 					zeroA = false;
@@ -462,8 +448,11 @@ void JitArm::lmw(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(bJITLoadStoreOff)
-	if (!Core::g_CoreStartupParameter.bFastmem){
-		Default(inst); return;
+
+	if (!Core::g_CoreStartupParameter.bFastmem)
+	{
+		FallBackToInterpreter(inst);
+		return;
 	}
 
 	u32 a = inst.RA;
@@ -490,8 +479,11 @@ void JitArm::stmw(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(bJITLoadStoreOff)
-	if (!Core::g_CoreStartupParameter.bFastmem){
-		Default(inst); return;
+
+	if (!Core::g_CoreStartupParameter.bFastmem)
+	{
+		FallBackToInterpreter(inst);
+		return;
 	}
 
 	u32 a = inst.RA;
@@ -514,6 +506,7 @@ void JitArm::stmw(UGeckoInstruction inst)
 	}
 	gpr.Unlock(rA, rB, rC);
 }
+
 void JitArm::dcbst(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
@@ -525,12 +518,14 @@ void JitArm::dcbst(UGeckoInstruction inst)
 	// dcbt = 0x7c00022c
 	if ((Memory::ReadUnchecked_U32(js.compilerPC - 4) & 0x7c00022c) != 0x7c00022c)
 	{
-		Default(inst); return;
+		FallBackToInterpreter(inst);
+		return;
 	}
 }
+
 void JitArm::icbi(UGeckoInstruction inst)
 {
-	Default(inst);
-	WriteExit(js.compilerPC + 4, 0);
+	FallBackToInterpreter(inst);
+	WriteExit(js.compilerPC + 4);
 }
 

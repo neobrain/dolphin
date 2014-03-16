@@ -2,20 +2,17 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _PULSE_AUDIO_STREAM_H
-#define _PULSE_AUDIO_STREAM_H
+#pragma once
 
 #if defined(HAVE_PULSEAUDIO) && HAVE_PULSEAUDIO
-#include <pulse/simple.h>
-#include <pulse/error.h>
+#include <pulse/pulseaudio.h>
 #endif
 
-#include "Common.h"
-#include "SoundStream.h"
+#include <atomic>
 
-#include "Thread.h"
-
-#include <vector>
+#include "AudioCommon/SoundStream.h"
+#include "Common/Common.h"
+#include "Common/Thread.h"
 
 class PulseAudio : public SoundStream
 {
@@ -23,31 +20,42 @@ class PulseAudio : public SoundStream
 public:
 	PulseAudio(CMixer *mixer);
 
-	virtual bool Start();
-	virtual void Stop();
+	virtual bool Start() override;
+	virtual void Stop() override;
 
 	static bool isValid() {return true;}
 
 	virtual bool usesMixer() const {return true;}
 
-	virtual void Update();
+	virtual void Update() override;
+
+	void StateCallback(pa_context *c);
+	void WriteCallback(pa_stream *s, size_t length);
+	void UnderflowCallback(pa_stream *s);
 
 private:
-	virtual void SoundLoop();
+	virtual void SoundLoop() override;
 
 	bool PulseInit();
 	void PulseShutdown();
-	void Write(const void *data, size_t bytes);
 
-	std::vector<s16> mix_buffer;
-	std::thread thread;
-	volatile bool run_thread;
+	// wrapper callback functions, last parameter _must_ be PulseAudio*
+	static void StateCallback(pa_context *c, void *userdata);
+	static void WriteCallback(pa_stream *s, size_t length, void *userdata);
+	static void UnderflowCallback(pa_stream *s, void *userdata);
 
-	pa_simple* pa;
+	std::thread m_thread;
+	std::atomic<bool> m_run_thread;
+
+	int m_pa_error;
+	int m_pa_connected;
+	pa_mainloop *m_pa_ml;
+	pa_mainloop_api *m_pa_mlapi;
+	pa_context *m_pa_ctx;
+	pa_stream *m_pa_s;
+	pa_buffer_attr m_pa_ba;
 #else
 public:
 	PulseAudio(CMixer *mixer) : SoundStream(mixer) {}
 #endif
 };
-
-#endif

@@ -2,10 +2,9 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _PPCCACHE_H
-#define _PPCCACHE_H
+#pragma once
 
-#include "CommonTypes.h"
+#include "Common/CommonTypes.h"
 
 #define FAST_ICACHE
 
@@ -44,5 +43,3 @@ namespace PowerPC
 	};
 
 }
-
-#endif

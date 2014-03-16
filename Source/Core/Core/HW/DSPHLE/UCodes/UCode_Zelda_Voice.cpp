@@ -4,13 +4,14 @@
 
 #include <sstream>
 
-#include "UCodes.h"
-#include "UCode_Zelda.h"
+#include "AudioCommon/AudioCommon.h"
+#include "AudioCommon/Mixer.h"
+#include "Common/MathUtil.h"
 
-#include "AudioCommon.h"
-#include "Mixer.h"
-#include "../../Memmap.h"
-#include "../../DSP.h"
+#include "Core/HW/DSP.h"
+#include "Core/HW/Memmap.h"
+#include "Core/HW/DSPHLE/UCodes/UCode_Zelda.h"
+#include "Core/HW/DSPHLE/UCodes/UCodes.h"
 
 void CUCode_Zelda::ReadVoicePB(u32 _Addr, ZeldaVoicePB& PB)
 {
@@ -224,7 +225,7 @@ void PrintObject(const T &Obj)
 	ss << std::hex;
 	for (size_t i = 0; i < sizeof(T); i++)
 	{
-		if((i & 1) == 0)
+		if ((i & 1) == 0)
 			ss << ' ';
 		ss.width(2);
 		ss.fill('0');
@@ -295,7 +296,7 @@ restart:
 	{
 		PB.ReachedEnd = 0;
 
-		if ((PB.RepeatMode == 0) || (!PB.StopOnSilence == 0))
+		if ((PB.RepeatMode == 0) || (PB.StopOnSilence != 0))
 		{
 			PB.KeyOff = 1;
 			PB.RemLength = 0;
@@ -486,9 +487,9 @@ void CUCode_Zelda::RenderAddVoice(ZeldaVoicePB &PB, s32* _LeftBuffer, s32* _Righ
 	}
 
 	// XK: Use this to disable MIDI music (GREAT for testing). Also kills some sound FX.
-	//if(PB.SoundType == 0x0d00) {
-	//	PB.NeedsReset = 0;
-	//	return;
+	//if (PB.SoundType == 0x0d00) {
+	//    PB.NeedsReset = 0;
+	//    return;
 	//}
 
 	// The Resample calls actually don't resample yet.
@@ -499,18 +500,18 @@ void CUCode_Zelda::RenderAddVoice(ZeldaVoicePB &PB, s32* _LeftBuffer, s32* _Righ
 	// First jump table at ZWW: 2a6
 	switch (PB.Format)
 	{
-	case 0x0005:		// AFC with extra low bitrate (32:5 compression).
-	case 0x0009:		// AFC with normal bitrate (32:9 compression).
+	case 0x0005: // AFC with extra low bitrate (32:5 compression).
+	case 0x0009: // AFC with normal bitrate (32:9 compression).
 		RenderVoice_AFC(PB, m_ResampleBuffer + 4, _Size);
 		Resample(PB, _Size, m_ResampleBuffer + 4, m_VoiceBuffer, true);
 		break;
 
-	case 0x0008:		// PCM8 - normal PCM 8-bit audio. Used in Mario Kart DD + very little in Zelda WW.
+	case 0x0008: // PCM8 - normal PCM 8-bit audio. Used in Mario Kart DD + very little in Zelda WW.
 		RenderVoice_PCM8(PB, m_ResampleBuffer + 4, _Size);
 		Resample(PB, _Size, m_ResampleBuffer + 4, m_VoiceBuffer, true);
 		break;
 
-	case 0x0010:		// PCM16 - normal PCM 16-bit audio.
+	case 0x0010: // PCM16 - normal PCM 16-bit audio.
 		RenderVoice_PCM16(PB, m_ResampleBuffer + 4, _Size);
 		Resample(PB, _Size, m_ResampleBuffer + 4, m_VoiceBuffer, true);
 		break;
@@ -534,10 +535,10 @@ void CUCode_Zelda::RenderAddVoice(ZeldaVoicePB &PB, s32* _LeftBuffer, s32* _Righ
 	default:
 		// Second jump table
 		// TODO: Cases to find examples of:
-		//		 -0x0002
-		//		 -0x0003
-		//		 -0x0006
-		//		 -0x000a
+		//       -0x0002
+		//       -0x0003
+		//       -0x0006
+		//       -0x000a
 		switch (PB.Format)
 		{
 		// Synthesized sounds
@@ -546,8 +547,7 @@ void CUCode_Zelda::RenderAddVoice(ZeldaVoicePB &PB, s32* _LeftBuffer, s32* _Righ
 			RenderSynth_RectWave(PB, m_VoiceBuffer, _Size);
 			break;
 
-		case 0x0001: // Example: "Denied" sound when trying to pull out a sword
-					 // indoors in ZWW
+		case 0x0001: // Example: "Denied" sound when trying to pull out a sword indoors in ZWW
 			RenderSynth_SawWave(PB, m_VoiceBuffer, _Size);
 			break;
 
@@ -657,7 +657,6 @@ ContinueWithBlock:
 				switch (count) {
 				case 0: _LeftBuffer[i] += (u64)unmixed_audio * ramp >> 29; break;
 				case 1: _RightBuffer[i] += (u64)unmixed_audio * ramp >> 29; break;
-					break;
 				}
 			}
 		}
@@ -780,12 +779,10 @@ void CUCode_Zelda::MixAdd(short *_Buffer, int _Size)
 		s32 left  = (s32)_Buffer[0] + m_LeftBuffer[i];
 		s32 right = (s32)_Buffer[1] + m_RightBuffer[i];
 
-		if (left < -32768) left = -32768;
-		if (left > 32767)  left = 32767;
+		MathUtil::Clamp(&left, -32768, 32767);
 		_Buffer[0] = (short)left;
 
-		if (right < -32768) right = -32768;
-		if (right > 32767)  right = 32767;
+		MathUtil::Clamp(&right, -32768, 32767);
 		_Buffer[1] = (short)right;
 
 		_Buffer += 2;

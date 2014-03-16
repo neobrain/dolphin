@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "CommonTypes.h"
+#include "Common/CommonTypes.h"
 
 class SettingsHandler
 {
@@ -21,11 +21,11 @@ public:
 		// Key used to encrypt/decrypt setting.txt contents
 		INITIAL_SEED = 0x73B5DBFA
 	};
-
-	void AddSetting(const char *key, const char *value);
+	
+	void AddSetting(const std::string& key, const std::string& value);
 
 	const u8 *GetData() const;
-	const std::string GetValue(const std::string key);
+	const std::string GetValue(const std::string& key);
 
 	void Decrypt();
 	void Reset();

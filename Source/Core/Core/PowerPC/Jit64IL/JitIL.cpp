@@ -2,17 +2,18 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
+#include <cinttypes>
+#include <ctime> // For profiling
 #include <map>
 #include <memory>
-#include <cinttypes>
 
-#include "Common.h"
-#include "../../HLE/HLE.h"
-#include "../../PatchEngine.h"
-#include "../Profiler.h"
-#include "JitIL.h"
-#include "JitILAsm.h"
-#include "JitIL_Tables.h"
+#include "Common/Common.h"
+#include "Core/PatchEngine.h"
+#include "Core/HLE/HLE.h"
+#include "Core/PowerPC/Profiler.h"
+#include "Core/PowerPC/Jit64IL/JitIL.h"
+#include "Core/PowerPC/Jit64IL/JitIL_Tables.h"
+#include "Core/PowerPC/Jit64IL/JitILAsm.h"
 
 using namespace Gen;
 using namespace PowerPC;
@@ -130,10 +131,6 @@ ps_adds1
 
 */
 
-
-// For profiling
-#include <time.h>
-
 #ifdef _WIN32
 #include <windows.h>
 #include <intrin.h>
@@ -154,10 +151,10 @@ static inline uint64_t __rdtsc()
 	return (uint64_t)hi << 32 | lo;
 #else
 	__asm__ __volatile__ (
-			"xor	%%eax,%%eax;"
-			"push	%%ebx;"
+			"xor    %%eax,%%eax;"
+			"push   %%ebx;"
 			"cpuid;"
-			"pop	%%ebx;"
+			"pop    %%ebx;"
 			::: "%eax", "%ecx", "%edx");
 	__asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
 #endif
@@ -209,9 +206,9 @@ namespace JitILProfiler
 		virtual ~JitILProfilerFinalizer()
 		{
 			char buffer[1024];
-			sprintf(buffer, "JitIL_profiling_%d.csv", (int)time(NULL));
+			sprintf(buffer, "JitIL_profiling_%d.csv", (int)time(nullptr));
 			File::IOFile file(buffer, "w");
-			setvbuf(file.GetHandle(), NULL, _IOFBF, 1024 * 1024);
+			setvbuf(file.GetHandle(), nullptr, _IOFBF, 1024 * 1024);
 			fprintf(file.GetHandle(), "code hash,total elapsed,number of calls,elapsed per call\n");
 			for (auto& block : blocks)
 			{
@@ -315,13 +312,13 @@ void JitIL::WriteCallInterpreter(UGeckoInstruction inst)
 
 void JitIL::unknown_instruction(UGeckoInstruction inst)
 {
-	//	CCPU::Break();
+	// CCPU::Break();
 	PanicAlert("unknown_instruction %08x - Fix me ;)", inst.hex);
 }
 
-void JitIL::Default(UGeckoInstruction _inst)
+void JitIL::FallBackToInterpreter(UGeckoInstruction _inst)
 {
-	ibuild.EmitInterpreterFallback(
+	ibuild.EmitFallBackToInterpreter(
 		ibuild.EmitIntConst(_inst.hex),
 		ibuild.EmitIntConst(js.compilerPC));
 }
@@ -349,7 +346,7 @@ static void ImHere()
 	{
 		if (!f)
 		{
-#ifdef _M_X64
+#if _M_X86_64
 			f.Open("log64.txt", "w");
 #else
 			f.Open("log32.txt", "w");
@@ -365,7 +362,6 @@ static void ImHere()
 			return;
 	}
 	DEBUG_LOG(DYNA_REC, "I'm here - PC = %08x , LR = %08x", PC, LR);
-	//		printf("I'm here - PC = %08x , LR = %08x", PC, LR);
 	been_here[PC] = 1;
 }
 
@@ -381,7 +377,7 @@ void JitIL::Cleanup()
 		ABI_CallFunctionCCC((void *)&PowerPC::UpdatePerformanceMonitor, js.downcountAmount, jit->js.numLoadStoreInst, jit->js.numFloatingPointInst);
 }
 
-void JitIL::WriteExit(u32 destination, int exit_num)
+void JitIL::WriteExit(u32 destination)
 {
 	Cleanup();
 	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bJITILTimeProfiling) {
@@ -391,22 +387,25 @@ void JitIL::WriteExit(u32 destination, int exit_num)
 
 	//If nobody has taken care of this yet (this can be removed when all branches are done)
 	JitBlock *b = js.curBlock;
-	b->exitAddress[exit_num] = destination;
-	b->exitPtrs[exit_num] = GetWritableCodePtr();
+	JitBlock::LinkData linkData;
+	linkData.exitAddress = destination;
+	linkData.exitPtrs = GetWritableCodePtr();
+	linkData.linkStatus = false;
 
 	// Link opportunity!
-	int block = blocks.GetBlockNumberFromStartAddress(destination);
-	if (block >= 0 && jo.enableBlocklink)
+	int block; 
+	if (jo.enableBlocklink && (block = blocks.GetBlockNumberFromStartAddress(destination)) >= 0)
 	{
 		// It exists! Joy of joy!
 		JMP(blocks.GetBlock(block)->checkedEntry, true);
-		b->linkStatus[exit_num] = true;
+		linkData.linkStatus = true;
 	}
 	else
 	{
 		MOV(32, M(&PC), Imm32(destination));
 		JMP(asm_routines.dispatcher, true);
 	}
+	b->linkData.push_back(linkData);
 }
 
 void JitIL::WriteExitDestInOpArg(const Gen::OpArg& arg)
@@ -464,7 +463,7 @@ void JitIL::Trace()
 	{
 		char reg[50];
 		sprintf(reg, "r%02d: %08x ", i, PowerPC::ppcState.gpr[i]);
-		strncat(regs, reg, 500);
+		strncat(regs, reg, sizeof(regs) - 1);
 	}
 #endif
 
@@ -473,7 +472,7 @@ void JitIL::Trace()
 	{
 		char reg[50];
 		sprintf(reg, "f%02d: %016x ", i, riPS0(i));
-		strncat(fregs, reg, 750);
+		strncat(fregs, reg, sizeof(fregs) - 1);
 	}
 #endif
 
@@ -541,14 +540,16 @@ const u8* JitIL::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBloc
 
 	// Analyze the block, collect all instructions it is made of (including inlining,
 	// if that is enabled), reorder instructions for optimal performance, and join joinable instructions.
-	b->exitAddress[0] = em_address;
+	u32 exitAddress = em_address;
+	
 	u32 merged_addresses[32];
 	const int capacity_of_merged_addresses = sizeof(merged_addresses) / sizeof(merged_addresses[0]);
 	int size_of_merged_addresses = 0;
 	if (!memory_exception)
 	{
 		// If there is a memory exception inside a block (broken_block==true), compile up to that instruction.
-		b->exitAddress[0] = PPCAnalyst::Flatten(em_address, &size, &js.st, &js.gpa, &js.fpa, broken_block, code_buf, blockSize, merged_addresses, capacity_of_merged_addresses, size_of_merged_addresses);
+		// TODO
+		exitAddress = PPCAnalyst::Flatten(em_address, &size, &js.st, &js.gpa, &js.fpa, broken_block, code_buf, blockSize, merged_addresses, capacity_of_merged_addresses, size_of_merged_addresses);
 	}
 	PPCAnalyst::CodeOp *ops = code_buf->codebuffer;
 
@@ -707,7 +708,7 @@ const u8* JitIL::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBloc
 	}
 
 	// Perform actual code generation
-	WriteCode();
+	WriteCode(exitAddress);
 
 	b->codeSize = (u32)(GetCodePtr() - normalEntry);
 	b->originalSize = size;

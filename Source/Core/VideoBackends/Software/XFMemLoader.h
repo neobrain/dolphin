@@ -2,11 +2,9 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _XFMEMLOADER_H_
-#define _XFMEMLOADER_H_
+#pragma once
 
-
-#include "Common.h"
+#include "Common/Common.h"
 
 /////////////
 // Lighting
@@ -241,5 +239,3 @@ void XFWritten(u32 transferSize, u32 baseAddress);
 void SWLoadXFReg(u32 transferSize, u32 baseAddress, u32 *pData);
 
 void SWLoadIndexedXF(u32 val, int array);
-
-#endif

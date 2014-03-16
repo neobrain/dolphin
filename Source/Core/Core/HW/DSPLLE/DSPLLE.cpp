@@ -2,39 +2,38 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
+#include "AudioCommon/AudioCommon.h"
+#include "AudioCommon/Mixer.h"
 
-#include "Common.h"
-#include "CommonPaths.h"
-#include "Atomic.h"
-#include "CommonTypes.h"
-#include "LogManager.h"
-#include "Thread.h"
-#include "ChunkFile.h"
-#include "IniFile.h"
-#include "ConfigManager.h"
-#include "CPUDetect.h"
-#include "Core.h"
+#include "Common/Atomic.h"
+#include "Common/ChunkFile.h"
+#include "Common/Common.h"
+#include "Common/CommonPaths.h"
+#include "Common/CPUDetect.h"
+#include "Common/IniFile.h"
+#include "Common/LogManager.h"
+#include "Common/Thread.h"
 
-#include "DSPLLEGlobals.h" // Local
-#include "DSP/DSPHost.h"
-#include "DSP/DSPInterpreter.h"
-#include "DSP/DSPHWInterface.h"
-#include "DSP/disassemble.h"
-#include "DSPSymbols.h"
-#include "Host.h"
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
+#include "Core/Host.h"
+#include "Core/DSP/DSPCore.h"
+#include "Core/DSP/DSPDisassembler.h"
+#include "Core/DSP/DSPHost.h"
+#include "Core/DSP/DSPHWInterface.h"
+#include "Core/DSP/DSPInterpreter.h"
+#include "Core/DSP/DSPTables.h"
+#include "Core/HW/AudioInterface.h"
+#include "Core/HW/Memmap.h"
 
-#include "AudioCommon.h"
-#include "Mixer.h"
-
-#include "DSP/DSPTables.h"
-#include "DSP/DSPCore.h"
-#include "DSPLLE.h"
-#include "../Memmap.h"
-#include "../AudioInterface.h"
+#include "Core/HW/DSPLLE/DSPLLE.h"
+#include "Core/HW/DSPLLE/DSPLLEGlobals.h"
+#include "Core/HW/DSPLLE/DSPSymbols.h"
 
 
-DSPLLE::DSPLLE() {
-	soundStream = NULL;
+DSPLLE::DSPLLE()
+{
+	soundStream = nullptr;
 	m_InitMixer = false;
 	m_bIsRunning = false;
 	m_cycle_count = 0;
@@ -76,7 +75,7 @@ void DSPLLE::DoState(PointerWrap &p)
 	p.DoArray(g_dsp.iram, DSP_IRAM_SIZE);
 	WriteProtectMemory(g_dsp.iram, DSP_IRAM_BYTE_SIZE, false);
 	if (p.GetMode() == PointerWrap::MODE_READ)
-		DSPHost_CodeLoaded((const u8*)g_dsp.iram, DSP_IRAM_BYTE_SIZE);
+		DSPHost::CodeLoaded((const u8*)g_dsp.iram, DSP_IRAM_BYTE_SIZE);
 	p.DoArray(g_dsp.dram, DSP_DRAM_SIZE);
 	p.Do(cyclesLeft);
 	p.Do(init_hax);
@@ -96,7 +95,7 @@ void DSPLLE::DoState(PointerWrap &p)
 			AudioCommon::PauseAndLock(false);
 			soundStream->Stop();
 			delete soundStream;
-			soundStream = NULL;
+			soundStream = nullptr;
 		}
 	}
 }
@@ -144,7 +143,7 @@ bool DSPLLE::Initialize(void *hWnd, bool bWii, bool bDSPThread)
 		irom_file = File::GetSysDirectory() + GC_SYS_DIR DIR_SEP DSP_IROM;
 	if (!File::Exists(coef_file))
 		coef_file = File::GetSysDirectory() + GC_SYS_DIR DIR_SEP DSP_COEF;
-	if (!DSPCore_Init(irom_file.c_str(), coef_file.c_str(), AudioCommon::UseJIT()))
+	if (!DSPCore_Init(irom_file, coef_file, AudioCommon::UseJIT()))
 		return false;
 
 	g_dsp.cpu_ram = Memory::GetPointer(0);
@@ -186,7 +185,7 @@ void DSPLLE::InitMixer()
 	AudioInterface::Callback_GetSampleRate(AISampleRate, DACSampleRate);
 	delete soundStream;
 	soundStream = AudioCommon::InitSoundStream(new CMixer(AISampleRate, DACSampleRate, 48000), m_hWnd);
-	if(!soundStream) PanicAlert("Error starting up sound stream");
+	if (!soundStream) PanicAlert("Error starting up sound stream");
 	// Mixer is initialized
 	m_InitMixer = true;
 }

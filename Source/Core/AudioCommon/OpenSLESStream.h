@@ -2,17 +2,16 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _OPENSLSTREAM_H_
-#define _OPENSLSTREAM_H_
+#pragma once
 
-#include "Thread.h"
-#include "SoundStream.h"
+#include "AudioCommon/SoundStream.h"
+#include "Common/Thread.h"
 
 class OpenSLESStream : public SoundStream
 {
 #ifdef ANDROID
 public:
-	OpenSLESStream(CMixer *mixer, void *hWnd = NULL)
+	OpenSLESStream(CMixer *mixer, void *hWnd = nullptr)
 		: SoundStream(mixer)
 	{};
 
@@ -28,8 +27,6 @@ private:
 	Common::Event soundSyncEvent;
 #else
 public:
-	OpenSLESStream(CMixer *mixer, void *hWnd = NULL): SoundStream(mixer) {}
+	OpenSLESStream(CMixer *mixer, void *hWnd = nullptr): SoundStream(mixer) {}
 #endif // HAVE_OPENSL
 };
-
-#endif

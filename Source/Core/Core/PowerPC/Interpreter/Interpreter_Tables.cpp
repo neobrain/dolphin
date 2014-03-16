@@ -2,7 +2,7 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "Interpreter_Tables.h"
+#include "Core/PowerPC/Interpreter/Interpreter_Tables.h"
 
 typedef void (*_Instruction) (UGeckoInstruction instCode);
 
@@ -63,7 +63,7 @@ static GekkoOPTemplate primarytable[] =
 	{45, Interpreter::sthu,         {"sthu", OPTYPE_STORE, FL_OUT_A | FL_IN_A | FL_IN_S | FL_LOADSTORE, 0, 0, 0, 0}},
 	{36, Interpreter::stw,          {"stw",  OPTYPE_STORE, FL_IN_A | FL_IN_S | FL_LOADSTORE, 0, 0, 0, 0}},
 	{37, Interpreter::stwu,         {"stwu", OPTYPE_STORE, FL_OUT_A | FL_IN_A | FL_IN_S | FL_LOADSTORE, 0, 0, 0, 0}},
-	{38, Interpreter::stb,	        {"stb",  OPTYPE_STORE, FL_IN_A | FL_IN_S | FL_LOADSTORE, 0, 0, 0, 0}},
+	{38, Interpreter::stb,          {"stb",  OPTYPE_STORE, FL_IN_A | FL_IN_S | FL_LOADSTORE, 0, 0, 0, 0}},
 	{39, Interpreter::stbu,         {"stbu", OPTYPE_STORE, FL_OUT_A | FL_IN_A | FL_IN_S | FL_LOADSTORE, 0, 0, 0, 0}},
 
 	{46, Interpreter::lmw,          {"lmw",   OPTYPE_SYSTEM, FL_EVIL | FL_LOADSTORE, 10, 0, 0, 0}},
@@ -310,7 +310,7 @@ static GekkoOPTemplate table59[] =
 	{18, Interpreter::fdivsx,       {"fdivsx",   OPTYPE_FPU, FL_RC_BIT_F | FL_USE_FPU, 16, 0, 0, 0}}, // TODO
 	{20, Interpreter::fsubsx,       {"fsubsx",   OPTYPE_FPU, FL_RC_BIT_F | FL_USE_FPU, 0, 0, 0, 0}},
 	{21, Interpreter::faddsx,       {"faddsx",   OPTYPE_FPU, FL_RC_BIT_F | FL_USE_FPU, 0, 0, 0, 0}},
-//	{22, Interpreter::fsqrtsx,      {"fsqrtsx",  OPTYPE_FPU, FL_RC_BIT_F | FL_USE_FPU, 0, 0, 0, 0}}, // Not implemented on gekko
+	//{22, Interpreter::fsqrtsx,      {"fsqrtsx",  OPTYPE_FPU, FL_RC_BIT_F | FL_USE_FPU, 0, 0, 0, 0}}, // Not implemented on gekko
 	{24, Interpreter::fresx,        {"fresx",    OPTYPE_FPU, FL_RC_BIT_F | FL_USE_FPU, 0, 0, 0, 0}},
 	{25, Interpreter::fmulsx,       {"fmulsx",   OPTYPE_FPU, FL_RC_BIT_F | FL_USE_FPU, 0, 0, 0, 0}},
 	{28, Interpreter::fmsubsx,      {"fmsubsx",  OPTYPE_FPU, FL_RC_BIT_F | FL_USE_FPU, 0, 0, 0, 0}},
@@ -367,7 +367,7 @@ void InitTables()
 	for (int i = 0; i < 32; i++)
 	{
 		Interpreter::m_opTable59[i] = Interpreter::unknown_instruction;
-		m_infoTable59[i] = 0;
+		m_infoTable59[i] = nullptr;
 	}
 
 	for (int i = 0; i < 1024; i++)
@@ -376,10 +376,10 @@ void InitTables()
 		Interpreter::m_opTable19[i] = Interpreter::unknown_instruction;
 		Interpreter::m_opTable31[i] = Interpreter::unknown_instruction;
 		Interpreter::m_opTable63[i] = Interpreter::unknown_instruction;
-		m_infoTable4[i] = 0;
-		m_infoTable19[i] = 0;
-		m_infoTable31[i] = 0;
-		m_infoTable63[i] = 0;
+		m_infoTable4[i] = nullptr;
+		m_infoTable19[i] = nullptr;
+		m_infoTable31[i] = nullptr;
+		m_infoTable63[i] = nullptr;
 	}
 
 	for (auto& tpl : primarytable)

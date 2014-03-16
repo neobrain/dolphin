@@ -2,15 +2,14 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _UCODES_H
-#define _UCODES_H
+#pragma once
 
-#include "Common.h"
-#include "ChunkFile.h"
-#include "Thread.h"
+#include "Common/ChunkFile.h"
+#include "Common/Common.h"
+#include "Common/Thread.h"
 
-#include "../DSPHLE.h"
-#include "../../Memmap.h"
+#include "Core/HW/Memmap.h"
+#include "Core/HW/DSPHLE/DSPHLE.h"
 
 #define UCODE_ROM                   0x00000000
 #define UCODE_INIT_AUDIO_SYSTEM     0x00000001
@@ -100,12 +99,12 @@ protected:
 
 	enum EDSP_Codes
 	{
-		DSP_INIT        = 0xDCD10000,
-		DSP_RESUME      = 0xDCD10001,
-		DSP_YIELD       = 0xDCD10002,
-		DSP_DONE        = 0xDCD10003,
-		DSP_SYNC        = 0xDCD10004,
-		DSP_FRAME_END   = 0xDCD10005,
+		DSP_INIT      = 0xDCD10000,
+		DSP_RESUME    = 0xDCD10001,
+		DSP_YIELD     = 0xDCD10002,
+		DSP_DONE      = 0xDCD10003,
+		DSP_SYNC      = 0xDCD10004,
+		DSP_FRAME_END = 0xDCD10005,
 	};
 
 	// UCode is forwarding mails to PrepareBootUCode
@@ -133,12 +132,10 @@ private:
 		u16 dram_size;
 		u16 dram_dest;
 	};
-	SUCode	m_NextUCode;
-	int	m_NextUCode_steps;
+	SUCode m_NextUCode;
+	int m_NextUCode_steps;
 
 	bool m_NeedsResumeMail;
 };
 
 extern IUCode* UCodeFactory(u32 _CRC, DSPHLE *dsp_hle, bool bWii);
-
-#endif

@@ -2,12 +2,11 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _INTERPRETER_FPUTILS_H
-#define _INTERPRETER_FPUTILS_H
+#pragma once
 
-#include "CPUDetect.h"
-#include "Interpreter.h"
-#include "MathUtil.h"
+#include "Common/CPUDetect.h"
+#include "Common/MathUtil.h"
+#include "Core/PowerPC/Interpreter/Interpreter.h"
 
 using namespace MathUtil;
 
@@ -34,22 +33,27 @@ const u32 FPSCR_VXSQRT     = (u32)1 << (31 - 22);
 const u32 FPSCR_VXCVI      = (u32)1 << (31 - 23);
 
 const u32 FPSCR_VX_ANY     = FPSCR_VXSNAN | FPSCR_VXISI | FPSCR_VXIDI | FPSCR_VXZDZ |
-							 FPSCR_VXIMZ | FPSCR_VXVC | FPSCR_VXSOFT | FPSCR_VXSQRT | FPSCR_VXCVI;
+                             FPSCR_VXIMZ | FPSCR_VXVC | FPSCR_VXSOFT | FPSCR_VXSQRT | FPSCR_VXCVI;
 
 const u32 FPSCR_ANY_X      = FPSCR_OX | FPSCR_UX | FPSCR_ZX | FPSCR_XX | FPSCR_VX_ANY;
 
 const u64 PPC_NAN_U64      = 0x7ff8000000000000ull;
 const double PPC_NAN       = *(double* const)&PPC_NAN_U64;
 
-inline bool IsINF(double x)
-{
-	return ((*(u64*)&x) & ~DOUBLE_SIGN) == DOUBLE_EXP;
-}
+// the 4 less-significand bits in FPSCR[FPRF]
+enum FPCC {
+	FL = 8, // <
+	FG = 4, // >
+	FE = 2, // =
+	FU = 1, // ?
+};
 
 inline void SetFPException(u32 mask)
 {
 	if ((FPSCR.Hex & mask) != mask)
+	{
 		FPSCR.FX = 1;
+	}
 	FPSCR.Hex |= mask;
 }
 
@@ -71,7 +75,7 @@ inline void UpdateFPSCR()
 inline double ForceSingle(double _x)
 {
 	// convert to float...
-	float x = _x;
+	float x = (float) _x;
 	if (!cpu_info.bFlushToZero && FPSCR.NI)
 	{
 		x = FlushToZero(x);
@@ -233,4 +237,37 @@ inline u32 ConvertToSingleFTZ(u64 x)
 	}
 }
 
-#endif
+inline u64 ConvertToDouble(u32 _x)
+{
+	// This is a little-endian re-implementation of the algorithm described in
+	// the PowerPC Programming Environments Manual for loading single
+	// precision floating point numbers.
+	// See page 566 of http://www.freescale.com/files/product/doc/MPCFPE32B.pdf
+
+	u64 x = _x;
+	u64 exp = (x >> 23) & 0xff;
+	u64 frac = x & 0x007fffff;
+
+	if (exp > 0 && exp < 255) // Normal number
+	{
+		u64 y = !(exp >> 7);
+		u64 z = y << 61 | y << 60 | y << 59;
+		return ((x & 0xc0000000) << 32) | z | ((x & 0x3fffffff) << 29);
+	}
+	else if (exp == 0 && frac != 0) // Subnormal number
+	{
+		exp = 1023 - 126;
+		do
+		{
+			frac <<= 1;
+			exp -= 1;
+		} while ((frac & 0x00800000) == 0);
+		return ((x & 0x80000000) << 32) | (exp << 52) | ((frac & 0x007fffff) << 29);
+	}
+	else // QNaN, SNaN or Zero
+	{
+		u64 y = exp >> 7;
+		u64 z = y << 61 | y << 60 | y << 59;
+		return ((x & 0xc0000000) << 32) | z | ((x & 0x3fffffff) << 29);
+	}
+}

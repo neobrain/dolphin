@@ -2,21 +2,35 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "../WxUtils.h"
-#include "MemoryCheckDlg.h"
-#include "Common.h"
-#include "StringUtil.h"
-#include "PowerPC/PowerPC.h"
-#include "BreakpointWindow.h"
+#include <string>
+#include <wx/chartype.h>
+#include <wx/checkbox.h>
+#include <wx/defs.h>
+#include <wx/dialog.h>
+#include <wx/event.h>
+#include <wx/gdicmn.h>
+#include <wx/sizer.h>
+#include <wx/stattext.h>
+#include <wx/string.h>
+#include <wx/textctrl.h>
+#include <wx/translation.h>
 
-#define TEXT_BOX(text) new wxStaticText(this, wxID_ANY, wxT(text), wxDefaultPosition, wxDefaultSize)
+#include "Common/BreakPoints.h"
+#include "Common/Common.h"
+#include "Common/StringUtil.h"
+#include "Core/PowerPC/PowerPC.h"
+#include "DolphinWX/WxUtils.h"
+#include "DolphinWX/Debugger/BreakpointWindow.h"
+#include "DolphinWX/Debugger/MemoryCheckDlg.h"
+
+#define TEXT_BOX(text) new wxStaticText(this, wxID_ANY, wxT(text))
 
 BEGIN_EVENT_TABLE(MemoryCheckDlg, wxDialog)
 	EVT_BUTTON(wxID_OK, MemoryCheckDlg::OnOK)
 END_EVENT_TABLE()
 
 MemoryCheckDlg::MemoryCheckDlg(CBreakPointWindow *parent)
-	: wxDialog(parent, wxID_ANY, _("Memory Check"), wxDefaultPosition, wxDefaultSize)
+	: wxDialog(parent, wxID_ANY, _("Memory Check"))
 	, m_parent(parent)
 {
 	m_pEditStartAddress = new wxTextCtrl(this, wxID_ANY, wxT(""));
@@ -67,9 +81,9 @@ void MemoryCheckDlg::OnOK(wxCommandEvent& event)
 
 	u32 StartAddress, EndAddress;
 	bool EndAddressOK = EndAddressString.Len() &&
-		AsciiToHex(WxStrToStr(EndAddressString).c_str(), EndAddress);
+		AsciiToHex(WxStrToStr(EndAddressString), EndAddress);
 
-	if (AsciiToHex(WxStrToStr(StartAddressString).c_str(), StartAddress) &&
+	if (AsciiToHex(WxStrToStr(StartAddressString), StartAddress) &&
 		(OnRead || OnWrite) && (Log || Break))
 	{
 		TMemCheck MemCheck;

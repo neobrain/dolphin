@@ -6,18 +6,20 @@
 // Wii version of AX. Maybe it would be better to abstract away the parts that
 // can be made common.
 
-#ifndef _UCODE_AX_VOICE_H
-#define _UCODE_AX_VOICE_H
+#pragma once
 
 #if !defined(AX_GC) && !defined(AX_WII)
 #error UCode_AX_Voice.h included without specifying version
 #endif
 
-#include "Common.h"
-#include "UCode_AXStructs.h"
-#include "../../DSP.h"
-
 #include <functional>
+
+#include "Common/Common.h"
+#include "Common/MathUtil.h"
+#include "Core/HW/DSP.h"
+#include "Core/HW/Memmap.h"
+#include "Core/HW/DSPHLE/UCodes/UCode_AX.h"
+#include "Core/HW/DSPHLE/UCodes/UCode_AXStructs.h"
 
 #ifdef AX_GC
 # define PB_TYPE AXPB
@@ -193,7 +195,7 @@ u16 AcceleratorGetSample()
 
 	switch (acc_pb->audio_addr.sample_format)
 	{
-		case 0x00:	// ADPCM
+		case 0x00: // ADPCM
 		{
 			// ADPCM decoding, not much to explain here.
 			if ((*acc_cur_addr & 15) == 0)
@@ -216,9 +218,7 @@ u16 AcceleratorGetSample()
 				temp -= 16;
 
 			int val = (scale * temp) + ((0x400 + coef1 * acc_pb->adpcm.yn1 + coef2 * acc_pb->adpcm.yn2) >> 11);
-
-			if (val > 0x7FFF) val = 0x7FFF;
-			else if (val < -0x7FFF) val = -0x7FFF;
+			MathUtil::Clamp(&val, -0x7FFF, 0x7FFF);
 
 			acc_pb->adpcm.yn2 = acc_pb->adpcm.yn1;
 			acc_pb->adpcm.yn1 = val;
@@ -227,14 +227,14 @@ u16 AcceleratorGetSample()
 			break;
 		}
 
-		case 0x0A:	// 16-bit PCM audio
+		case 0x0A: // 16-bit PCM audio
 			ret = (DSP::ReadARAM(*acc_cur_addr * 2) << 8) | DSP::ReadARAM(*acc_cur_addr * 2 + 1);
 			acc_pb->adpcm.yn2 = acc_pb->adpcm.yn1;
 			acc_pb->adpcm.yn1 = ret;
 			*acc_cur_addr += 1;
 			break;
 
-		case 0x19:	// 8-bit PCM audio
+		case 0x19: // 8-bit PCM audio
 			ret = DSP::ReadARAM(*acc_cur_addr) << 8;
 			acc_pb->adpcm.yn2 = acc_pb->adpcm.yn1;
 			acc_pb->adpcm.yn1 = ret;
@@ -556,5 +556,3 @@ void ProcessVoice(PB_TYPE& pb, const AXBuffers& buffers, u16 count, AXMixControl
 }
 
 } // namespace
-
-#endif // !_UCODE_AX_VOICE_H

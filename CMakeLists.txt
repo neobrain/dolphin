@@ -1,7 +1,7 @@
 ########################################
 # General setup
 #
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8)
 
 option(ANDROID "Enables a build for Android" OFF)
 option(USE_EGL "Enables EGL OpenGL Interface" OFF)
@@ -17,9 +17,8 @@ option(OPENMP "Enable OpenMP parallelization" ON)
 option(ENCODE_FRAMEDUMPS "Encode framedumps in AVI format" ON)
 ########################################
 # Optional Targets
-# TODO: Add DSPSpy and TestSuite.
+# TODO: Add DSPSpy
 option(DSPTOOL "Build dsptool" OFF)
-option(UNITTESTS "Build unitests" OFF)
 
 # Update compiler before calling project()
 if (APPLE)
@@ -30,7 +29,7 @@ if (APPLE)
 			set(CMAKE_CXX_COMPILER "clang++")
 		endif()
 	endif()
-	if (NOT DEFINED CMAKE_CXX_COMPILER)
+	if (NOT DEFINED CMAKE_C_COMPILER)
 		set(CMAKE_C_COMPILER "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang")
 		if (NOT EXISTS "${CMAKE_C_COMPILER}")
 			set(CMAKE_C_COMPILER "clang")
@@ -116,25 +115,53 @@ if(DOLPHIN_IS_STABLE)
 else()
 	set(DOLPHIN_VERSION_PATCH ${DOLPHIN_WC_REVISION})
 endif()
+
+# Architecture detection and arch specific settings
 message(${CMAKE_SYSTEM_PROCESSOR})
-if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm")
-	set(_M_GENERIC 1)
+
+# Detect 64bit or 32bit
+# CMake doesn't provide a simple way to determine 32bit or 64bit
+# If we ever support a architecture that is 64bit with 32bit pointers then this'll break
+# Of course the chances of that are slim(x32?) so who cares
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+	set(_ARCH_64 1)
+	add_definitions(-D_ARCH_64=1)
+else()
+	set(_ARCH_32 1)
+	add_definitions(-D_ARCH_32=1)
+endif()
+
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^x86" OR ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	add_definitions(-msse2)
+	set(_M_X86 1)
+	add_definitions(-D_M_X86=1)
+	if(_ARCH_64)
+		set(_M_X86_64 1)
+		add_definitions(-D_M_X86_64=1)
+	else()
+		set(_M_X86_32 1)
+		add_definitions(-D_M_X86_32=1)
+	endif()
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm")
+	# This option only applies to 32bit ARM
 	set(_M_ARM 1)
+	set(_M_ARM_32 1)
+	add_definitions(-D_M_ARM=1 -D_M_ARM_32=1)
+	set(_M_GENERIC 1)
+	add_definitions(-D_M_GENERIC=1)
 	if(${ANDROID_NDK_ABI_NAME} MATCHES "armeabi-v7a")
 		add_definitions(-marm -march=armv7-a)
 	endif()
-endif()
-
-if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "mips")
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+	# This option only applies to 64bit ARM
+	set(_M_ARM 1)
+	set(_M_ARM_64 1)
+	add_definitions(-D_M_ARM=1 -D_M_ARM_64=1)
 	set(_M_GENERIC 1)
-endif()
-
-# Set these next two lines to test generic
-#set(_M_GENERIC 1)
-#add_definitions(-D_M_GENERIC=1)
-# Various compile flags
-if(NOT _M_GENERIC)
-	add_definitions(-msse2)
+	add_definitions(-D_M_GENERIC=1)
+else()
+	set(_M_GENERIC 1)
+	add_definitions(-D_M_GENERIC=1)
 endif()
 
 include(CheckCXXCompilerFlag)
@@ -242,6 +269,7 @@ if(APPLE)
 	find_library(IOK_LIBRARY IOKit)
 	find_library(QUICKTIME_LIBRARY QuickTime)
 	find_library(WEBKIT_LIBRARY WebKit)
+	find_library(FORCEFEEDBACK ForceFeedback)
 endif()
 
 if(WIN32)
@@ -363,7 +391,7 @@ if(NOT ANDROID)
 		message("bluez NOT found, disabling bluetooth support")
 	endif(BLUEZ_FOUND)
 
-	check_lib(PULSEAUDIO libpulse-simple QUIET)
+	check_lib(PULSEAUDIO libpulse QUIET)
 	if(PULSEAUDIO_FOUND)
 		add_definitions(-DHAVE_PULSEAUDIO=1)
 		message("PulseAudio found, enabling PulseAudio sound backend")
@@ -471,16 +499,7 @@ endif()
 ########################################
 # Setup include directories (and make sure they are preferred over the Externals)
 #
-include_directories(Source/Core/AudioCommon)
-include_directories(Source/Core/Common)
-include_directories(Source/Core/Core)
-include_directories(Source/Core/DebuggerUICommon)
-include_directories(Source/Core/DebuggerWX)
-include_directories(Source/Core/DiscIO)
-include_directories(Source/Core/DolphinWX)
-include_directories(Source/Core/InputCommon)
-include_directories(Source/Core/VideoCommon)
-include_directories(Source/Core/VideoUICommon)
+include_directories(Source/Core)
 
 ########################################
 # Process externals and setup their include directories
@@ -536,7 +555,7 @@ endif()
 
 if(OPENAL_FOUND)
 	if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-		check_lib(SOUNDTOUCH SoundTouch soundtouch/soundtouch.h QUIET)
+		check_lib(SOUNDTOUCH SoundTouch soundtouch/SoundTouch.h QUIET)
 	endif()
 	if (SOUNDTOUCH_FOUND)
 		message("Using shared soundtouch")
@@ -731,6 +750,16 @@ file(WRITE ${PROJECT_BINARY_DIR}/Source/Core/Common/scmrev.h
 	"#define SCM_IS_MASTER " ${DOLPHIN_WC_IS_MASTER} "\n"
 	)
 include_directories("${PROJECT_BINARY_DIR}/Source/Core/Common")
+
+########################################
+# Unit testing.
+#
+include_directories(Externals/gtest/include)
+add_subdirectory(Externals/gtest)
+
+enable_testing()
+add_custom_target(unittests)
+add_custom_command(TARGET unittests POST_BUILD COMMAND ${CMAKE_CTEST_COMMAND})
 
 
 ########################################

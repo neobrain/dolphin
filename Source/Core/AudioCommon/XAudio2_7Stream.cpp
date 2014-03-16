@@ -7,8 +7,8 @@
 // instead of other possible places. This may be accomplished by adding the path to
 // the AdditionalIncludeDirectories for this file via msbuild.
 
-#include "AudioCommon.h"
-#include "XAudio2_7Stream.h"
+#include "AudioCommon/AudioCommon.h"
+#include "AudioCommon/XAudio2_7Stream.h"
 
 #ifdef HAVE_DXSDK
 #include <dxsdkver.h>
@@ -75,16 +75,16 @@ StreamingVoiceContext2_7::StreamingVoiceContext2_7(IXAudio2 *pXAudio2, CMixer *p
 {
 	WAVEFORMATEXTENSIBLE wfx = {};
 
-	wfx.Format.wFormatTag		= WAVE_FORMAT_EXTENSIBLE;
-	wfx.Format.nSamplesPerSec	= m_mixer->GetSampleRate();
-	wfx.Format.nChannels		= 2;
-	wfx.Format.wBitsPerSample	= 16;
-	wfx.Format.nBlockAlign		= wfx.Format.nChannels*wfx.Format.wBitsPerSample / 8;
-	wfx.Format.nAvgBytesPerSec	= wfx.Format.nSamplesPerSec * wfx.Format.nBlockAlign;
-	wfx.Format.cbSize			= sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
+	wfx.Format.wFormatTag      = WAVE_FORMAT_EXTENSIBLE;
+	wfx.Format.nSamplesPerSec  = m_mixer->GetSampleRate();
+	wfx.Format.nChannels       = 2;
+	wfx.Format.wBitsPerSample  = 16;
+	wfx.Format.nBlockAlign     = wfx.Format.nChannels*wfx.Format.wBitsPerSample / 8;
+	wfx.Format.nAvgBytesPerSec = wfx.Format.nSamplesPerSec * wfx.Format.nBlockAlign;
+	wfx.Format.cbSize          = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
 	wfx.Samples.wValidBitsPerSample = 16;
-	wfx.dwChannelMask			= SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT;
-	wfx.SubFormat				= KSDATAFORMAT_SUBTYPE_PCM;
+	wfx.dwChannelMask          = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT;
+	wfx.SubFormat              = KSDATAFORMAT_SUBTYPE_PCM;
 
 	// create source voice
 	HRESULT hr;
@@ -159,7 +159,7 @@ XAudio2_7::XAudio2_7(CMixer *mixer)
 	: SoundStream(mixer)
 	, m_mastering_voice(nullptr)
 	, m_volume(1.0f)
-	, m_cleanup_com(SUCCEEDED(CoInitializeEx(NULL, COINIT_MULTITHREADED)))
+	, m_cleanup_com(SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)))
 {
 }
 
@@ -218,11 +218,11 @@ void XAudio2_7::Update()
 	//static int xi = 0;
 	//if (100000 == ++xi)
 	//{
-	//	xi = 0;
-	//	XAUDIO2_PERFORMANCE_DATA perfData;
-	//	pXAudio2->GetPerformanceData(&perfData);
-	//	NOTICE_LOG(DSPHLE, "XAudio2_7 latency (samples): %i", perfData.CurrentLatencyInSamples);
-	//	NOTICE_LOG(DSPHLE, "XAudio2_7	total glitches: %i", perfData.GlitchesSinceEngineStarted);
+	//    xi = 0;
+	//    XAUDIO2_PERFORMANCE_DATA perfData;
+	//    pXAudio2->GetPerformanceData(&perfData);
+	//    NOTICE_LOG(DSPHLE, "XAudio2_7 latency (samples): %i", perfData.CurrentLatencyInSamples);
+	//    NOTICE_LOG(DSPHLE, "XAudio2_7 total glitches: %i", perfData.GlitchesSinceEngineStarted);
 	//}
 }
 
@@ -251,7 +251,7 @@ void XAudio2_7::Stop()
 		m_mastering_voice = nullptr;
 	}
 
-	m_xaudio2.reset();	// release interface
+	m_xaudio2.reset(); // release interface
 
 	if (m_xaudio2_dll)
 	{

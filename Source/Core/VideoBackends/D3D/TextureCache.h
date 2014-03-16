@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "TextureCacheBase.h"
-
-#include "D3DTexture.h"
+#include "VideoBackends/D3D/D3DTexture.h"
+#include "VideoCommon/TextureCacheBase.h"
 
 namespace DX11
 {
@@ -36,7 +35,7 @@ private:
 			const float *colmat);
 
 		void Bind(unsigned int stage);
-		bool Save(const std::string filename, unsigned int level);
+		bool Save(const std::string& filename, unsigned int level);
 	};
 
 	TCacheEntryBase* CreateTexture(unsigned int width, unsigned int height,

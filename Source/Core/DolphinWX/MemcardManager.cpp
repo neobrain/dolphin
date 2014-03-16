@@ -2,11 +2,37 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "MemcardManager.h"
-#include "Common.h"
+#include <cstring>
+#include <string>
+#include <wx/bitmap.h>
+#include <wx/button.h>
+#include <wx/chartype.h>
+#include <wx/defs.h>
+#include <wx/dialog.h>
+#include <wx/event.h>
+#include <wx/filedlg.h>
+#include <wx/filepicker.h>
+#include <wx/gdicmn.h>
+#include <wx/image.h>
+#include <wx/imaglist.h>
+#include <wx/listbase.h>
+#include <wx/menu.h>
+#include <wx/menuitem.h>
+#include <wx/mstream.h>
+#include <wx/sizer.h>
+#include <wx/stattext.h>
+#include <wx/string.h>
+#include <wx/translation.h>
+#include <wx/window.h>
+#include <wx/windowid.h>
 
-#include "WxUtils.h"
-#include "wx/mstream.h"
+#include "Common/Common.h"
+#include "Common/FileUtil.h"
+#include "Common/IniFile.h"
+#include "Common/StringUtil.h"
+#include "Core/HW/GCMemcard.h"
+#include "DolphinWX/MemcardManager.h"
+#include "DolphinWX/WxUtils.h"
 
 #define ARROWS slot ? _T("") : ARROW[slot], slot ? ARROW[slot] : _T("")
 
@@ -38,8 +64,8 @@ wxBitmap wxBitmapFromMemoryRGBA(const unsigned char* data, u32 width, u32 height
 
 	u8 *pdata = new u8[bytes];
 
-	memset(pdata,0,bytes);
 	memcpy(pdata,hdr,sizeof(hdr));
+	memset(pdata+sizeof(hdr),0,bytes-sizeof(hdr));
 
 	u8 *pixelData = pdata + sizeof(hdr);
 
@@ -87,8 +113,8 @@ END_EVENT_TABLE()
 CMemcardManager::CMemcardManager(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& position, const wxSize& size, long style)
 	: wxDialog(parent, id, title, position, size, style)
 {
-	memoryCard[SLOT_A]=NULL;
-	memoryCard[SLOT_B]=NULL;
+	memoryCard[SLOT_A]=nullptr;
+	memoryCard[SLOT_B]=nullptr;
 
 	mcmSettings.twoCardsLoaded = false;
 	if (!LoadSettings())
@@ -109,12 +135,12 @@ CMemcardManager::~CMemcardManager()
 	if (memoryCard[SLOT_A])
 	{
 		delete memoryCard[SLOT_A];
-		memoryCard[SLOT_A] = NULL;
+		memoryCard[SLOT_A] = nullptr;
 	}
 	if (memoryCard[SLOT_B])
 	{
 		delete memoryCard[SLOT_B];
-		memoryCard[SLOT_B] = NULL;
+		memoryCard[SLOT_B] = nullptr;
 	}
 	SaveSettings();
 }
@@ -139,7 +165,7 @@ bool CMemcardManager::LoadSettings()
 
 		mcmSettings.column[NUMBER_OF_COLUMN] = false;
 
-		for(int i = COLUMN_GAMECODE; i < NUMBER_OF_COLUMN; i++)
+		for (int i = COLUMN_GAMECODE; i < NUMBER_OF_COLUMN; i++)
 		{
 			mcmSettings.column[i] = mcmSettings.column[NUMBER_OF_COLUMN];
 		}
@@ -160,7 +186,7 @@ bool CMemcardManager::SaveSettings()
 	iniMemcardSection->Set("cBanner", mcmSettings.column[COLUMN_BANNER], true);
 	iniMemcardSection->Set("cTitle", mcmSettings.column[COLUMN_TITLE], true);
 	iniMemcardSection->Set("cComment", mcmSettings.column[COLUMN_COMMENT], true);
-	iniMemcardSection->Set("cIcon",	mcmSettings.column[COLUMN_ICON], true);
+	iniMemcardSection->Set("cIcon", mcmSettings.column[COLUMN_ICON], true);
 	iniMemcardSection->Set("cBlocks", mcmSettings.column[COLUMN_BLOCKS], true);
 	iniMemcardSection->Set("cFirst Block", mcmSettings.column[COLUMN_FIRSTBLOCK], true);
 
@@ -179,13 +205,13 @@ void CMemcardManager::CreateGUIControls()
 
 	for (int slot = SLOT_A; slot <= SLOT_B; slot++)
 	{
-		m_CopyFrom[slot]	= new wxButton(this, ID_COPYFROM_A + slot,
+		m_CopyFrom[slot]    = new wxButton(this, ID_COPYFROM_A + slot,
 			wxString::Format(_("%1$sCopy%1$s"), ARROW[slot ? 0 : 1]));
-		m_SaveImport[slot]	= new wxButton(this, ID_SAVEIMPORT_A + slot,
+		m_SaveImport[slot]  = new wxButton(this, ID_SAVEIMPORT_A + slot,
 			wxString::Format(_("%sImport GCI%s"), ARROWS));
-		m_SaveExport[slot]	= new wxButton(this, ID_SAVEEXPORT_A + slot,
+		m_SaveExport[slot]  = new wxButton(this, ID_SAVEEXPORT_A + slot,
 			wxString::Format(_("%sExport GCI%s"), ARROWS));
-		m_Delete[slot]		= new wxButton(this, ID_DELETE_A + slot,
+		m_Delete[slot]      = new wxButton(this, ID_DELETE_A + slot,
 			wxString::Format(_("%sDelete%s"), ARROWS));
 
 
@@ -274,12 +300,12 @@ void CMemcardManager::ChangePath(int slot)
 	}
 	if (!m_MemcardPath[SLOT_A]->GetPath().CmpNoCase(m_MemcardPath[SLOT_B]->GetPath()))
 	{
-		if(m_MemcardPath[slot]->GetPath().length())
+		if (m_MemcardPath[slot]->GetPath().length())
 			PanicAlertT("Memcard already opened");
 	}
 	else
 	{
-		if (m_MemcardPath[slot]->GetPath().length() && ReloadMemcard(WxStrToStr(m_MemcardPath[slot]->GetPath()).c_str(), slot))
+		if (m_MemcardPath[slot]->GetPath().length() && ReloadMemcard(WxStrToStr(m_MemcardPath[slot]->GetPath()), slot))
 		{
 			if (memoryCard[slot2])
 			{
@@ -294,7 +320,7 @@ void CMemcardManager::ChangePath(int slot)
 			if (memoryCard[slot])
 			{
 				delete memoryCard[slot];
-				memoryCard[slot] = NULL;
+				memoryCard[slot] = nullptr;
 			}
 			mcmSettings.twoCardsLoaded = false;
 			m_MemcardPath[slot]->SetPath(wxEmptyString);
@@ -334,7 +360,7 @@ void CMemcardManager::OnPageChange(wxCommandEvent& event)
 			m_NextPage[slot]->Disable();
 			m_MemcardList[slot]->nextPage = false;
 		}
-		ReloadMemcard(WxStrToStr(m_MemcardPath[slot]->GetPath()).c_str(), slot);
+		ReloadMemcard(WxStrToStr(m_MemcardPath[slot]->GetPath()), slot);
 		break;
 	case ID_PREVPAGE_A:
 		slot = SLOT_A;
@@ -350,7 +376,7 @@ void CMemcardManager::OnPageChange(wxCommandEvent& event)
 			m_PrevPage[slot]->Disable();
 			m_MemcardList[slot]->prevPage = false;
 		}
-		ReloadMemcard(WxStrToStr(m_MemcardPath[slot]->GetPath()).c_str(), slot);
+		ReloadMemcard(WxStrToStr(m_MemcardPath[slot]->GetPath()), slot);
 		break;
 	}
 }
@@ -358,7 +384,7 @@ void CMemcardManager::OnPageChange(wxCommandEvent& event)
 void CMemcardManager::OnMenuChange(wxCommandEvent& event)
 {
 	int _id = event.GetId();
-	switch(_id)
+	switch (_id)
 	{
 	case ID_MEMCARDPATH_A:
 	case ID_MEMCARDPATH_B:
@@ -389,8 +415,8 @@ void CMemcardManager::OnMenuChange(wxCommandEvent& event)
 		break;
 	}
 
-	if (memoryCard[SLOT_A])	ReloadMemcard(WxStrToStr(m_MemcardPath[SLOT_A]->GetPath()).c_str(), SLOT_A);
-	if (memoryCard[SLOT_B])	ReloadMemcard(WxStrToStr(m_MemcardPath[SLOT_B]->GetPath()).c_str(), SLOT_B);
+	if (memoryCard[SLOT_A]) ReloadMemcard(WxStrToStr(m_MemcardPath[SLOT_A]->GetPath()), SLOT_A);
+	if (memoryCard[SLOT_B]) ReloadMemcard(WxStrToStr(m_MemcardPath[SLOT_B]->GetPath()), SLOT_B);
 }
 bool CMemcardManager::CopyDeleteSwitch(u32 error, int slot)
 {
@@ -405,7 +431,7 @@ bool CMemcardManager::CopyDeleteSwitch(u32 error, int slot)
 			memoryCard[slot]->FixChecksums();
 			if (!memoryCard[slot]->Save()) PanicAlert(E_SAVEFAILED);
 			page[slot] = FIRSTPAGE;
-			ReloadMemcard(WxStrToStr(m_MemcardPath[slot]->GetPath()).c_str(), slot);
+			ReloadMemcard(WxStrToStr(m_MemcardPath[slot]->GetPath()), slot);
 		}
 		break;
 	case NOMEMCARD:
@@ -531,7 +557,7 @@ void CMemcardManager::CopyDeleteClick(wxCommandEvent& event)
 		}
 		if (fileName.length() > 0)
 		{
-			CopyDeleteSwitch(memoryCard[slot]->ImportGci(WxStrToStr(fileName).c_str(), fileName2), slot);
+			CopyDeleteSwitch(memoryCard[slot]->ImportGci(WxStrToStr(fileName), fileName2), slot);
 		}
 	}
 	break;
@@ -559,7 +585,7 @@ void CMemcardManager::CopyDeleteClick(wxCommandEvent& event)
 
 			if (fileName.length() > 0)
 			{
-				if (!CopyDeleteSwitch(memoryCard[slot]->ExportGci(index, WxStrToStr(fileName).c_str(), ""), -1))
+				if (!CopyDeleteSwitch(memoryCard[slot]->ExportGci(index, WxStrToStr(fileName), ""), -1))
 				{
 					File::Delete(WxStrToStr(fileName));
 				}
@@ -572,14 +598,14 @@ void CMemcardManager::CopyDeleteClick(wxCommandEvent& event)
 	{
 		std::string path1, path2, mpath;
 		mpath = WxStrToStr(m_MemcardPath[slot]->GetPath());
-		SplitPath(mpath, &path1, &path2, NULL);
+		SplitPath(mpath, &path1, &path2, nullptr);
 		path1 += path2;
 		File::CreateDir(path1);
-		if(PanicYesNoT("Warning: This will overwrite any existing saves that are in the folder:\n"
-					"%s\nand have the same name as a file on your memcard\nContinue?", path1.c_str()))
+		if (PanicYesNoT("Warning: This will overwrite any existing saves that are in the folder:\n"
+		                "%s\nand have the same name as a file on your memcard\nContinue?", path1.c_str()))
 		for (int i = 0; i < DIRLEN; i++)
 		{
-			CopyDeleteSwitch(memoryCard[slot]->ExportGci(i, NULL, path1), -1);
+			CopyDeleteSwitch(memoryCard[slot]->ExportGci(i, nullptr, path1), -1);
 		}
 		break;
 	}
@@ -596,7 +622,7 @@ void CMemcardManager::CopyDeleteClick(wxCommandEvent& event)
 	}
 }
 
-bool CMemcardManager::ReloadMemcard(const char *fileName, int card)
+bool CMemcardManager::ReloadMemcard(const std::string& fileName, int card)
 {
 	if (memoryCard[card]) delete memoryCard[card];
 
@@ -684,7 +710,7 @@ bool CMemcardManager::ReloadMemcard(const char *fileName, int card)
 		}
 	}
 
-	int	pagesMax = (mcmSettings.usePages) ?
+	int pagesMax = (mcmSettings.usePages) ?
 					(page[card] + 1) * itemsPerPage : 128;
 
 	for (j = page[card] * itemsPerPage; (j < nFiles) && (j < pagesMax); j++)
@@ -718,7 +744,7 @@ bool CMemcardManager::ReloadMemcard(const char *fileName, int card)
 		wxBlock.Printf(wxT("%10d"), blocks);
 		m_MemcardList[card]->SetItem(index,COLUMN_BLOCKS, wxBlock);
 		firstblock = memoryCard[card]->DEntry_FirstBlock(fileIndex);
-		//if (firstblock == 0xFFFF) firstblock = 3;	// to make firstblock -1
+		//if (firstblock == 0xFFFF) firstblock = 3; // to make firstblock -1
 		wxFirstBlock.Printf(wxT("%15d"), firstblock);
 		m_MemcardList[card]->SetItem(index, COLUMN_FIRSTBLOCK, wxFirstBlock);
 		m_MemcardList[card]->SetItem(index, COLUMN_ICON, wxEmptyString);
@@ -808,14 +834,14 @@ void CMemcardManager::CMemcardListCtrl::OnRightClick(wxMouseEvent& event)
 
 		popupMenu->AppendSeparator();
 
-//		popupMenu->AppendCheckItem(COLUMN_BANNER, _("Show save banner"));
+		// popupMenu->AppendCheckItem(COLUMN_BANNER, _("Show save banner"));
 		popupMenu->AppendCheckItem(COLUMN_TITLE, _("Show save title"));
 		popupMenu->AppendCheckItem(COLUMN_COMMENT, _("Show save comment"));
 		popupMenu->AppendCheckItem(COLUMN_ICON, _("Show save icon"));
 		popupMenu->AppendCheckItem(COLUMN_BLOCKS, _("Show save blocks"));
 		popupMenu->AppendCheckItem(COLUMN_FIRSTBLOCK, _("Show first block"));
 
-//		for (int i = COLUMN_BANNER; i <= COLUMN_FIRSTBLOCK; i++)
+		// for (int i = COLUMN_BANNER; i <= COLUMN_FIRSTBLOCK; i++)
 		for (int i = COLUMN_TITLE; i <= COLUMN_FIRSTBLOCK; i++)
 		{
 			popupMenu->FindItem(i)->Check(__mcmSettings.column[i]);

@@ -14,12 +14,12 @@
 #undef _interlockedbittestandreset64
 #endif
 
-#include "CPUDetect.h"
-#include "Interpreter.h"
-#include "Interpreter_FPUtils.h"
-#include "FPURoundMode.h"
-#include "../../HW/GPFifo.h"
-#include "../../HW/SystemTimers.h"
+#include "Common/CPUDetect.h"
+#include "Common/FPURoundMode.h"
+#include "Core/HW/GPFifo.h"
+#include "Core/HW/SystemTimers.h"
+#include "Core/PowerPC/Interpreter/Interpreter.h"
+#include "Core/PowerPC/Interpreter/Interpreter_FPUtils.h"
 
 /*
 
@@ -49,7 +49,7 @@ static void FPSCRtoFPUSettings(UReg_FPSCR fp)
 	}
 
 	// Set SSE rounding mode and denormal handling
-	FPURoundMode::SetSIMDMode(FPSCR.RN, FPSCR.NI);
+	FPURoundMode::SetSIMDMode(fp.RN, fp.NI);
 }
 
 void Interpreter::mtfsb0x(UGeckoInstruction _inst)
@@ -253,7 +253,7 @@ void Interpreter::mtspr(UGeckoInstruction _inst)
 	//Our DMA emulation is highly inaccurate - instead of properly emulating the queue
 	//and so on, we simply make all DMA:s complete instantaneously.
 
-	switch(iIndex)
+	switch (iIndex)
 	{
 	case SPR_TL:
 	case SPR_TU:
@@ -313,7 +313,7 @@ void Interpreter::mtspr(UGeckoInstruction _inst)
 
 			//_assert_msg_(POWERPC, WriteGatherPipeEnable, "Write gather pipe not enabled!");
 			//if ((HID2.PSE == 0))
-			//	MessageBox(NULL, "PSE in HID2 is set", "Warning", MB_OK);
+			//	MessageBox(nullptr, "PSE in HID2 is set", "Warning", MB_OK);
 		}
 		break;
 
@@ -468,6 +468,6 @@ void Interpreter::mffsx(UGeckoInstruction _inst)
 	// TODO(ector): grab all overflow flags etc and set them in FPSCR
 
 	UpdateFPSCR();
-	riPS0(_inst.FD)	= (u64)FPSCR.Hex;
+	riPS0(_inst.FD) = (u64)FPSCR.Hex;
 	if (_inst.Rc) PanicAlert("mffsx: inst_.Rc");
 }

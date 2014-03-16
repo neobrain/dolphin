@@ -2,17 +2,15 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "Common.h"
-
-#include "../OGL/GLUtil.h"
-#include "Core.h"
-#include "ImageWrite.h"
-#include "RasterFont.h"
-#include "SWRenderer.h"
-#include "SWStatistics.h"
-#include "SWCommandProcessor.h"
-
-#include "OnScreenDisplay.h"
+#include "Common/Common.h"
+#include "Core/Core.h"
+#include "VideoBackends/OGL/GLUtil.h"
+#include "VideoBackends/Software/RasterFont.h"
+#include "VideoBackends/Software/SWCommandProcessor.h"
+#include "VideoBackends/Software/SWRenderer.h"
+#include "VideoBackends/Software/SWStatistics.h"
+#include "VideoCommon/ImageWrite.h"
+#include "VideoCommon/OnScreenDisplay.h"
 
 static GLuint s_RenderTarget = 0;
 
@@ -30,7 +28,7 @@ static std::string s_sScreenshotName;
 
 // Rasterfont isn't compatible with GLES
 // degasus: I think it does, but I can't test it
-RasterFont* s_pfont = NULL;
+RasterFont* s_pfont = nullptr;
 
 void SWRenderer::Init()
 {
@@ -46,7 +44,7 @@ void SWRenderer::Shutdown()
 	if (GLInterface->GetMode() == GLInterfaceMode::MODE_OPENGL)
 	{
 		delete s_pfont;
-		s_pfont = 0;
+		s_pfont = nullptr;
 	}
 }
 
@@ -162,7 +160,7 @@ void SWRenderer::swapColorTexture() {
 
 void SWRenderer::UpdateColorTexture(EfbInterface::yuv422_packed *xfb, u32 fbWidth, u32 fbHeight)
 {
-	if(fbWidth*fbHeight > 640*568) {
+	if (fbWidth*fbHeight > 640*568) {
 		ERROR_LOG(VIDEO, "Framebuffer is too large: %ix%i", fbWidth, fbHeight);
 		return;
 	}
@@ -182,14 +180,14 @@ void SWRenderer::UpdateColorTexture(EfbInterface::yuv422_packed *xfb, u32 fbWidt
 
 			// We do the inverse BT.601 conversion for YCbCr to RGB
 			// http://www.equasys.de/colorconversion.html#YCbCr-RGBColorFormatConversion
-			TexturePointer[offset++] = min(255.0f, max(0.0f, 1.164f * Y1              + 1.596f * V));
-			TexturePointer[offset++] = min(255.0f, max(0.0f, 1.164f * Y1 - 0.392f * U - 0.813f * V));
-			TexturePointer[offset++] = min(255.0f, max(0.0f, 1.164f * Y1 + 2.017f * U             ));
+			TexturePointer[offset++] = (u8)min(255.0f, max(0.0f, 1.164f * Y1              + 1.596f * V));
+			TexturePointer[offset++] = (u8)min(255.0f, max(0.0f, 1.164f * Y1 - 0.392f * U - 0.813f * V));
+			TexturePointer[offset++] = (u8)min(255.0f, max(0.0f, 1.164f * Y1 + 2.017f * U             ));
 			TexturePointer[offset++] = 255;
 
-			TexturePointer[offset++] = min(255.0f, max(0.0f, 1.164f * Y2              + 1.596f * V));
-			TexturePointer[offset++] = min(255.0f, max(0.0f, 1.164f * Y2 - 0.392f * U - 0.813f * V));
-			TexturePointer[offset++] = min(255.0f, max(0.0f, 1.164f * Y2 + 2.017f * U             ));
+			TexturePointer[offset++] = (u8)min(255.0f, max(0.0f, 1.164f * Y2              + 1.596f * V));
+			TexturePointer[offset++] = (u8)min(255.0f, max(0.0f, 1.164f * Y2 - 0.392f * U - 0.813f * V));
+			TexturePointer[offset++] = (u8)min(255.0f, max(0.0f, 1.164f * Y2 + 2.017f * U             ));
 			TexturePointer[offset++] = 255;
 		}
 		xfb += fbWidth;

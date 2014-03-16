@@ -2,22 +2,47 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "LogWindow.h"
-#include "ConsoleListener.h"
-#include "Console.h"
-#include "IniFile.h"
-#include "FileUtil.h"
-#include "Debugger/DebuggerUIUtil.h"
-#include "WxUtils.h"
+#include <cstddef>
+#include <mutex>
+#include <queue>
+#include <utility>
+#include <vector>
+#include <wx/anybutton.h>
+#include <wx/button.h>
+#include <wx/chartype.h>
+#include <wx/checkbox.h>
+#include <wx/choice.h>
+#include <wx/colour.h>
+#include <wx/defs.h>
+#include <wx/event.h>
+#include <wx/font.h>
+#include <wx/gdicmn.h>
+#include <wx/panel.h>
+#include <wx/sizer.h>
+#include <wx/string.h>
+#include <wx/textctrl.h>
+#include <wx/timer.h>
+#include <wx/translation.h>
+#include <wx/validate.h>
+#include <wx/window.h>
+#include <wx/windowid.h>
+#include <wx/aui/framemanager.h>
 
-#include <wx/fontmap.h>
+#include "Common/Common.h"
+#include "Common/ConsoleListener.h"
+#include "Common/FileUtil.h"
+#include "Common/IniFile.h"
+#include "Common/LogManager.h"
+#include "DolphinWX/Frame.h"
+#include "DolphinWX/LogWindow.h"
+#include "DolphinWX/WxUtils.h"
+#include "DolphinWX/Debugger/DebuggerUIUtil.h"
 
 // Milliseconds between msgQueue flushes to wxTextCtrl
 #define UPDATETIME 200
 
 BEGIN_EVENT_TABLE(CLogWindow, wxPanel)
 	EVT_CLOSE(CLogWindow::OnClose)
-	EVT_TEXT_ENTER(IDM_SUBMITCMD, CLogWindow::OnSubmit)
 	EVT_BUTTON(IDM_CLEARLOG, CLogWindow::OnClear)
 	EVT_CHOICE(IDM_FONT, CLogWindow::OnFontChange)
 	EVT_CHECKBOX(IDM_WRAPLINE, CLogWindow::OnWrapLineCheck)
@@ -29,7 +54,7 @@ CLogWindow::CLogWindow(CFrame *parent, wxWindowID id, const wxPoint& pos,
 	: wxPanel(parent, id, pos, size, style, name)
 	, x(0), y(0), winpos(0)
 	, Parent(parent), m_ignoreLogTimer(false), m_LogAccess(true)
-	, m_Log(NULL), m_cmdline(NULL), m_FontChoice(NULL)
+	, m_Log(nullptr), m_cmdline(nullptr), m_FontChoice(nullptr)
 {
 	m_LogManager = LogManager::GetInstance();
 
@@ -60,7 +85,6 @@ void CLogWindow::CreateGUIControls()
 
 	// Get the logger output settings from the config ini file.
 	ini.Get("Options", "WriteToFile", &m_writeFile, false);
-	ini.Get("Options", "WriteToConsole", &m_writeConsole, true);
 	ini.Get("Options", "WriteToWindow", &m_writeWindow, true);
 #ifdef _MSC_VER
 	if (IsDebuggerPresent())
@@ -88,11 +112,6 @@ void CLogWindow::CreateGUIControls()
 		else
 			m_LogManager->RemoveListener((LogTypes::LOG_TYPE)i, m_LogManager->GetFileListener());
 
-		if (m_writeConsole && enable)
-			m_LogManager->AddListener((LogTypes::LOG_TYPE)i, m_LogManager->GetConsoleListener());
-		else
-			m_LogManager->RemoveListener((LogTypes::LOG_TYPE)i, m_LogManager->GetConsoleListener());
-
 		if (m_writeDebugger && enable)
 			m_LogManager->AddListener((LogTypes::LOG_TYPE)i, m_LogManager->GetDebuggerListener());
 		else
@@ -102,8 +121,7 @@ void CLogWindow::CreateGUIControls()
 	}
 
 	// Font
-	m_FontChoice = new wxChoice(this, IDM_FONT,
-			wxDefaultPosition, wxDefaultSize, 0, NULL, 0, wxDefaultValidator);
+	m_FontChoice = new wxChoice(this, IDM_FONT);
 	m_FontChoice->Append(_("Default font"));
 	m_FontChoice->Append(_("Monospaced font"));
 	m_FontChoice->Append(_("Selected font"));
@@ -134,8 +152,7 @@ void CLogWindow::CreateGUIControls()
 
 	// Sizers
 	wxBoxSizer *sTop = new wxBoxSizer(wxHORIZONTAL);
-	sTop->Add(new wxButton(this, IDM_CLEARLOG, _("Clear"),
-				wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT));
+	sTop->Add(new wxButton(this, IDM_CLEARLOG, _("Clear"), wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT));
 	sTop->Add(m_FontChoice, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 3);
 	sTop->Add(m_WrapLine, 0, wxALIGN_CENTER_VERTICAL);
 
@@ -180,13 +197,6 @@ void CLogWindow::SaveSettings()
 	ini.Set("Options", "Font", m_FontChoice->GetSelection());
 	ini.Set("Options", "WrapLines", m_WrapLine->IsChecked());
 	ini.Save(File::GetUserPath(F_LOGGERCONFIG_IDX));
-}
-
-void CLogWindow::OnSubmit(wxCommandEvent& WXUNUSED (event))
-{
-	if (!m_cmdline) return;
-	Console_Submit(WxStrToStr(m_cmdline->GetValue()).c_str());
-	m_cmdline->SetValue(wxEmptyString);
 }
 
 void CLogWindow::OnClear(wxCommandEvent& WXUNUSED (event))
@@ -249,19 +259,17 @@ void CLogWindow::OnWrapLineCheck(wxCommandEvent& event)
 #else
 	wxString Text;
 	// Unfortunately wrapping styles can only be changed dynamically with wxGTK
-	// Notice:	To retain the colors when changing word wrapping we need to
-	//			loop through every letter with GetStyle and then reapply them letter by letter
+	// Notice: To retain the colors when changing word wrapping we need to
+	//         loop through every letter with GetStyle and then reapply them letter by letter
 	// Prevent m_Log access while it's being destroyed
 	m_LogAccess = false;
 	UnPopulateBottom();
 	Text = m_Log->GetValue();
 	m_Log->Destroy();
 	if (event.IsChecked())
-		m_Log = CreateTextCtrl(this, IDM_LOG,
-				wxTE_RICH | wxTE_MULTILINE | wxTE_READONLY | wxTE_WORDWRAP);
+		m_Log = CreateTextCtrl(this, IDM_LOG, wxTE_RICH | wxTE_MULTILINE | wxTE_READONLY | wxTE_WORDWRAP);
 	else
-		m_Log = CreateTextCtrl(this, IDM_LOG,
-				wxTE_RICH | wxTE_MULTILINE | wxTE_READONLY | wxTE_DONTWRAP);
+		m_Log = CreateTextCtrl(this, IDM_LOG, wxTE_RICH | wxTE_MULTILINE | wxTE_READONLY | wxTE_DONTWRAP);
 	m_Log->SetDefaultStyle(wxTextAttr(*wxWHITE));
 	m_Log->AppendText(Text);
 	PopulateBottom();
@@ -277,7 +285,7 @@ void CLogWindow::OnLogTimer(wxTimerEvent& WXUNUSED(event))
 
 	UpdateLog();
 	// Scroll to the last line
-	if (msgQueue.size() > 0)
+	if (!msgQueue.empty())
 	{
 		m_Log->ScrollLines(1);
 		m_Log->ShowPosition( m_Log->GetLastPosition() );
@@ -335,7 +343,7 @@ void CLogWindow::UpdateLog()
 			}
 			msgQueue.pop();
 		}
-	}	// unlock log
+	} // unlock log
 
 	// m_LogTimer->Start(UPDATETIME);
 	m_ignoreLogTimer = false;

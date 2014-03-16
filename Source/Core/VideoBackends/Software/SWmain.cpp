@@ -2,48 +2,51 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
+#include <string>
 
-#include "Common.h"
+#include "Common/Atomic.h"
+#include "Common/Common.h"
+#include "Common/FileUtil.h"
+#include "Common/LogManager.h"
+#include "Common/StringUtil.h"
+
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
+#include "Core/HW/Memmap.h"
+#include "Core/HW/VideoInterface.h"
+
+#include "VideoBackends/OGL/GLExtensions/GLExtensions.h"
+#include "VideoBackends/Software/BPMemLoader.h"
+#include "VideoBackends/Software/Clipper.h"
+#include "VideoBackends/Software/DebugUtil.h"
+#include "VideoBackends/Software/EfbInterface.h"
+#include "VideoBackends/Software/HwRasterizer.h"
+#include "VideoBackends/Software/OpcodeDecoder.h"
+#include "VideoBackends/Software/Rasterizer.h"
+#include "VideoBackends/Software/SWCommandProcessor.h"
+#include "VideoBackends/Software/SWPixelEngine.h"
+#include "VideoBackends/Software/SWRenderer.h"
+#include "VideoBackends/Software/SWStatistics.h"
+#include "VideoBackends/Software/SWVertexLoader.h"
+#include "VideoBackends/Software/SWVideoConfig.h"
+#include "VideoBackends/Software/VideoBackend.h"
+#include "VideoBackends/Software/XFMemLoader.h"
 
 #if defined(HAVE_WX) && HAVE_WX
-#include "VideoConfigDialog.h"
+#include "VideoBackends/Software/VideoConfigDialog.h"
 #endif // HAVE_WX
 
-#include "../OGL/GLExtensions/GLExtensions.h"
-#include "Atomic.h"
-#include "SWCommandProcessor.h"
-#include "OpcodeDecoder.h"
-#include "SWVideoConfig.h"
-#include "SWPixelEngine.h"
-#include "BPMemLoader.h"
-#include "XFMemLoader.h"
-#include "Clipper.h"
-#include "Rasterizer.h"
-#include "SWRenderer.h"
-#include "HwRasterizer.h"
-#include "LogManager.h"
-#include "EfbInterface.h"
-#include "DebugUtil.h"
-#include "FileUtil.h"
-#include "VideoBackend.h"
-#include "Core.h"
-#include "OpcodeDecoder.h"
-#include "SWVertexLoader.h"
-#include "SWStatistics.h"
-#include "HW/VideoInterface.h"
-#include "HW/Memmap.h"
-#include "ConfigManager.h"
+#include "VideoCommon/OnScreenDisplay.h"
 
-#include "OnScreenDisplay.h"
 #define VSYNC_ENABLED 0
 
 static volatile u32 s_swapRequested = false;
 
 static volatile struct
 {
-    u32 xfbAddr;
-    u32 fbWidth;
-    u32 fbHeight;
+	u32 xfbAddr;
+	u32 fbWidth;
+	u32 fbHeight;
 } s_beginFieldArgs;
 
 namespace SW
@@ -60,7 +63,7 @@ std::string VideoSoftware::GetName()
 
 void *DllDebugger(void *_hParent, bool Show)
 {
-	return NULL;
+	return nullptr;
 }
 
 void VideoSoftware::ShowConfig(void *_hParent)
@@ -172,6 +175,7 @@ void VideoSoftware::Shutdown()
 
 void VideoSoftware::Video_Cleanup()
 {
+	GLInterface->ClearCurrent();
 }
 
 // This is called after Video_Initialize() from the Core
@@ -213,29 +217,36 @@ void VideoSoftware::Video_EndField()
 	// BeginField and EndFeild, We could possibly get away with copying out the whole thing
 	// at BeginField for less lag, but for the safest emulation we run it here.
 
-	if (g_bSkipCurrentFrame || s_beginFieldArgs.xfbAddr == 0 ) {
+	if (g_bSkipCurrentFrame || s_beginFieldArgs.xfbAddr == 0)
+	{
 		swstats.frameCount++;
 		swstats.ResetFrame();
 		Core::Callback_VideoCopiedToXFB(false);
 		return;
 	}
-	if (!g_SWVideoConfig.bHwRasterizer) {
-		if(!g_SWVideoConfig.bBypassXFB) {
+	if (!g_SWVideoConfig.bHwRasterizer)
+	{
+		if (!g_SWVideoConfig.bBypassXFB)
+		{
 			EfbInterface::yuv422_packed *xfb = (EfbInterface::yuv422_packed *) Memory::GetPointer(s_beginFieldArgs.xfbAddr);
 
 			SWRenderer::UpdateColorTexture(xfb, s_beginFieldArgs.fbWidth, s_beginFieldArgs.fbHeight);
 		}
 	}
 
-	// Idealy we would just move all the opengl contex stuff to the CPU thread, but this gets
-	// messy when the Hardware Rasterizer is enabled.
-	// And Neobrain loves his Hardware Rasterizer
+	// Ideally we would just move all the OpenGL context stuff to the CPU thread,
+	// but this gets messy when the hardware rasterizer is enabled.
+	// And neobrain loves his hardware rasterizer.
 
-	// If we are runing dual core, Signal the GPU thread about the new colour texture.
-	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bCPUThread)
-		Common::AtomicStoreRelease(s_swapRequested, true);
-	else
-		SWRenderer::Swap(s_beginFieldArgs.fbWidth, s_beginFieldArgs.fbHeight);
+	// If BypassXFB has already done a swap (cf. EfbCopy::CopyToXfb), skip this.
+	if (!g_SWVideoConfig.bBypassXFB)
+	{
+		// If we are in dual core mode, notify the GPU thread about the new color texture.
+		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bCPUThread)
+			Common::AtomicStoreRelease(s_swapRequested, true);
+		else
+			SWRenderer::Swap(s_beginFieldArgs.fbWidth, s_beginFieldArgs.fbHeight);
+	}
 }
 
 u32 VideoSoftware::Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputData)
@@ -276,9 +287,9 @@ u32 VideoSoftware::Video_GetQueryResult(PerfQueryType type)
 	return 0;
 }
 
-bool VideoSoftware::Video_Screenshot(const char *_szFilename)
+bool VideoSoftware::Video_Screenshot(const std::string& filename)
 {
-	SWRenderer::SetScreenshot(_szFilename);
+	SWRenderer::SetScreenshot(filename.c_str());
 	return true;
 }
 
@@ -328,7 +339,7 @@ void VideoSoftware::Video_ExitLoop()
 
 // TODO : could use the OSD class in video common, we would need to implement the Renderer class
 //        however most of it is useless for the SW backend so we could as well move it to its own class
-void VideoSoftware::Video_AddMessage(const char* pstr, u32 milliseconds)
+void VideoSoftware::Video_AddMessage(const std::string& msg, u32 milliseconds)
 {
 }
 void VideoSoftware::Video_ClearMessages()
@@ -360,28 +371,15 @@ void VideoSoftware::Video_AbortFrame(void)
 {
 }
 
-readFn16 VideoSoftware::Video_CPRead16()
+void VideoSoftware::RegisterCPMMIO(MMIO::Mapping* mmio, u32 base)
 {
-	return SWCommandProcessor::Read16;
-}
-writeFn16 VideoSoftware::Video_CPWrite16()
-{
-	return SWCommandProcessor::Write16;
+	SWCommandProcessor::RegisterMMIO(mmio, base);
 }
 
-readFn16  VideoSoftware::Video_PERead16()
+void VideoSoftware::RegisterPEMMIO(MMIO::Mapping* mmio, u32 base)
 {
-	return SWPixelEngine::Read16;
+	SWPixelEngine::RegisterMMIO(mmio, base);
 }
-writeFn16 VideoSoftware::Video_PEWrite16()
-{
-	return SWPixelEngine::Write16;
-}
-writeFn32 VideoSoftware::Video_PEWrite32()
-{
-	return SWPixelEngine::Write32;
-}
-
 
 // Draw messages on top of the screen
 unsigned int VideoSoftware::PeekMessages()
@@ -390,11 +388,9 @@ unsigned int VideoSoftware::PeekMessages()
 }
 
 // Show the current FPS
-void VideoSoftware::UpdateFPSDisplay(const char *text)
+void VideoSoftware::UpdateFPSDisplay(const std::string& text)
 {
-	char temp[100];
-	snprintf(temp, sizeof temp, "%s | Software | %s", scm_rev_str, text);
-	GLInterface->UpdateFPSDisplay(temp);
+	GLInterface->UpdateFPSDisplay(StringFromFormat("%s | Software | %s", scm_rev_str, text.c_str()));
 }
 
 }

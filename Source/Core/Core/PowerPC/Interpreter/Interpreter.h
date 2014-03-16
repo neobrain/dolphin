@@ -2,19 +2,18 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _INTERPRETER_H
-#define _INTERPRETER_H
+#pragma once
 
-#include "Atomic.h"
-#include "../Gekko.h"
-#include "../PowerPC.h"
-#include "../CPUCoreBase.h"
-#include "../../Core.h"
-#include "../../CoreTiming.h"
-#include "../../ConfigManager.h"
-#include "../../HLE/HLE.h"
-#include "../../HW/Memmap.h"
-#include "../../HW/CPU.h"
+#include "Common/Atomic.h"
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
+#include "Core/CoreTiming.h"
+#include "Core/HLE/HLE.h"
+#include "Core/HW/CPU.h"
+#include "Core/HW/Memmap.h"
+#include "Core/PowerPC/CPUCoreBase.h"
+#include "Core/PowerPC/Gekko.h"
+#include "Core/PowerPC/PowerPC.h"
 
 class Interpreter : public CPUCoreBase
 {
@@ -61,7 +60,7 @@ public:
 	static void fnmaddsx(UGeckoInstruction _inst);
 	static void fnmsubsx(UGeckoInstruction _inst);
 	static void fresx(UGeckoInstruction _inst);
-//	static void fsqrtsx(UGeckoInstruction _inst);
+	//static void fsqrtsx(UGeckoInstruction _inst);
 	static void fsubsx(UGeckoInstruction _inst);
 	static void fabsx(UGeckoInstruction _inst);
 	static void fcmpo(UGeckoInstruction _inst);
@@ -327,10 +326,11 @@ private:
 	Interpreter(const Interpreter &);
 	Interpreter & operator=(const Interpreter &);
 
+	static void Helper_FloatCompareOrdered(UGeckoInstruction _inst, double a, double b);
+	static void Helper_FloatCompareUnordered(UGeckoInstruction _inst, double a, double b);
+
 	// TODO: These should really be in the save state, although it's unlikely to matter much.
 	// They are for lwarx and its friend stwcxd.
 	static bool g_bReserve;
 	static u32  g_reserveAddr;
 };
-
-#endif

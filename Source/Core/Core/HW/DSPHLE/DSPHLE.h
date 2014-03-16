@@ -2,13 +2,13 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _DSPHLE_H
-#define _DSPHLE_H
+#pragma once
 
-#include "AudioCommon.h"
-#include "SoundStream.h"
-#include "MailHandler.h"
-#include "../../DSPEmulator.h"
+#include "AudioCommon/AudioCommon.h"
+#include "AudioCommon/SoundStream.h"
+
+#include "Core/DSPEmulator.h"
+#include "Core/HW/DSPHLE/MailHandler.h"
 
 class IUCode;
 
@@ -79,5 +79,3 @@ private:
 	bool m_bHalt;
 	bool m_bAssertInt;
 };
-
-#endif  // _DSPHLE_H

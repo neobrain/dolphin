@@ -1,15 +1,22 @@
-#include "UDPConfigDiag.h"
-#include "UDPWrapper.h"
-
-#include "Common.h"
-#include "ControllerEmu.h"
-#include "IniFile.h"
-#include "WxUtils.h"
-
 #include <string>
+#include <wx/checkbox.h>
+#include <wx/defs.h>
+#include <wx/dialog.h>
+#include <wx/event.h>
+#include <wx/gdicmn.h>
+#include <wx/sizer.h>
+#include <wx/stattext.h>
+#include <wx/textctrl.h>
+#include <wx/translation.h>
+
+#include "DolphinWX/UDPConfigDiag.h"
+#include "DolphinWX/WxUtils.h"
+#include "InputCommon/UDPWrapper.h"
+
+class wxWindow;
 
 UDPConfigDiag::UDPConfigDiag(wxWindow * const parent, UDPWrapper * _wrp) :
-	wxDialog(parent, -1, _("UDP Wiimote"), wxDefaultPosition, wxDefaultSize),
+	wxDialog(parent, -1, _("UDP Wiimote")),
 	wrp(_wrp)
 {
 	wxBoxSizer *const outer_sizer = new wxBoxSizer(wxVERTICAL);

@@ -1,8 +1,7 @@
+#pragma once
 
-#ifndef OGL_VIDEO_BACKEND_H_
-#define OGL_VIDEO_BACKEND_H_
-
-#include "VideoBackendBase.h"
+#include <string>
+#include "VideoCommon/VideoBackendBase.h"
 
 namespace OGL
 {
@@ -20,10 +19,8 @@ class VideoBackend : public VideoBackendHardware
 
 	void ShowConfig(void* parent) override;
 
-	void UpdateFPSDisplay(const char*) override;
+	void UpdateFPSDisplay(const std::string&) override;
 	unsigned int PeekMessages() override;
 };
 
 }
-
-#endif

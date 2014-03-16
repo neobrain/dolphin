@@ -2,18 +2,18 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "Common.h"
-
-#include "Tev.h"
-#include "EfbInterface.h"
-#include "TextureSampler.h"
-#include "XFMemLoader.h"
-#include "SWPixelEngine.h"
-#include "SWStatistics.h"
-#include "SWVideoConfig.h"
-#include "DebugUtil.h"
-
 #include <cmath>
+
+#include "Common/Common.h"
+
+#include "VideoBackends/Software/DebugUtil.h"
+#include "VideoBackends/Software/EfbInterface.h"
+#include "VideoBackends/Software/SWPixelEngine.h"
+#include "VideoBackends/Software/SWStatistics.h"
+#include "VideoBackends/Software/SWVideoConfig.h"
+#include "VideoBackends/Software/Tev.h"
+#include "VideoBackends/Software/TextureSampler.h"
+#include "VideoBackends/Software/XFMemLoader.h"
 
 #ifdef _DEBUG
 #define ALLOW_TEV_DUMPS 1
@@ -33,8 +33,10 @@ void Tev::Init()
 	FixedConstants[7] = 223;
 	FixedConstants[8] = 255;
 
-	for (int i = 0; i < 4; i++)
-		Zero16[i] = 0;
+	for (s16& comp : Zero16)
+	{
+		comp = 0;
+	}
 
 	m_ColorInputLUT[0][RED_INP] = &Reg[0][RED_C]; m_ColorInputLUT[0][GRN_INP] = &Reg[0][GRN_C]; m_ColorInputLUT[0][BLU_INP] = &Reg[0][BLU_C]; // prev.rgb
 	m_ColorInputLUT[1][RED_INP] = &Reg[0][ALP_C]; m_ColorInputLUT[1][GRN_INP] = &Reg[0][ALP_C]; m_ColorInputLUT[1][BLU_INP] = &Reg[0][ALP_C]; // prev.aaa
@@ -119,12 +121,12 @@ inline s16 Clamp255(s16 in)
 
 inline s16 Clamp1024(s16 in)
 {
-		return in>1023?1023:(in<-1024?-1024:in);
+	return in>1023?1023:(in<-1024?-1024:in);
 }
 
 void Tev::SetRasColor(int colorChan, int swaptable)
 {
-	switch(colorChan)
+	switch (colorChan)
 	{
 	case 0: // Color0
 		{
@@ -148,21 +150,27 @@ void Tev::SetRasColor(int colorChan, int swaptable)
 		break;
 		case 5: // alpha bump
 		{
-			for(int i = 0; i < 4; i++)
-				RasColor[i] = AlphaBump;
+			for (s16& comp : RasColor)
+			{
+				comp = AlphaBump;
+			}
 		}
 		break;
 	case 6: // alpha bump normalized
 		{
 			u8 normalized = AlphaBump | AlphaBump >> 5;
-			for(int i = 0; i < 4; i++)
-				RasColor[i] = normalized;
+			for (s16& comp : RasColor)
+			{
+				comp = normalized;
+			}
 		}
 		break;
 	default: // zero
 		{
-			for(int i = 0; i < 4; i++)
-				RasColor[i] = 0;
+			for (s16& comp : RasColor)
+			{
+				comp = 0;
+			}
 		}
 		break;
 	}
@@ -201,7 +209,7 @@ void Tev::DrawColorCompare(TevStageCombiner::ColorCombiner &cc)
 
 	InputRegType InputReg;
 
-	switch(cmp) {
+	switch (cmp) {
 	case TEVCMP_R8_GT:
 		{
 			a = *m_ColorInputLUT[cc.a][RED_INP] & 0xff;
@@ -328,7 +336,7 @@ void Tev::DrawAlphaCompare(TevStageCombiner::AlphaCombiner &ac)
 
 	InputRegType InputReg;
 
-	switch(cmp) {
+	switch (cmp) {
 	case TEVCMP_R8_GT:
 		{
 			a = m_AlphaInputLUT[ac.a][RED_C] & 0xff;
@@ -407,7 +415,7 @@ void Tev::DrawAlphaCompare(TevStageCombiner::AlphaCombiner &ac)
 
 static bool AlphaCompare(int alpha, int ref, int comp)
 {
-	switch(comp) {
+	switch (comp) {
 	case ALPHACMP_ALWAYS:  return true;
 	case ALPHACMP_NEVER:   return false;
 	case ALPHACMP_LEQUAL:  return alpha <= ref;
@@ -470,7 +478,7 @@ void Tev::Indirect(unsigned int stageNum, s32 s, s32 t)
 		case ITBA_OFF:
 			AlphaBump = 0;
 			break;
-			case ITBA_S:
+		case ITBA_S:
 			AlphaBump = indmap[TextureSampler::ALP_SMP];
 			break;
 		case ITBA_T:
@@ -489,7 +497,7 @@ void Tev::Indirect(unsigned int stageNum, s32 s, s32 t)
 	bias[2] = indirect.bias&4?biasValue:0;
 
 	// format
-	switch(indirect.fmt)
+	switch (indirect.fmt)
 	{
 		case ITF_8:
 			indcoord[0] = indmap[TextureSampler::ALP_SMP] + bias[0];
@@ -520,9 +528,9 @@ void Tev::Indirect(unsigned int stageNum, s32 s, s32 t)
 			return;
 	}
 
-	s64 indtevtrans[2] = { 0,0 };
+	s32 indtevtrans[2] = { 0,0 };
 
-	// matrix multiply
+	// matrix multiply - results might overflow, but we don't care since we only use the lower 24 bits of the result.
 	int indmtxid = indirect.mid & 3;
 	if (indmtxid)
 	{
@@ -536,19 +544,21 @@ void Tev::Indirect(unsigned int stageNum, s32 s, s32 t)
 		switch (indirect.mid & 12)
 		{
 			case 0:
-				shift = 3 + (17 - scale);
-				indtevtrans[0] = indmtx.col0.ma * indcoord[0] + indmtx.col1.mc * indcoord[1] + indmtx.col2.me * indcoord[2];
-				indtevtrans[1] = indmtx.col0.mb * indcoord[0] + indmtx.col1.md * indcoord[1] + indmtx.col2.mf * indcoord[2];
+				// matrix values are S0.10, output format is S17.7, so divide by 8
+				shift = (17 - scale);
+				indtevtrans[0] = (indmtx.col0.ma * indcoord[0] + indmtx.col1.mc * indcoord[1] + indmtx.col2.me * indcoord[2]) >> 3;
+				indtevtrans[1] = (indmtx.col0.mb * indcoord[0] + indmtx.col1.md * indcoord[1] + indmtx.col2.mf * indcoord[2]) >> 3;
 				break;
 			case 4: // s matrix
-				shift = 8 + (17 - scale);
-				indtevtrans[0] = s * indcoord[0];
-				indtevtrans[1] = t * indcoord[0];
+				// s is S17.7, matrix elements are divided by 256, output is S17.7, so divide by 256. - TODO: Maybe, since s is actually stored as S24, we should divide by 256*64?
+				shift = (17 - scale);
+				indtevtrans[0] = s * indcoord[0] / 256;
+				indtevtrans[1] = t * indcoord[0] / 256;
 				break;
 			case 8: // t matrix
-				shift = 8 + (17 - scale);
-				indtevtrans[0] = s * indcoord[1];
-				indtevtrans[1] = t * indcoord[1];
+				shift = (17 - scale);
+				indtevtrans[0] = s * indcoord[1] / 256;
+				indtevtrans[1] = t * indcoord[1] / 256;
 				break;
 			default:
 				return;
@@ -595,10 +605,12 @@ void Tev::Draw()
 #if ALLOW_TEV_DUMPS
 		if (g_SWVideoConfig.bDumpTevStages)
 		{
-			u8 stage[4] = { IndirectTex[stageNum][TextureSampler::ALP_SMP],
-							IndirectTex[stageNum][TextureSampler::BLU_SMP],
-							IndirectTex[stageNum][TextureSampler::GRN_SMP],
-							255};
+			u8 stage[4] = { 
+				IndirectTex[stageNum][TextureSampler::ALP_SMP],
+				IndirectTex[stageNum][TextureSampler::BLU_SMP],
+				IndirectTex[stageNum][TextureSampler::GRN_SMP],
+				255
+			};
 			DebugUtil::DrawTempBuffer(stage, INDIRECT + stageNum);
 		}
 #endif
@@ -746,7 +758,7 @@ void Tev::Draw()
 
 		}
 
-		if(bpmem.fogRange.Base.Enabled)
+		if (bpmem.fogRange.Base.Enabled)
 		{
 			// TODO: This is untested and should definitely be checked against real hw.
 			// - No idea if offset is really normalized against the viewport width or against the projection matrix or yet something else

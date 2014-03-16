@@ -2,35 +2,31 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "Globals.h"
-
 #include <fstream>
 #include <vector>
 
-#include "Fifo.h"
+#include "Common/FileUtil.h"
+#include "Common/MemoryUtil.h"
 
-#include "DriverDetails.h"
-#include "VideoConfig.h"
-#include "Statistics.h"
-#include "MemoryUtil.h"
-#include "Render.h"
-#include "ImageWrite.h"
-#include "BPMemory.h"
-#include "TextureCache.h"
-#include "PixelShaderManager.h"
-#include "VertexShaderManager.h"
-#include "ProgramShaderCache.h"
-#include "VertexShaderGen.h"
-#include "VertexLoader.h"
-#include "VertexManager.h"
-#include "IndexGenerator.h"
-#include "FileUtil.h"
-#include "Debugger.h"
-#include "StreamBuffer.h"
-#include "PerfQueryBase.h"
-#include "Render.h"
+#include "VideoBackends/OGL/Globals.h"
+#include "VideoBackends/OGL/main.h"
+#include "VideoBackends/OGL/ProgramShaderCache.h"
+#include "VideoBackends/OGL/Render.h"
+#include "VideoBackends/OGL/StreamBuffer.h"
+#include "VideoBackends/OGL/TextureCache.h"
+#include "VideoBackends/OGL/VertexManager.h"
 
-#include "main.h"
+#include "VideoCommon/BPMemory.h"
+#include "VideoCommon/DriverDetails.h"
+#include "VideoCommon/Fifo.h"
+#include "VideoCommon/ImageWrite.h"
+#include "VideoCommon/IndexGenerator.h"
+#include "VideoCommon/PixelShaderManager.h"
+#include "VideoCommon/Statistics.h"
+#include "VideoCommon/VertexLoader.h"
+#include "VideoCommon/VertexShaderGen.h"
+#include "VideoCommon/VertexShaderManager.h"
+#include "VideoCommon/VideoConfig.h"
 
 // internal state for loading vertices
 extern NativeVertexFormat *g_nativeVertexFmt;
@@ -64,7 +60,7 @@ void VertexManager::CreateDeviceObjects()
 	s_indexBuffer = StreamBuffer::Create(GL_ELEMENT_ARRAY_BUFFER, MAX_IBUFFER_SIZE);
 	m_index_buffers = s_indexBuffer->m_buffer;
 
-	m_CurrentVertexFmt = NULL;
+	m_CurrentVertexFmt = nullptr;
 	m_last_vao = 0;
 }
 
@@ -110,7 +106,7 @@ void VertexManager::Draw(u32 stride)
 	u32 max_index = IndexGenerator::GetNumVerts();
 	GLenum primitive_mode = 0;
 
-	switch(current_primitive_type)
+	switch (current_primitive_type)
 	{
 		case PRIMITIVE_POINTS:
 			primitive_mode = GL_POINTS;
@@ -123,29 +119,26 @@ void VertexManager::Draw(u32 stride)
 			break;
 	}
 
-	if(g_ogl_config.bSupportsGLBaseVertex) {
-		glDrawRangeElementsBaseVertex(primitive_mode, 0, max_index, index_size, GL_UNSIGNED_SHORT, (u8*)NULL+s_index_offset, (GLint)s_baseVertex);
+	if (g_ogl_config.bSupportsGLBaseVertex) {
+		glDrawRangeElementsBaseVertex(primitive_mode, 0, max_index, index_size, GL_UNSIGNED_SHORT, (u8*)nullptr+s_index_offset, (GLint)s_baseVertex);
 	} else {
-		glDrawRangeElements(primitive_mode, 0, max_index, index_size, GL_UNSIGNED_SHORT, (u8*)NULL+s_index_offset);
+		glDrawRangeElements(primitive_mode, 0, max_index, index_size, GL_UNSIGNED_SHORT, (u8*)nullptr+s_index_offset);
 	}
 	INCSTAT(stats.thisFrame.numIndexedDrawCalls);
 }
 
-void VertexManager::vFlush()
+void VertexManager::vFlush(bool useDstAlpha)
 {
 	GLVertexFormat *nativeVertexFmt = (GLVertexFormat*)g_nativeVertexFmt;
 	u32 stride  = nativeVertexFmt->GetVertexStride();
 
-	if(m_last_vao != nativeVertexFmt->VAO) {
+	if (m_last_vao != nativeVertexFmt->VAO) {
 		glBindVertexArray(nativeVertexFmt->VAO);
 		m_last_vao = nativeVertexFmt->VAO;
 	}
 
 	PrepareDrawBuffers(stride);
 	GL_REPORT_ERRORD();
-
-	bool useDstAlpha = !g_ActiveConfig.bDstAlphaPass && bpmem.dstalpha.enable && bpmem.blendmode.alphaupdate
-		&& bpmem.zcontrol.pixel_format == PIXELFMT_RGBA6_Z24;
 
 	// Makes sure we can actually do Dual source blending
 	bool dualSourcePossible = g_ActiveConfig.backend_info.bSupportsDualSourceBlend;
@@ -177,20 +170,12 @@ void VertexManager::vFlush()
 		g_nativeVertexFmt->SetupVertexPointers();
 	GL_REPORT_ERRORD();
 
-	g_perf_query->EnableQuery(bpmem.zcontrol.early_ztest ? PQG_ZCOMP_ZCOMPLOC : PQG_ZCOMP);
 	Draw(stride);
-	g_perf_query->DisableQuery(bpmem.zcontrol.early_ztest ? PQG_ZCOMP_ZCOMPLOC : PQG_ZCOMP);
-	//ERROR_LOG(VIDEO, "PerfQuery result: %d", g_perf_query->GetQueryResult(bpmem.zcontrol.early_ztest ? PQ_ZCOMP_OUTPUT_ZCOMPLOC : PQ_ZCOMP_OUTPUT));
 
 	// run through vertex groups again to set alpha
 	if (useDstAlpha && !dualSourcePossible)
 	{
 		ProgramShaderCache::SetShader(DSTALPHA_ALPHA_PASS,g_nativeVertexFmt->m_components);
-		if (!g_ActiveConfig.backend_info.bSupportsGLSLUBO)
-		{
-			// Need to upload these again, if we don't support UBO
-			ProgramShaderCache::UploadConstants();
-		}
 
 		// only update alpha
 		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
@@ -205,7 +190,6 @@ void VertexManager::vFlush()
 		if (bpmem.blendmode.blendenable || bpmem.blendmode.subtract)
 			glEnable(GL_BLEND);
 	}
-	GFX_DEBUGGER_PAUSE_AT(NEXT_FLUSH, true);
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 	if (g_ActiveConfig.iLog & CONF_SAVESHADERS)

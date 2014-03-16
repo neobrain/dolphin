@@ -2,10 +2,12 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "MathUtil.h"
-
 #include <cmath>
+#include <cstring>
 #include <numeric>
+
+#include "Common/CommonTypes.h"
+#include "Common/MathUtil.h"
 
 namespace MathUtil
 {
@@ -193,7 +195,7 @@ void Matrix44::LoadMatrix33(Matrix44 &mtx, const Matrix33 &m33)
 
 void Matrix44::Set(Matrix44 &mtx, const float mtxArray[16])
 {
-	for(int i = 0; i < 16; ++i)
+	for (int i = 0; i < 16; ++i)
 	{
 		mtx.data[i] = mtxArray[i];
 	}

@@ -2,37 +2,56 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include <string> // System
-#include <vector>
 #include <algorithm>
 #include <functional>
+#include <string>
+#include <vector>
+
+#include <wx/checkbox.h>
+#include <wx/choice.h>
+#include <wx/filepicker.h>
+#include <wx/gbsizer.h>
+#include <wx/listbox.h>
+#include <wx/menu.h>
+#include <wx/msgdlg.h>
+#include <wx/notebook.h>
+#include <wx/panel.h>
+#include <wx/radiobox.h>
+#include <wx/sizer.h>
+#include <wx/slider.h>
 #include <wx/spinbutt.h>
+#include <wx/spinctrl.h>
+#include <wx/stattext.h>
 
-#include "Common.h"
-#include "CommonPaths.h"
-#include "FileSearch.h"
+#include "Common/Common.h"
+#include "Common/CommonPaths.h"
+#include "Common/FileSearch.h"
+#include "Common/SysConf.h"
 
-#include "Core.h" // Core
-#include "HW/EXI.h"
-#include "HW/SI.h"
-#include "HW/DSPHLE/DSPHLE.h"
-#include "HW/DSPLLE/DSPLLE.h"
-#include "HW/GCMemcard.h"
-#include "IPC_HLE/WII_IPC_HLE.h"
-#include "NANDContentLoader.h"
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
+#include "Core/Movie.h"
+#include "Core/NetPlayProto.h"
+#include "Core/HW/EXI.h"
+#include "Core/HW/GCMemcard.h"
+#include "Core/HW/SI.h"
+#include "Core/HW/DSPHLE/DSPHLE.h"
+#include "Core/HW/DSPLLE/DSPLLE.h"
+#include "Core/IPC_HLE/WII_IPC_HLE.h"
 
-#include "WxUtils.h"
-#include "Globals.h" // Local
-#include "ConfigMain.h"
-#include "ConfigManager.h"
-#include "SysConf.h"
-#include "Frame.h"
-#include "HotkeyDlg.h"
-#include "Main.h"
-#include "VideoBackendBase.h"
-#include "NetPlayProto.h"
+#include "DiscIO/NANDContentLoader.h"
 
-#define TEXT_BOX(page, text) new wxStaticText(page, wxID_ANY, text, wxDefaultPosition, wxDefaultSize)
+#include "DolphinWX/ConfigMain.h"
+#include "DolphinWX/Frame.h"
+#include "DolphinWX/Globals.h"
+#include "DolphinWX/HotkeyDlg.h"
+#include "DolphinWX/Main.h"
+#include "DolphinWX/WxUtils.h"
+#include "DolphinWX/Debugger/CodeWindow.h"
+
+#include "VideoCommon/VideoBackendBase.h"
+
+#define TEXT_BOX(page, text) new wxStaticText(page, wxID_ANY, text)
 
 struct CPUCore
 {
@@ -46,7 +65,7 @@ const CPUCore CPUCores[] = {
 	{4, wxTRANSLATE("Arm JITIL (experimental)")},
 #else
 	{1, wxTRANSLATE("JIT Recompiler (recommended)")},
-	{2, wxTRANSLATE("JITIL experimental recompiler")},
+	{2, wxTRANSLATE("JITIL Recompiler (experimental)")},
 #endif
 };
 
@@ -84,23 +103,23 @@ static const wxLanguage langIds[] =
 };
 
 // Strings for Device Selections
-#define DEV_NONE_STR		_trans("<Nothing>")
-#define DEV_DUMMY_STR		_trans("Dummy")
+#define DEV_NONE_STR        _trans("<Nothing>")
+#define DEV_DUMMY_STR       _trans("Dummy")
 
-#define SIDEV_STDCONT_STR	_trans("Standard Controller")
-#define SIDEV_STEERING_STR	_trans("Steering Wheel")
-#define SIDEV_DANCEMAT_STR	_trans("Dance Mat")
-#define SIDEV_BONGO_STR		_trans("TaruKonga (Bongos)")
-#define SIDEV_GBA_STR		"GBA"
-#define SIDEV_AM_BB_STR		_trans("AM-Baseboard")
+#define SIDEV_STDCONT_STR   _trans("Standard Controller")
+#define SIDEV_STEERING_STR  _trans("Steering Wheel")
+#define SIDEV_DANCEMAT_STR  _trans("Dance Mat")
+#define SIDEV_BONGO_STR     _trans("TaruKonga (Bongos)")
+#define SIDEV_GBA_STR       "GBA"
+#define SIDEV_AM_BB_STR     _trans("AM-Baseboard")
 
-#define EXIDEV_MEMCARD_STR	_trans("Memory Card")
-#define EXIDEV_MIC_STR		_trans("Mic")
-#define EXIDEV_BBA_STR		"BBA"
-#define EXIDEV_AM_BB_STR	_trans("AM-Baseboard")
-#define EXIDEV_GECKO_STR	"USBGecko"
+#define EXIDEV_MEMCARD_STR  _trans("Memory Card")
+#define EXIDEV_MIC_STR      _trans("Mic")
+#define EXIDEV_BBA_STR      "BBA"
+#define EXIDEV_AM_BB_STR    _trans("AM-Baseboard")
+#define EXIDEV_GECKO_STR    "USBGecko"
 
-#define WXSTR_TRANS(a)		wxString(wxGetTranslation(wxT(a)))
+#define WXSTR_TRANS(a)      wxString(wxGetTranslation(wxT(a)))
 #ifdef WIN32
 //only used with xgettext to be picked up as translatable string.
 //win32 does not have wx on its path, the provided wxALL_FILES
@@ -118,7 +137,6 @@ EVT_CHECKBOX(ID_CPUTHREAD, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_IDLESKIP, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_ENABLECHEATS, CConfigMain::CoreSettingsChanged)
 EVT_CHOICE(ID_FRAMELIMIT, CConfigMain::CoreSettingsChanged)
-EVT_CHECKBOX(ID_FRAMELIMIT_USEFPSFORLIMITING, CConfigMain::CoreSettingsChanged)
 
 EVT_RADIOBOX(ID_CPUENGINE, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_NTSCJ, CConfigMain::CoreSettingsChanged)
@@ -185,7 +203,7 @@ CConfigMain::CConfigMain(wxWindow* parent, wxWindowID id, const wxString& title,
 	CreateGUIControls();
 
 	// Update selected ISO paths
-	for(auto& folder : SConfig::GetInstance().m_ISOFolder)
+	for (const std::string& folder : SConfig::GetInstance().m_ISOFolder)
 	{
 		ISOPaths->Append(StrToWxStr(folder));
 	}
@@ -210,7 +228,7 @@ void CConfigMain::SetSelectedTab(int tab)
 // Used to restrict changing of some options while emulator is running
 void CConfigMain::UpdateGUI()
 {
-	if(Core::GetState() != Core::CORE_UNINITIALIZED)
+	if (Core::GetState() != Core::CORE_UNINITIALIZED)
 	{
 		// Disable the Core stuff on GeneralPage
 		CPUThread->Disable();
@@ -247,11 +265,11 @@ void CConfigMain::InitializeGUILists()
 	arrayStringFor_Framelimit.Add(_("Off"));
 	arrayStringFor_Framelimit.Add(_("Auto"));
 	arrayStringFor_Framelimit.Add(_("Audio"));
-	for (int i = 10; i <= 120; i += 5)	// from 10 to 120
+	for (int i = 10; i <= 120; i += 5) // from 10 to 120
 		arrayStringFor_Framelimit.Add(wxString::Format(wxT("%i"), i));
 
 	// Emulator Engine
-	for (auto& CPUCores_a : CPUCores)
+	for (const CPUCore& CPUCores_a : CPUCores)
 		arrayStringFor_CPUEngine.Add(wxGetTranslation(CPUCores_a.name));
 
 	// DSP Engine
@@ -324,7 +342,6 @@ void CConfigMain::InitializeGUIValues()
 	SkipIdle->SetValue(startup_params.bSkipIdle);
 	EnableCheats->SetValue(startup_params.bEnableCheats);
 	Framelimit->SetSelection(SConfig::GetInstance().m_Framelimit);
-	UseFPSForLimiting->SetValue(SConfig::GetInstance().b_UseFPS);
 
 	// General - Advanced
 	for (unsigned int a = 0; a < (sizeof(CPUCores) / sizeof(CPUCore)); ++a)
@@ -351,7 +368,7 @@ void CConfigMain::InitializeGUIValues()
 	if (startup_params.bDSPHLE)
 		DSPEngine->SetSelection(0);
 	else
-		DSPEngine->SetSelection(SConfig::GetInstance().m_EnableJIT ? 1 : 2);
+		DSPEngine->SetSelection(SConfig::GetInstance().m_DSPEnableJIT ? 1 : 2);
 
 	// Audio
 	VolumeSlider->Enable(SupportsVolumeChanges(SConfig::GetInstance().sBackend));
@@ -527,13 +544,13 @@ void CConfigMain::CreateGUIControls()
 	InitializeGUILists();
 
 	// Create the notebook and pages
-	Notebook = new wxNotebook(this, ID_NOTEBOOK, wxDefaultPosition, wxDefaultSize);
-	wxPanel* const GeneralPage = new wxPanel(Notebook, ID_GENERALPAGE, wxDefaultPosition, wxDefaultSize);
-	wxPanel* const DisplayPage = new wxPanel(Notebook, ID_DISPLAYPAGE, wxDefaultPosition, wxDefaultSize);
-	wxPanel* const AudioPage = new wxPanel(Notebook, ID_AUDIOPAGE, wxDefaultPosition, wxDefaultSize);
-	wxPanel* const GamecubePage = new wxPanel(Notebook, ID_GAMECUBEPAGE, wxDefaultPosition, wxDefaultSize);
-	wxPanel* const WiiPage = new wxPanel(Notebook, ID_WIIPAGE, wxDefaultPosition, wxDefaultSize);
-	PathsPage = new wxPanel(Notebook, ID_PATHSPAGE, wxDefaultPosition, wxDefaultSize);
+	Notebook = new wxNotebook(this, ID_NOTEBOOK);
+	wxPanel* const GeneralPage = new wxPanel(Notebook, ID_GENERALPAGE);
+	wxPanel* const DisplayPage = new wxPanel(Notebook, ID_DISPLAYPAGE);
+	wxPanel* const AudioPage = new wxPanel(Notebook, ID_AUDIOPAGE);
+	wxPanel* const GamecubePage = new wxPanel(Notebook, ID_GAMECUBEPAGE);
+	wxPanel* const WiiPage = new wxPanel(Notebook, ID_WIIPAGE);
+	PathsPage = new wxPanel(Notebook, ID_PATHSPAGE);
 
 	Notebook->AddPage(GeneralPage, _("General"));
 	Notebook->AddPage(DisplayPage, _("Interface"));
@@ -544,21 +561,19 @@ void CConfigMain::CreateGUIControls()
 
 	// General page
 	// Core Settings - Basic
-	CPUThread = new wxCheckBox(GeneralPage, ID_CPUTHREAD, _("Enable Dual Core (speedup)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	SkipIdle = new wxCheckBox(GeneralPage, ID_IDLESKIP, _("Enable Idle Skipping (speedup)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	EnableCheats = new wxCheckBox(GeneralPage, ID_ENABLECHEATS, _("Enable Cheats"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	CPUThread = new wxCheckBox(GeneralPage, ID_CPUTHREAD, _("Enable Dual Core (speedup)"));
+	SkipIdle = new wxCheckBox(GeneralPage, ID_IDLESKIP, _("Enable Idle Skipping (speedup)"));
+	EnableCheats = new wxCheckBox(GeneralPage, ID_ENABLECHEATS, _("Enable Cheats"));
 	// Framelimit
-	Framelimit = new wxChoice(GeneralPage, ID_FRAMELIMIT, wxDefaultPosition, wxDefaultSize, arrayStringFor_Framelimit, 0, wxDefaultValidator);
-	UseFPSForLimiting = new wxCheckBox(GeneralPage, ID_FRAMELIMIT_USEFPSFORLIMITING, _("Limit by FPS"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	Framelimit = new wxChoice(GeneralPage, ID_FRAMELIMIT, wxDefaultPosition, wxDefaultSize, arrayStringFor_Framelimit);
 	// Core Settings - Advanced
 	CPUEngine = new wxRadioBox(GeneralPage, ID_CPUENGINE, _("CPU Emulator Engine"), wxDefaultPosition, wxDefaultSize, arrayStringFor_CPUEngine, 0, wxRA_SPECIFY_ROWS);
-	_NTSCJ = new wxCheckBox(GeneralPage, ID_NTSCJ, _("Force Console as NTSC-J"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	_NTSCJ = new wxCheckBox(GeneralPage, ID_NTSCJ, _("Force Console as NTSC-J"));
 
 	// Populate the General settings
 	wxBoxSizer* sFramelimit = new wxBoxSizer(wxHORIZONTAL);
 	sFramelimit->Add(TEXT_BOX(GeneralPage, _("Framelimit:")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 	sFramelimit->Add(Framelimit, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 5);
-	sFramelimit->Add(UseFPSForLimiting, 0, wxALL | wxEXPAND, 5);
 	wxStaticBoxSizer* const sbBasic = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, _("Basic Settings"));
 	sbBasic->Add(CPUThread, 0, wxALL, 5);
 	sbBasic->Add(SkipIdle, 0, wxALL, 5);
@@ -575,18 +590,13 @@ void CConfigMain::CreateGUIControls()
 	GeneralPage->SetSizer(sGeneralPage);
 
 	// Interface Language
-	InterfaceLang = new wxChoice(DisplayPage, ID_INTERFACE_LANG, wxDefaultPosition,
-			wxDefaultSize, arrayStringFor_InterfaceLang, 0, wxDefaultValidator);
+	InterfaceLang = new wxChoice(DisplayPage, ID_INTERFACE_LANG, wxDefaultPosition, wxDefaultSize, arrayStringFor_InterfaceLang);
 	// Hotkey configuration
-	HotkeyConfig = new wxButton(DisplayPage, ID_HOTKEY_CONFIG, _("Hotkeys"),
-			wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT, wxDefaultValidator);
+	HotkeyConfig = new wxButton(DisplayPage, ID_HOTKEY_CONFIG, _("Hotkeys"), wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
 	// Interface settings
-	ConfirmStop = new wxCheckBox(DisplayPage, ID_INTERFACE_CONFIRMSTOP, _("Confirm on Stop"),
-			wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	UsePanicHandlers = new wxCheckBox(DisplayPage, ID_INTERFACE_USEPANICHANDLERS,
-			_("Use Panic Handlers"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	OnScreenDisplayMessages = new wxCheckBox(DisplayPage, ID_INTERFACE_ONSCREENDISPLAYMESSAGES,
-			_("On-Screen Display Messages"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	ConfirmStop = new wxCheckBox(DisplayPage, ID_INTERFACE_CONFIRMSTOP, _("Confirm on Stop"));
+	UsePanicHandlers = new wxCheckBox(DisplayPage, ID_INTERFACE_USEPANICHANDLERS, _("Use Panic Handlers"));
+	OnScreenDisplayMessages = new wxCheckBox(DisplayPage, ID_INTERFACE_ONSCREENDISPLAYMESSAGES, _("On-Screen Display Messages"));
 
 	wxBoxSizer* sInterface = new wxBoxSizer(wxHORIZONTAL);
 	sInterface->Add(TEXT_BOX(DisplayPage, _("Language:")), 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
@@ -606,7 +616,7 @@ void CConfigMain::CreateGUIControls()
 	std::for_each(sv.begin(), sv.end(), [theme_selection](const std::string& filename)
 	{
 		std::string name, ext;
-		SplitPath(filename, NULL, &name, &ext);
+		SplitPath(filename, nullptr, &name, &ext);
 
 		name += ext;
 		auto const wxname = StrToWxStr(name);
@@ -641,20 +651,14 @@ void CConfigMain::CreateGUIControls()
 
 
 	// Audio page
-	DSPEngine = new wxRadioBox(AudioPage, ID_DSPENGINE, _("DSP Emulator Engine"),
-				wxDefaultPosition, wxDefaultSize, arrayStringFor_DSPEngine, 0, wxRA_SPECIFY_ROWS);
+	DSPEngine = new wxRadioBox(AudioPage, ID_DSPENGINE, _("DSP Emulator Engine"), wxDefaultPosition, wxDefaultSize, arrayStringFor_DSPEngine, 0, wxRA_SPECIFY_ROWS);
 	DSPThread = new wxCheckBox(AudioPage, ID_DSPTHREAD, _("DSPLLE on Separate Thread"));
-	DumpAudio = new wxCheckBox(AudioPage, ID_DUMP_AUDIO, _("Dump Audio"),
-				wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	DumpAudio = new wxCheckBox(AudioPage, ID_DUMP_AUDIO, _("Dump Audio"));
 	DPL2Decoder = new wxCheckBox(AudioPage, ID_DPL2DECODER, _("Dolby Pro Logic II decoder"));
-	VolumeSlider = new wxSlider(AudioPage, ID_VOLUME, 0, 1, 100,
-				wxDefaultPosition, wxDefaultSize, wxSL_VERTICAL|wxSL_INVERSE);
-	VolumeText = new wxStaticText(AudioPage, wxID_ANY, wxT(""),
-				wxDefaultPosition, wxDefaultSize, 0);
-	BackendSelection = new wxChoice(AudioPage, ID_BACKEND, wxDefaultPosition,
-				wxDefaultSize, wxArrayBackends, 0, wxDefaultValidator, wxEmptyString);
-	Latency = new wxSpinCtrl(AudioPage, ID_LATENCY, "", wxDefaultPosition, wxDefaultSize,
-		wxSP_ARROW_KEYS, 0, 30);
+	VolumeSlider = new wxSlider(AudioPage, ID_VOLUME, 0, 1, 100, wxDefaultPosition, wxDefaultSize, wxSL_VERTICAL|wxSL_INVERSE);
+	VolumeText = new wxStaticText(AudioPage, wxID_ANY, wxT(""));
+	BackendSelection = new wxChoice(AudioPage, ID_BACKEND, wxDefaultPosition, wxDefaultSize, wxArrayBackends, 0, wxDefaultValidator, wxEmptyString);
+	Latency = new wxSpinCtrl(AudioPage, ID_LATENCY, "", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 30);
 
 	Latency->Bind(wxEVT_COMMAND_SPINCTRL_UPDATED, &CConfigMain::AudioSettingsChanged, this);
 
@@ -696,9 +700,8 @@ void CConfigMain::CreateGUIControls()
 
 	// Gamecube page
 	// IPL settings
-	GCSystemLang = new wxChoice(GamecubePage, ID_GC_SRAM_LNG, wxDefaultPosition,
-			wxDefaultSize, arrayStringFor_GCSystemLang, 0, wxDefaultValidator);
-	GCAlwaysHLE_BS2 = new wxCheckBox(GamecubePage, ID_GC_ALWAYS_HLE_BS2, _("Skip BIOS"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	GCSystemLang = new wxChoice(GamecubePage, ID_GC_SRAM_LNG, wxDefaultPosition, wxDefaultSize, arrayStringFor_GCSystemLang);
+	GCAlwaysHLE_BS2 = new wxCheckBox(GamecubePage, ID_GC_ALWAYS_HLE_BS2, _("Skip BIOS"));
 	// Device settings
 	// EXI Devices
 	wxStaticText* GCEXIDeviceText[3];
@@ -709,9 +712,9 @@ void CConfigMain::CreateGUIControls()
 	GCEXIDevice[1] = new wxChoice(GamecubePage, ID_GC_EXIDEVICE_SLOTB);
 	GCEXIDevice[2] = new wxChoice(GamecubePage, ID_GC_EXIDEVICE_SP1);
 	GCMemcardPath[0] = new wxButton(GamecubePage, ID_GC_EXIDEVICE_SLOTA_PATH, wxT("..."),
-			wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT, wxDefaultValidator);
+			wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
 	GCMemcardPath[1] = new wxButton(GamecubePage, ID_GC_EXIDEVICE_SLOTB_PATH, wxT("..."),
-			wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT, wxDefaultValidator);
+			wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
 
 	//SI Devices
 	wxStaticText* GCSIDeviceText[4];
@@ -765,14 +768,14 @@ void CConfigMain::CreateGUIControls()
 
 	// Wii page
 	// Misc Settings
-	WiiScreenSaver = new wxCheckBox(WiiPage, ID_WII_IPL_SSV, _("Enable Screen Saver"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiiEuRGB60 = new wxCheckBox(WiiPage, ID_WII_IPL_E60, _("Use EuRGB60 Mode (PAL60)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiiAspectRatio = new wxChoice(WiiPage, ID_WII_IPL_AR, wxDefaultPosition, wxDefaultSize, arrayStringFor_WiiAspectRatio, 0, wxDefaultValidator);
-	WiiSystemLang = new wxChoice(WiiPage, ID_WII_IPL_LNG, wxDefaultPosition, wxDefaultSize, arrayStringFor_WiiSystemLang, 0, wxDefaultValidator);
+	WiiScreenSaver = new wxCheckBox(WiiPage, ID_WII_IPL_SSV, _("Enable Screen Saver"));
+	WiiEuRGB60 = new wxCheckBox(WiiPage, ID_WII_IPL_E60, _("Use EuRGB60 Mode (PAL60)"));
+	WiiAspectRatio = new wxChoice(WiiPage, ID_WII_IPL_AR, wxDefaultPosition, wxDefaultSize, arrayStringFor_WiiAspectRatio);
+	WiiSystemLang = new wxChoice(WiiPage, ID_WII_IPL_LNG, wxDefaultPosition, wxDefaultSize, arrayStringFor_WiiSystemLang);
 
 	// Device Settings
-	WiiSDCard = new wxCheckBox(WiiPage, ID_WII_SD_CARD, _("Insert SD Card"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiiKeyboard = new wxCheckBox(WiiPage, ID_WII_KEYBOARD, _("Connect USB Keyboard"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	WiiSDCard = new wxCheckBox(WiiPage, ID_WII_SD_CARD, _("Insert SD Card"));
+	WiiKeyboard = new wxCheckBox(WiiPage, ID_WII_KEYBOARD, _("Connect USB Keyboard"));
 
 	// Populate the Wii Page
 	sWiiIPLSettings = new wxGridBagSizer();
@@ -798,10 +801,10 @@ void CConfigMain::CreateGUIControls()
 
 
 	// Paths page
-	ISOPaths = new wxListBox(PathsPage, ID_ISOPATHS, wxDefaultPosition, wxDefaultSize, arrayStringFor_ISOPaths, wxLB_SINGLE, wxDefaultValidator);
-	RecursiveISOPath = new wxCheckBox(PathsPage, ID_RECURSIVEISOPATH, _("Search Subfolders"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	AddISOPath = new wxButton(PathsPage, ID_ADDISOPATH, _("Add..."), wxDefaultPosition, wxDefaultSize, 0);
-	RemoveISOPath = new wxButton(PathsPage, ID_REMOVEISOPATH, _("Remove"), wxDefaultPosition, wxDefaultSize, 0);
+	ISOPaths = new wxListBox(PathsPage, ID_ISOPATHS, wxDefaultPosition, wxDefaultSize, arrayStringFor_ISOPaths, wxLB_SINGLE);
+	RecursiveISOPath = new wxCheckBox(PathsPage, ID_RECURSIVEISOPATH, _("Search Subfolders"));
+	AddISOPath = new wxButton(PathsPage, ID_ADDISOPATH, _("Add..."));
+	RemoveISOPath = new wxButton(PathsPage, ID_REMOVEISOPATH, _("Remove"));
 	RemoveISOPath->Enable(false);
 
 	DefaultISO = new wxFilePickerCtrl(PathsPage, ID_DEFAULTISO, wxEmptyString, _("Choose a default ISO:"),
@@ -890,9 +893,6 @@ void CConfigMain::CoreSettingsChanged(wxCommandEvent& event)
 		SConfig::GetInstance().m_Framelimit = Framelimit->GetSelection();
 		AudioCommon::UpdateSoundStream();
 		break;
-	case ID_FRAMELIMIT_USEFPSFORLIMITING:
-		SConfig::GetInstance().b_UseFPS = UseFPSForLimiting->IsChecked();
-		break;
 	// Core - Advanced
 	case ID_CPUENGINE:
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iCPUCore = CPUCores[CPUEngine->GetSelection()].CPUid;
@@ -945,8 +945,7 @@ void CConfigMain::AudioSettingsChanged(wxCommandEvent& event)
 	{
 	case ID_DSPENGINE:
 		SConfig::GetInstance().m_LocalCoreStartupParameter.bDSPHLE = DSPEngine->GetSelection() == 0;
-		if (!DSPEngine->GetSelection() == 0)
-			SConfig::GetInstance().m_EnableJIT = DSPEngine->GetSelection() == 1;
+		SConfig::GetInstance().m_DSPEnableJIT = DSPEngine->GetSelection() == 1;
 		AudioCommon::UpdateSoundStream();
 		break;
 
@@ -986,12 +985,9 @@ void CConfigMain::AudioSettingsChanged(wxCommandEvent& event)
 
 void CConfigMain::AddAudioBackends()
 {
-	std::vector<std::string> backends = AudioCommon::GetSoundBackends();
-	// I'm sure Billiard will change this into an auto sometimes soon :P
-	for (std::vector<std::string>::const_iterator iter = backends.begin();
-		 iter != backends.end(); ++iter)
+	for (const std::string& backend : AudioCommon::GetSoundBackends())
 	{
-		BackendSelection->Append(wxGetTranslation(StrToWxStr(*iter)));
+		BackendSelection->Append(wxGetTranslation(StrToWxStr(backend)));
 		int num = BackendSelection->
 			FindString(StrToWxStr(SConfig::GetInstance().sBackend));
 		BackendSelection->SetSelection(num);
@@ -1066,7 +1062,7 @@ void CConfigMain::ChooseMemcardPath(std::string& strMemcard, bool isSlotA)
 	{
 		if (File::Exists(filename))
 		{
-			GCMemcard memorycard(filename.c_str());
+			GCMemcard memorycard(filename);
 			if (!memorycard.IsValid())
 			{
 				PanicAlertT("Cannot use that file as a memory card.\n%s\n" \
@@ -1100,7 +1096,7 @@ void CConfigMain::ChooseMemcardPath(std::string& strMemcard, bool isSlotA)
 				ExpansionInterface::ChangeDevice(
 					isSlotA ? 0 : 1, // SlotA: channel 0, SlotB channel 1
 					EXIDEVICE_MEMORYCARD,
-					0);	// SP1 is device 2, slots are device 0
+					0); // SP1 is device 2, slots are device 0
 			}
 		}
 		else
@@ -1169,9 +1165,9 @@ void CConfigMain::ChooseEXIDevice(wxString deviceName, int deviceNum)
 	{
 		// Change plugged device! :D
 		ExpansionInterface::ChangeDevice(
-			(deviceNum == 1) ? 1 : 0,	// SlotB is on channel 1, slotA and SP1 are on 0
-			tempType,					// The device enum to change to
-			(deviceNum == 2) ? 2 : 0);	// SP1 is device 2, slots are device 0
+			(deviceNum == 1) ? 1 : 0,  // SlotB is on channel 1, slotA and SP1 are on 0
+			tempType,                  // The device enum to change to
+			(deviceNum == 2) ? 2 : 0); // SP1 is device 2, slots are device 0
 	}
 }
 
@@ -1199,7 +1195,7 @@ void CConfigMain::WiiSettingsChanged(wxCommandEvent& event)
 		int wii_system_lang = WiiSystemLang->GetSelection();
 		SConfig::GetInstance().m_SYSCONF->SetData("IPL.LNG", wii_system_lang);
 		u8 country_code = GetSADRCountryCode(wii_system_lang);
-		if(!SConfig::GetInstance().m_SYSCONF->SetArrayData("IPL.SADR", &country_code, 1))
+		if (!SConfig::GetInstance().m_SYSCONF->SetArrayData("IPL.SADR", &country_code, 1))
 		{
 			PanicAlert("Failed to update country code in SYSCONF");
 		}
@@ -1321,7 +1317,7 @@ inline u8 CConfigMain::GetSADRCountryCode(int language)
 	case 1: //English
 		countrycode = 49; // United States
 		break;
-	case 2:	//German
+	case 2: //German
 		countrycode = 78; //Germany
 		break;
 	case 3: //French
@@ -1333,7 +1329,7 @@ inline u8 CConfigMain::GetSADRCountryCode(int language)
 	case 5: //Italian
 		countrycode = 83; //Italy
 		break;
-	case 6:	//Dutch
+	case 6: //Dutch
 		countrycode = 94; //Netherlands
 		break;
 	case 7: //Simplified Chinese

@@ -1,31 +1,18 @@
-// Copyright (C) 2003 Dolphin Project.
+// Copyright 2014 Dolphin Emulator Project
+// Licensed under GPLv2
+// Refer to the license.txt file included.
 
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, version 2.0.
+#pragma once
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License 2.0 for more details.
-
-// A copy of the GPL 2.0 should have been included with the program.
-// If not, see http://www.gnu.org/licenses/
-
-// Official SVN repository and contact information can be found at
-// http://code.google.com/p/dolphin-emu/
-
-#ifndef _SHADERGENCOMMON_H
-#define _SHADERGENCOMMON_H
-
-#include <stdio.h>
-#include <stdarg.h>
+#include <algorithm>
+#include <cstdarg>
+#include <cstdio>
+#include <iomanip>
 #include <string>
 #include <vector>
-#include <algorithm>
 
-#include "CommonTypes.h"
-#include "VideoCommon.h"
+#include "Common/CommonTypes.h"
+#include "VideoCommon/VideoCommon.h"
 
 /**
  * Common interface for classes that need to go through the shader generation path (GenerateVertexShader, GeneratePixelShader)
@@ -49,7 +36,7 @@ public:
 	 * @note When implementing this method in a child class, you likely want to return the argument of the last SetBuffer call here
 	 * @note SetBuffer() should be called before using GetBuffer().
 	 */
-	const char* GetBuffer() { return NULL; }
+	const char* GetBuffer() { return nullptr; }
 
 	/*
 	 * Can be used to give the object a place to write to. This should be called before using Write().
@@ -64,10 +51,10 @@ public:
 
 	/*
 	 * Returns a pointer to an internally stored object of the uid_data type.
-	 * @warning since most child classes use the default implementation you shouldn't access this directly without adding precautions against NULL access (e.g. via adding a dummy structure, cf. the vertex/pixel shader generators)
+	 * @warning since most child classes use the default implementation you shouldn't access this directly without adding precautions against nullptr access (e.g. via adding a dummy structure, cf. the vertex/pixel shader generators)
 	 */
 	template<class uid_data>
-	uid_data& GetUidData() { return *(uid_data*)NULL; }
+	uid_data& GetUidData() { return *(uid_data*)nullptr; }
 };
 
 /**
@@ -119,7 +106,7 @@ private:
 class ShaderCode : public ShaderGeneratorInterface
 {
 public:
-	ShaderCode() : buf(NULL), write_ptr(NULL)
+	ShaderCode() : buf(nullptr), write_ptr(nullptr)
 	{
 
 	}
@@ -158,7 +145,7 @@ public:
 	{
 		// TODO: Not ready for usage yet
 		return true;
-//		return constant_usage[index];
+		//return constant_usage[index];
 	}
 private:
 	std::vector<bool> constant_usage; // TODO: Is vector<bool> appropriate here?
@@ -174,18 +161,18 @@ static inline void WriteRegister(T& object, API_TYPE ApiType, const char *prefix
 }
 
 template<class T>
-static inline void WriteLocation(T& object, API_TYPE ApiType, bool using_ubos)
+static inline void WriteLocation(T& object, API_TYPE ApiType)
 {
-	if (using_ubos)
+	if (ApiType == API_OPENGL)
 		return;
 
 	object.Write("uniform ");
 }
 
 template<class T>
-static inline void DeclareUniform(T& object, API_TYPE api_type, bool using_ubos, const u32 num, const char* type, const char* name)
+static inline void DeclareUniform(T& object, API_TYPE api_type, const u32 num, const char* type, const char* name)
 {
-	WriteLocation(object, api_type, using_ubos);
+	WriteLocation(object, api_type);
 	object.Write("%s %s ", type, name);
 	WriteRegister(object, api_type, "c", num);
 	object.Write(";\n");
@@ -258,5 +245,3 @@ private:
 	std::map<UidT,std::string> m_shaders;
 	std::vector<UidT> m_uids;
 };
-
-#endif // _SHADERGENCOMMON_H

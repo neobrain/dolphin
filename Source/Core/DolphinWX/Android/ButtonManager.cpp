@@ -1,23 +1,11 @@
-// Copyright (C) 2003 Dolphin Project.
-
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, version 2.0.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License 2.0 for more details.
-
-// A copy of the GPL 2.0 should have been included with the program.
-// If not, see http://www.gnu.org/licenses/
-
-// Official SVN repository and contact information can be found at
-// http://code.google.com/p/dolphin-emu/
+// Copyright 2014 Dolphin Emulator Project
+// Licensed under GPLv2
+// Refer to the license.txt file included.
 
 #include <unordered_map>
-#include "GLInterface/GLInterface.h"
-#include "Android/ButtonManager.h"
+
+#include "DolphinWX/Android/ButtonManager.h"
+#include "DolphinWX/GLInterface/GLInterface.h"
 
 namespace ButtonManager
 {
@@ -25,26 +13,28 @@ namespace ButtonManager
 	std::map<std::pair<int, int>, Button*> m_buttons;
 	std::map<std::pair<int, int>, Axis*> m_axises;
 	std::unordered_map<std::string, InputDevice*> m_controllers;
-	const char* configStrings[] = {	"InputA",
-					"InputB",
-					"InputStart",
-					"InputX",
-					"InputY",
-					"InputZ",
-					"DPadUp",
-					"DPadDown",
-					"DPadLeft",
-					"DPadRight",
-					"MainUp",
-					"MainDown",
-					"MainLeft",
-					"MainRight",
-					"CStickUp",
-					"CStickDown",
-					"CStickLeft",
-					"CStickRight",
-					"InputL",
-					"InputR" };
+	const char* configStrings[] = {
+		"InputA",
+		"InputB",
+		"InputStart",
+		"InputX",
+		"InputY",
+		"InputZ",
+		"DPadUp",
+		"DPadDown",
+		"DPadLeft",
+		"DPadRight",
+		"MainUp",
+		"MainDown",
+		"MainLeft",
+		"MainRight",
+		"CStickUp",
+		"CStickDown",
+		"CStickLeft",
+		"CStickRight",
+		"InputL",
+		"InputR"
+	};
 	const int configStringNum = 20;
 
 	void AddBind(std::string dev, sBind *bind)
@@ -101,7 +91,7 @@ namespace ButtonManager
 				bool hasbind = false;
 				char modifier = 0;
 				std::string value;
-				ini.Get("Android", config.str().c_str(), &value, "None");
+				ini.Get("Android", config.str(), &value, "None");
 				if (value == "None")
 					continue;
 				if (std::string::npos != value.find("Axis"))
@@ -124,11 +114,10 @@ namespace ButtonManager
 	}
 	bool GetButtonPressed(int padID, ButtonType button)
 	{
-		bool pressed = false;
-		pressed = m_buttons[std::make_pair(padID, button)]->Pressed();
+		bool pressed = m_buttons[std::make_pair(padID, button)]->Pressed();
 
-		for (auto it = m_controllers.begin(); it != m_controllers.end(); ++it)
-			pressed |= it->second->ButtonValue(padID, button);
+		for (const auto& ctrl : m_controllers)
+			pressed |= ctrl.second->ButtonValue(padID, button);
 
 		return pressed;
 	}
@@ -172,10 +161,10 @@ namespace ButtonManager
 	}
 	void Shutdown()
 	{
-		for(auto it = m_buttons.begin(); it != m_buttons.end(); ++it)
-			delete it->second;
-		for (auto it = m_controllers.begin(); it != m_controllers.end(); ++it)
-			delete it->second;
+		for (const auto& button : m_buttons)
+			delete button.second;
+		for (const auto& controller : m_controllers)
+			delete controller.second;
 		m_controllers.clear();
 		m_buttons.clear();
 	}

@@ -15,12 +15,11 @@
 // Official Git repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#ifndef _MEMMAP_H
-#define _MEMMAP_H
+#pragma once
 
-// Includes
 #include <string>
-#include "Common.h"
+
+#include "Common/Common.h"
 
 // Enable memory checks in the Debug/DebugFast builds, but NOT in release
 #if defined(_DEBUG) || defined(DEBUGFAST)
@@ -29,16 +28,7 @@
 
 // Global declarations
 class PointerWrap;
-
-typedef void (*writeFn8 )(const u8, const u32);
-typedef void (*writeFn16)(const u16,const u32);
-typedef void (*writeFn32)(const u32,const u32);
-typedef void (*writeFn64)(const u64,const u32);
-
-typedef void (*readFn8 )(u8&,  const u32);
-typedef void (*readFn16)(u16&, const u32);
-typedef void (*readFn32)(u32&, const u32);
-typedef void (*readFn64)(u64&, const u32);
+namespace MMIO { class Mapping; }
 
 namespace Memory
 {
@@ -63,26 +53,29 @@ enum
 	// what will be reported in lowmem, and thus used by emulated software.
 	// Note: Writing to lowmem is done by IPL. If using retail IPL, it will
 	// always be set to 24MB.
-	REALRAM_SIZE	= 0x1800000,
-	RAM_SIZE		= ROUND_UP_POW2(REALRAM_SIZE),
-	RAM_MASK		= RAM_SIZE - 1,
-	FAKEVMEM_SIZE	= 0x2000000,
-	FAKEVMEM_MASK	= FAKEVMEM_SIZE - 1,
-	L1_CACHE_SIZE	= 0x40000,
-	L1_CACHE_MASK	= L1_CACHE_SIZE - 1,
-	EFB_SIZE		= 0x200000,
-	EFB_MASK		= EFB_SIZE - 1,
-	IO_SIZE			= 0x10000,
-	EXRAM_SIZE		= 0x4000000,
-	EXRAM_MASK		= EXRAM_SIZE - 1,
+	REALRAM_SIZE  = 0x1800000,
+	RAM_SIZE      = ROUND_UP_POW2(REALRAM_SIZE),
+	RAM_MASK      = RAM_SIZE - 1,
+	FAKEVMEM_SIZE = 0x2000000,
+	FAKEVMEM_MASK = FAKEVMEM_SIZE - 1,
+	L1_CACHE_SIZE = 0x40000,
+	L1_CACHE_MASK = L1_CACHE_SIZE - 1,
+	EFB_SIZE      = 0x200000,
+	EFB_MASK      = EFB_SIZE - 1,
+	IO_SIZE       = 0x10000,
+	EXRAM_SIZE    = 0x4000000,
+	EXRAM_MASK    = EXRAM_SIZE - 1,
 
-	ADDR_MASK_HW_ACCESS	= 0x0c000000,
-	ADDR_MASK_MEM1		= 0x20000000,
+	ADDR_MASK_HW_ACCESS = 0x0c000000,
+	ADDR_MASK_MEM1      = 0x20000000,
 
-#ifndef _M_X64
+#if _ARCH_32
 	MEMVIEW32_MASK  = 0x3FFFFFFF,
 #endif
 };
+
+// MMIO mapping object.
+extern MMIO::Mapping* mmio_mapping;
 
 // Init and Shutdown
 bool IsInitialized();
@@ -100,20 +93,16 @@ u32 ReadUnchecked_U32(const u32 _Address);
 void WriteUnchecked_U8(const u8 _Data, const u32 _Address);
 void WriteUnchecked_U32(const u32 _Data, const u32 _Address);
 
-void InitHWMemFuncs();
-void InitHWMemFuncsWii();
-
 bool IsRAMAddress(const u32 addr, bool allow_locked_cache = false, bool allow_fake_vmem = false);
-writeFn32 GetHWWriteFun32(const u32 _Address);
 
 inline u8* GetCachePtr() {return m_pL1Cache;}
 inline u8* GetMainRAMPtr() {return m_pRAM;}
 inline u32 ReadFast32(const u32 _Address)
 {
-#if defined(_M_X64)
-	return Common::swap32(*(u32 *)(base + _Address));
-#else
+#if _ARCH_32
 	return Common::swap32(*(u32 *)(base + (_Address & MEMVIEW32_MASK)));  // ReadUnchecked_U32(_Address);
+#else
+	return Common::swap32(*(u32 *)(base + _Address));
 #endif
 }
 
@@ -186,6 +175,3 @@ extern u32 pagetable_base;
 extern u32 pagetable_hashmask;
 
 };
-
-#endif
-

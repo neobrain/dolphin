@@ -2,19 +2,21 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "Common.h"
+#include "Common/Common.h"
+#include "Common/FileUtil.h"
+#include "Common/StringUtil.h"
 
-#include "DebugUtil.h"
-#include "BPMemLoader.h"
-#include "TextureSampler.h"
-#include "SWVideoConfig.h"
-#include "EfbInterface.h"
-#include "SWStatistics.h"
-#include "HwRasterizer.h"
-#include "StringUtil.h"
-#include "SWCommandProcessor.h"
-#include "ImageWrite.h"
-#include "FileUtil.h"
+#include "VideoBackends/Software/BPMemLoader.h"
+#include "VideoBackends/Software/DebugUtil.h"
+#include "VideoBackends/Software/EfbInterface.h"
+#include "VideoBackends/Software/HwRasterizer.h"
+#include "VideoBackends/Software/SWCommandProcessor.h"
+#include "VideoBackends/Software/SWStatistics.h"
+#include "VideoBackends/Software/SWVideoConfig.h"
+#include "VideoBackends/Software/TextureSampler.h"
+
+#include "VideoCommon/ImageWrite.h"
+
 
 namespace DebugUtil
 {
@@ -37,12 +39,12 @@ void Init()
 	{
 		memset(ObjectBuffer[i], 0, sizeof(ObjectBuffer[i]));
 		DrawnToBuffer[i] = false;
-		ObjectBufferName[i] = 0;
+		ObjectBufferName[i] = nullptr;
 		BufferBase[i] = 0;
 	}
 }
 
-void SaveTexture(const std::string filename, u32 texmap, s32 mip)
+void SaveTexture(const std::string& filename, u32 texmap, s32 mip)
 {
 	FourTexUnits& texUnit = bpmem.tex[(texmap >> 2) & 1];
 	u8 subTexmap = texmap & 3;
@@ -82,7 +84,7 @@ s32 GetMaxTextureLod(u32 texmap)
 	u8 mip = maxLod >> 4;
 	u8 fract = maxLod & 0xf;
 
-	if(fract)
+	if (fract)
 		++mip;
 
 	return (s32)mip;
@@ -121,7 +123,7 @@ void DumpActiveTextures()
 	}
 }
 
-void DumpEfb(const std::string filename)
+void DumpEfb(const std::string& filename)
 {
 	u8 *data = new u8[EFB_WIDTH * EFB_HEIGHT * 4];
 	u8 *writePtr = data;
@@ -144,7 +146,7 @@ void DumpEfb(const std::string filename)
 	delete[] data;
 }
 
-void DumpDepth(const std::string filename)
+void DumpDepth(const std::string& filename)
 {
 	u8 *data = new u8[EFB_WIDTH * EFB_HEIGHT * 4];
 	u8 *writePtr = data;

@@ -2,17 +2,16 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _THREAD_H_
-#define _THREAD_H_
+#pragma once
 
-#include "StdConditionVariable.h"
-#include "StdMutex.h"
-#include "StdThread.h"
+#include <cstdio>
+#include <cstring>
 
 // Don't include common.h here as it will break LogManager
-#include "CommonTypes.h"
-#include <stdio.h>
-#include <string.h>
+#include "Common/CommonTypes.h"
+#include "Common/StdConditionVariable.h"
+#include "Common/StdMutex.h"
+#include "Common/StdThread.h"
 
 // This may not be defined outside _WIN32
 #ifndef _WIN32
@@ -109,7 +108,7 @@ private:
 };
 
 void SleepCurrentThread(int ms);
-void SwitchCurrentThread();	// On Linux, this is equal to sleep 1ms
+void SwitchCurrentThread(); // On Linux, this is equal to sleep 1ms
 
 // Use this function during a spin-wait to make the current thread
 // relax while another thread is working. This may be more efficient
@@ -122,5 +121,3 @@ inline void YieldCPU()
 void SetCurrentThreadName(const char *name);
 
 } // namespace Common
-
-#endif // _THREAD_H_

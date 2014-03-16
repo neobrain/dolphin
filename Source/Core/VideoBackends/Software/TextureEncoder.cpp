@@ -2,12 +2,12 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "TextureEncoder.h"
-#include "EfbInterface.h"
-#include "BPMemLoader.h"
+#include "VideoBackends/Software/BPMemLoader.h"
+#include "VideoBackends/Software/EfbInterface.h"
+#include "VideoBackends/Software/TextureEncoder.h"
 
-#include "LookUpTables.h"
-#include "TextureDecoder.h"
+#include "VideoCommon/LookUpTables.h"
+#include "VideoCommon/TextureDecoder.h"
 
 
 namespace TextureEncoder
@@ -261,7 +261,7 @@ void EncodeRGBA6(u8 *dst, u8 *src, u32 format)
 	u32 readStride = 3;
 	u8 *dstBlockStart = dst;
 
-	switch(format)
+	switch (format)
 	{
 	case GX_TF_I4:
 		SetBlockDimensions(3, 3, sBlkCount, tBlkCount, sBlkSize, tBlkSize);
@@ -498,7 +498,7 @@ void EncodeRGBA6halfscale(u8 *dst, u8 *src, u32 format)
 	u32 readStride = 6;
 	u8 *dstBlockStart = dst;
 
-	switch(format)
+	switch (format)
 	{
 	case GX_TF_I4:
 		SetBlockDimensions(3, 3, sBlkCount, tBlkCount, sBlkSize, tBlkSize);
@@ -732,7 +732,7 @@ void EncodeRGB8(u8 *dst, u8 *src, u32 format)
 	u32 readStride = 3;
 	u8 *dstBlockStart = dst;
 
-	switch(format)
+	switch (format)
 	{
 	case GX_TF_I4:
 		SetBlockDimensions(3, 3, sBlkCount, tBlkCount, sBlkSize, tBlkSize);
@@ -947,7 +947,7 @@ void EncodeRGB8halfscale(u8 *dst, u8 *src, u32 format)
 	u32 readStride = 6;
 	u8 *dstBlockStart = dst;
 
-	switch(format)
+	switch (format)
 	{
 	case GX_TF_I4:
 		SetBlockDimensions(3, 3, sBlkCount, tBlkCount, sBlkSize, tBlkSize);
@@ -1177,7 +1177,7 @@ void EncodeZ24(u8 *dst, u8 *src, u32 format)
 	u32 readStride = 3;
 	u8 *dstBlockStart = dst;
 
-	switch(format)
+	switch (format)
 	{
 	case GX_TF_Z8:
 		SetBlockDimensions(3, 2, sBlkCount, tBlkCount, sBlkSize, tBlkSize);
@@ -1282,7 +1282,7 @@ void EncodeZ24halfscale(u8 *dst, u8 *src, u32 format)
 	u8 r, g, b;
 	u8 *dstBlockStart = dst;
 
-	switch(format)
+	switch (format)
 	{
 	case GX_TF_Z8:
 		SetBlockDimensions(3, 2, sBlkCount, tBlkCount, sBlkSize, tBlkSize);

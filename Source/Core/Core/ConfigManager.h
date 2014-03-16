@@ -2,27 +2,26 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _CONFIGMANAGER_H
-#define _CONFIGMANAGER_H
+#pragma once
 
 #include <string>
 #include <vector>
 
-#include "Boot/Boot.h"
-#include "HW/EXI_Device.h"
-#include "HW/SI_Device.h"
-#include "SysConf.h"
+#include "Common/SysConf.h"
+#include "Core/Boot/Boot.h"
+#include "Core/HW/EXI_Device.h"
+#include "Core/HW/SI_Device.h"
 
 // DSP Backend Types
-#define BACKEND_NULLSOUND	_trans("No audio output")
-#define BACKEND_ALSA		"ALSA"
-#define BACKEND_AOSOUND		"AOSound"
-#define BACKEND_COREAUDIO	"CoreAudio"
-#define BACKEND_DIRECTSOUND	"DSound"
-#define BACKEND_OPENAL		"OpenAL"
-#define BACKEND_PULSEAUDIO	"Pulse"
-#define BACKEND_XAUDIO2		"XAudio2"
-#define BACKEND_OPENSLES	"OpenSLES"
+#define BACKEND_NULLSOUND   _trans("No audio output")
+#define BACKEND_ALSA        "ALSA"
+#define BACKEND_AOSOUND     "AOSound"
+#define BACKEND_COREAUDIO   "CoreAudio"
+#define BACKEND_DIRECTSOUND "DSound"
+#define BACKEND_OPENAL      "OpenAL"
+#define BACKEND_PULSEAUDIO  "Pulse"
+#define BACKEND_XAUDIO2     "XAudio2"
+#define BACKEND_OPENSLES    "OpenSLES"
 struct SConfig : NonCopyable
 {
 	// Wii Devices
@@ -51,13 +50,11 @@ struct SConfig : NonCopyable
 	int m_InterfaceLanguage;
 	// framelimit choose
 	unsigned int m_Framelimit;
-	bool b_UseFPS;
 	// other interface settings
 	bool m_InterfaceToolbar;
 	bool m_InterfaceStatusbar;
 	bool m_InterfaceLogWindow;
 	bool m_InterfaceLogConfigWindow;
-	bool m_InterfaceConsole;
 
 	bool m_ListDrives;
 	bool m_ListWad;
@@ -78,9 +75,10 @@ struct SConfig : NonCopyable
 	bool m_PauseMovie;
 	bool m_ShowLag;
 	std::string m_strMovieAuthor;
+	unsigned int m_FrameSkip;
 
 	// DSP settings
-	bool m_EnableJIT;
+	bool m_DSPEnableJIT;
 	bool m_DumpAudio;
 	int m_Volume;
 	std::string sBackend;
@@ -105,6 +103,3 @@ private:
 
 	static SConfig* m_Instance;
 };
-
-#endif // endif config manager
-

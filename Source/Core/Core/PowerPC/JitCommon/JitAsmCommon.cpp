@@ -2,12 +2,11 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "JitAsmCommon.h"
-#include "JitBase.h"
+#include "Common/CPUDetect.h"
+#include "Common/MemoryUtil.h"
 
-#include "CPUDetect.h"
-#include "MemoryUtil.h"
-
+#include "Core/PowerPC/JitCommon/JitAsmCommon.h"
+#include "Core/PowerPC/JitCommon/JitBase.h"
 
 #define QUANTIZED_REGS_TO_SAVE (ABI_ALL_CALLEE_SAVED & ~((1 << RAX) | (1 << RCX) | (1 << RDX) | \
                                                          (1 << XMM0) | (1 << XMM1)))
@@ -77,42 +76,42 @@ static const u8 GC_ALIGNED16(pbswapShuffle2x4[16]) = {3, 2, 1, 0, 7, 6, 5, 4, 8,
 
 static const float GC_ALIGNED16(m_quantizeTableS[]) =
 {
-	(1 <<  0),	(1 <<  1),	(1 <<  2),	(1 <<  3),
-	(1 <<  4),	(1 <<  5),	(1 <<  6),	(1 <<  7),
-	(1 <<  8),	(1 <<  9),	(1 << 10),	(1 << 11),
-	(1 << 12),	(1 << 13),	(1 << 14),	(1 << 15),
-	(1 << 16),	(1 << 17),	(1 << 18),	(1 << 19),
-	(1 << 20),	(1 << 21),	(1 << 22),	(1 << 23),
-	(1 << 24),	(1 << 25),	(1 << 26),	(1 << 27),
-	(1 << 28),	(1 << 29),	(1 << 30),	(1 << 31),
-	1.0 / (1ULL << 32),	1.0 / (1 << 31),	1.0 / (1 << 30),	1.0 / (1 << 29),
-	1.0 / (1 << 28),	1.0 / (1 << 27),	1.0 / (1 << 26),	1.0 / (1 << 25),
-	1.0 / (1 << 24),	1.0 / (1 << 23),	1.0 / (1 << 22),	1.0 / (1 << 21),
-	1.0 / (1 << 20),	1.0 / (1 << 19),	1.0 / (1 << 18),	1.0 / (1 << 17),
-	1.0 / (1 << 16),	1.0 / (1 << 15),	1.0 / (1 << 14),	1.0 / (1 << 13),
-	1.0 / (1 << 12),	1.0 / (1 << 11),	1.0 / (1 << 10),	1.0 / (1 <<  9),
-	1.0 / (1 <<  8),	1.0 / (1 <<  7),	1.0 / (1 <<  6),	1.0 / (1 <<  5),
-	1.0 / (1 <<  4),	1.0 / (1 <<  3),	1.0 / (1 <<  2),	1.0 / (1 <<  1),
+	(1 <<  0),  (1 <<  1),  (1 <<  2),  (1 <<  3),
+	(1 <<  4),  (1 <<  5),  (1 <<  6),  (1 <<  7),
+	(1 <<  8),  (1 <<  9),  (1 << 10),  (1 << 11),
+	(1 << 12),  (1 << 13),  (1 << 14),  (1 << 15),
+	(1 << 16),  (1 << 17),  (1 << 18),  (1 << 19),
+	(1 << 20),  (1 << 21),  (1 << 22),  (1 << 23),
+	(1 << 24),  (1 << 25),  (1 << 26),  (1 << 27),
+	(1 << 28),  (1 << 29),  (1 << 30),  (1 << 31),
+	1.0 / (1ULL << 32), 1.0 / (1 << 31), 1.0 / (1 << 30), 1.0 / (1 << 29),
+	1.0 / (1 << 28),    1.0 / (1 << 27), 1.0 / (1 << 26), 1.0 / (1 << 25),
+	1.0 / (1 << 24),    1.0 / (1 << 23), 1.0 / (1 << 22), 1.0 / (1 << 21),
+	1.0 / (1 << 20),    1.0 / (1 << 19), 1.0 / (1 << 18), 1.0 / (1 << 17),
+	1.0 / (1 << 16),    1.0 / (1 << 15), 1.0 / (1 << 14), 1.0 / (1 << 13),
+	1.0 / (1 << 12),    1.0 / (1 << 11), 1.0 / (1 << 10), 1.0 / (1 <<  9),
+	1.0 / (1 <<  8),    1.0 / (1 <<  7), 1.0 / (1 <<  6), 1.0 / (1 <<  5),
+	1.0 / (1 <<  4),    1.0 / (1 <<  3), 1.0 / (1 <<  2), 1.0 / (1 <<  1),
 };
 
 static const float GC_ALIGNED16(m_dequantizeTableS[]) =
 {
-	1.0 / (1 <<  0),	1.0 / (1 <<  1),	1.0 / (1 <<  2),	1.0 / (1 <<  3),
-	1.0 / (1 <<  4),	1.0 / (1 <<  5),	1.0 / (1 <<  6),	1.0 / (1 <<  7),
-	1.0 / (1 <<  8),	1.0 / (1 <<  9),	1.0 / (1 << 10),	1.0 / (1 << 11),
-	1.0 / (1 << 12),	1.0 / (1 << 13),	1.0 / (1 << 14),	1.0 / (1 << 15),
-	1.0 / (1 << 16),	1.0 / (1 << 17),	1.0 / (1 << 18),	1.0 / (1 << 19),
-	1.0 / (1 << 20),	1.0 / (1 << 21),	1.0 / (1 << 22),	1.0 / (1 << 23),
-	1.0 / (1 << 24),	1.0 / (1 << 25),	1.0 / (1 << 26),	1.0 / (1 << 27),
-	1.0 / (1 << 28),	1.0 / (1 << 29),	1.0 / (1 << 30),	1.0 / (1 << 31),
-	(1ULL << 32),	(1 << 31),		(1 << 30),		(1 << 29),
-	(1 << 28),		(1 << 27),		(1 << 26),		(1 << 25),
-	(1 << 24),		(1 << 23),		(1 << 22),		(1 << 21),
-	(1 << 20),		(1 << 19),		(1 << 18),		(1 << 17),
-	(1 << 16),		(1 << 15),		(1 << 14),		(1 << 13),
-	(1 << 12),		(1 << 11),		(1 << 10),		(1 <<  9),
-	(1 <<  8),		(1 <<  7),		(1 <<  6),		(1 <<  5),
-	(1 <<  4),		(1 <<  3),		(1 <<  2),		(1 <<  1),
+	1.0 / (1 <<  0), 1.0 / (1 <<  1), 1.0 / (1 <<  2), 1.0 / (1 <<  3),
+	1.0 / (1 <<  4), 1.0 / (1 <<  5), 1.0 / (1 <<  6), 1.0 / (1 <<  7),
+	1.0 / (1 <<  8), 1.0 / (1 <<  9), 1.0 / (1 << 10), 1.0 / (1 << 11),
+	1.0 / (1 << 12), 1.0 / (1 << 13), 1.0 / (1 << 14), 1.0 / (1 << 15),
+	1.0 / (1 << 16), 1.0 / (1 << 17), 1.0 / (1 << 18), 1.0 / (1 << 19),
+	1.0 / (1 << 20), 1.0 / (1 << 21), 1.0 / (1 << 22), 1.0 / (1 << 23),
+	1.0 / (1 << 24), 1.0 / (1 << 25), 1.0 / (1 << 26), 1.0 / (1 << 27),
+	1.0 / (1 << 28), 1.0 / (1 << 29), 1.0 / (1 << 30), 1.0 / (1 << 31),
+	(1ULL << 32),   (1 << 31),      (1 << 30),      (1 << 29),
+	(1 << 28),      (1 << 27),      (1 << 26),      (1 << 25),
+	(1 << 24),      (1 << 23),      (1 << 22),      (1 << 21),
+	(1 << 20),      (1 << 19),      (1 << 18),      (1 << 17),
+	(1 << 16),      (1 << 15),      (1 << 14),      (1 << 13),
+	(1 << 12),      (1 << 11),      (1 << 10),      (1 <<  9),
+	(1 <<  8),      (1 <<  7),      (1 <<  6),      (1 <<  5),
+	(1 <<  4),      (1 <<  3),      (1 <<  2),      (1 <<  1),
 };
 
 static float GC_ALIGNED16(psTemp[4]);
@@ -145,7 +144,7 @@ void CommonAsmRoutines::GenQuantizedStores()
 	UD2();
 	const u8* storePairedFloat = AlignCode4();
 
-#ifdef _M_X64
+#if _M_X86_64
 	SHUFPS(XMM0, R(XMM0), 1);
 	MOVQ_xmm(M(&psTemp[0]), XMM0);
 	TEST(32, R(ECX), Imm32(0x0C000000));
@@ -363,7 +362,7 @@ void CommonAsmRoutines::GenQuantizedLoads()
 
 	const u8* loadPairedFloatTwo = AlignCode4();
 	if (cpu_info.bSSSE3) {
-#ifdef _M_X64
+#if _M_X86_64
 		MOVQ_xmm(XMM0, MComplex(RBX, RCX, 1, 0));
 #else
 		AND(32, R(ECX), Imm32(Memory::MEMVIEW32_MASK));
@@ -371,7 +370,7 @@ void CommonAsmRoutines::GenQuantizedLoads()
 #endif
 		PSHUFB(XMM0, M((void *)pbswapShuffle2x4));
 	} else {
-#ifdef _M_X64
+#if _M_X86_64
 		MOV(64, R(RCX), MComplex(RBX, RCX, 1, 0));
 		BSWAP(64, RCX);
 		ROL(64, R(RCX), Imm8(32));
@@ -402,7 +401,7 @@ void CommonAsmRoutines::GenQuantizedLoads()
 
 	const u8* loadPairedFloatOne = AlignCode4();
 	if (cpu_info.bSSSE3) {
-#ifdef _M_X64
+#if _M_X86_64
 		MOVD_xmm(XMM0, MComplex(RBX, RCX, 1, 0));
 #else
 		AND(32, R(ECX), Imm32(Memory::MEMVIEW32_MASK));
@@ -411,7 +410,7 @@ void CommonAsmRoutines::GenQuantizedLoads()
 		PSHUFB(XMM0, M((void *)pbswapShuffle1x4));
 		UNPCKLPS(XMM0, M((void*)m_one));
 	} else {
-#ifdef _M_X64
+#if _M_X86_64
 		MOV(32, R(RCX), MComplex(RBX, RCX, 1, 0));
 		BSWAP(32, RCX);
 		MOVD_xmm(XMM0, R(RCX));
@@ -440,9 +439,9 @@ void CommonAsmRoutines::GenQuantizedLoads()
 	RET();
 
 	const u8* loadPairedU8One = AlignCode4();
-	UnsafeLoadRegToRegNoSwap(ECX, ECX, 8, 0);	// ECX = 0x000000xx
+	UnsafeLoadRegToRegNoSwap(ECX, ECX, 8, 0); // ECX = 0x000000xx
 	MOVD_xmm(XMM0, R(ECX));
-	CVTDQ2PS(XMM0, R(XMM0));	// Is CVTSI2SS better?
+	CVTDQ2PS(XMM0, R(XMM0)); // Is CVTSI2SS better?
 	SHR(32, R(EAX), Imm8(6));
 	MOVSS(XMM1, MDisp(EAX, (u32)(u64)m_dequantizeTableS));
 	MULSS(XMM0, R(XMM1));

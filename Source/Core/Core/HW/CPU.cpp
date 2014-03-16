@@ -2,36 +2,36 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "Common.h"
-#include "Thread.h"
+#include "Common/Common.h"
+#include "Common/Thread.h"
 
-#include "../DSPEmulator.h"
-#include "../PowerPC/PowerPC.h"
-#include "../Host.h"
-#include "../Core.h"
-#include "CPU.h"
-#include "DSP.h"
-#include "Movie.h"
+#include "Core/Core.h"
+#include "Core/DSPEmulator.h"
+#include "Core/Host.h"
+#include "Core/Movie.h"
+#include "Core/HW/CPU.h"
+#include "Core/HW/DSP.h"
+#include "Core/PowerPC/PowerPC.h"
 
-#include "VideoBackendBase.h"
+#include "VideoCommon/VideoBackendBase.h"
 
 namespace
 {
 	static Common::Event m_StepEvent;
-	static Common::Event *m_SyncEvent = NULL;
+	static Common::Event *m_SyncEvent = nullptr;
 	static std::mutex m_csCpuOccupied;
 }
 
 void CCPU::Init(int cpu_core)
 {
 	PowerPC::Init(cpu_core);
-	m_SyncEvent = NULL;
+	m_SyncEvent = nullptr;
 }
 
 void CCPU::Shutdown()
 {
 	PowerPC::Shutdown();
-	m_SyncEvent = NULL;
+	m_SyncEvent = nullptr;
 }
 
 void CCPU::Run()
@@ -68,7 +68,7 @@ reswitch:
 			if (m_SyncEvent)
 			{
 				m_SyncEvent->Set();
-				m_SyncEvent = NULL;
+				m_SyncEvent = nullptr;
 			}
 			Host_UpdateDisasmDialog();
 			break;

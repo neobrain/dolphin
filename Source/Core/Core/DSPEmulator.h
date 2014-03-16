@@ -2,11 +2,10 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _DSPEMULATOR_H_
-#define _DSPEMULATOR_H_
+#pragma once
 
-#include "ChunkFile.h"
-#include "SoundStream.h"
+#include "AudioCommon/SoundStream.h"
+#include "Common/ChunkFile.h"
 
 class DSPEmulator
 {
@@ -39,5 +38,3 @@ protected:
 };
 
 DSPEmulator *CreateDSPEmulator(bool HLE);
-
-#endif // _DSPEMULATOR_H_

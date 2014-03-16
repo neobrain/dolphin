@@ -2,10 +2,9 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _UCODE_CARD_H
-#define _UCODE_CARD_H
+#pragma once
 
-#include "UCodes.h"
+#include "Core/HW/DSPHLE/UCodes/UCodes.h"
 
 class CUCode_CARD : public IUCode
 {
@@ -17,6 +16,4 @@ public:
 	void HandleMail(u32 _uMail) override;
 	void Update(int cycles) override;
 };
-
-#endif
 

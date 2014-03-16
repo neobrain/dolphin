@@ -2,19 +2,18 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#ifndef _VIDEOCOMMON_H
-#define _VIDEOCOMMON_H
+#pragma once
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
 
-#include "Common.h"
-#include "MathUtil.h"
-#include "VideoBackendBase.h"
+#include "Common/Common.h"
+#include "Common/MathUtil.h"
+#include "VideoCommon/VideoBackendBase.h"
 
-#if defined(_MSC_VER) && !defined(__x86_64__) && !defined(_M_X64)
+#if defined(_MSC_VER) && _M_X86_32
 void * memcpy_amd(void *dest, const void *src, size_t n);
 unsigned char memcmp_mmx(const void* src1, const void* src2, int cmpsize);
 #define memcpy_gc memcpy_amd
@@ -85,8 +84,8 @@ struct TargetRectangle : public MathUtil::Rectangle<int>
 typedef enum
 {
 	API_OPENGL = 1,
-	API_D3D = 2,
-	API_NONE = 3
+	API_D3D    = 2,
+	API_NONE   = 3
 } API_TYPE;
 
 inline u32 RGBA8ToRGBA6ToRGBA8(u32 src)
@@ -132,5 +131,3 @@ inline unsigned int GetPow2(unsigned int val)
 		++ret;
 	return ret;
 }
-
-#endif  // _VIDEOCOMMON_H

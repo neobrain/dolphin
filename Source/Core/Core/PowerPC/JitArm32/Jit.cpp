@@ -1,38 +1,26 @@
-// Copyright (C) 2003 Dolphin Project.
-
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, version 2.0.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License 2.0 for more details.
-
-// A copy of the GPL 2.0 should have been included with the program.
-// If not, see http://www.gnu.org/licenses/
-
-// Official SVN repository and contact information can be found at
-// http://code.google.com/p/dolphin-emu/
+// Copyright 2014 Dolphin Emulator Project
+// Licensed under GPLv2
+// Refer to the license.txt file included.
 
 #include <map>
 
-#include "Common.h"
-#include "../../HLE/HLE.h"
-#include "../../Core.h"
-#include "../../PatchEngine.h"
-#include "../../CoreTiming.h"
-#include "../../ConfigManager.h"
-#include "../PowerPC.h"
-#include "../Profiler.h"
-#include "../PPCTables.h"
-#include "../PPCAnalyst.h"
-#include "../../HW/Memmap.h"
-#include "../../HW/GPFifo.h"
-#include "Jit.h"
-#include "JitArm_Tables.h"
-#include "ArmEmitter.h"
-#include "../JitInterface.h"
+#include "Common/ArmEmitter.h"
+#include "Common/Common.h"
+
+#include "Core/ConfigManager.h"
+#include "Core/Core.h"
+#include "Core/CoreTiming.h"
+#include "Core/PatchEngine.h"
+#include "Core/HLE/HLE.h"
+#include "Core/HW/GPFifo.h"
+#include "Core/HW/Memmap.h"
+#include "Core/PowerPC/JitInterface.h"
+#include "Core/PowerPC/PowerPC.h"
+#include "Core/PowerPC/PPCAnalyst.h"
+#include "Core/PowerPC/PPCTables.h"
+#include "Core/PowerPC/Profiler.h"
+#include "Core/PowerPC/JitArm32/Jit.h"
+#include "Core/PowerPC/JitArm32/JitArm_Tables.h"
 
 using namespace ArmGen;
 using namespace PowerPC;
@@ -67,7 +55,7 @@ void JitArm::Shutdown()
 	asm_routines.Shutdown();
 }
 
-// This is only called by Default() in this file. It will execute an instruction with the interpreter functions.
+// This is only called by FallBackToInterpreter() in this file. It will execute an instruction with the interpreter functions.
 void JitArm::WriteCallInterpreter(UGeckoInstruction inst)
 {
 	gpr.Flush();
@@ -82,7 +70,7 @@ void JitArm::unknown_instruction(UGeckoInstruction inst)
 	PanicAlert("unknown_instruction %08x - Fix me ;)", inst.hex);
 }
 
-void JitArm::Default(UGeckoInstruction _inst)
+void JitArm::FallBackToInterpreter(UGeckoInstruction _inst)
 {
 	WriteCallInterpreter(_inst.hex);
 }
@@ -144,7 +132,7 @@ void JitArm::DoDownCount()
 	ARMReg rB = gpr.GetReg();
 	MOVI2R(rA, (u32)&CoreTiming::downcount);
 	LDR(rB, rA);
-	if(js.downcountAmount < 255) // We can enlarge this if we used rotations
+	if (js.downcountAmount < 255) // We can enlarge this if we used rotations
 	{
 		SUBS(rB, rB, js.downcountAmount);
 		STR(rB, rA);
@@ -186,23 +174,25 @@ void JitArm::WriteExceptionExit()
 	MOVI2R(A, (u32)asm_routines.testExceptions);
 	B(A);
 }
-void JitArm::WriteExit(u32 destination, int exit_num)
+void JitArm::WriteExit(u32 destination)
 {
 	Cleanup();
 
 	DoDownCount();
 	//If nobody has taken care of this yet (this can be removed when all branches are done)
 	JitBlock *b = js.curBlock;
-	b->exitAddress[exit_num] = destination;
-	b->exitPtrs[exit_num] = GetWritableCodePtr();
+	JitBlock::LinkData linkData;
+	linkData.exitAddress = destination;
+	linkData.exitPtrs = GetWritableCodePtr();
+	linkData.linkStatus = false;
 
 	// Link opportunity!
-	int block = blocks.GetBlockNumberFromStartAddress(destination);
-	if (block >= 0 && jo.enableBlocklink)
+	int block; 
+	if (jo.enableBlocklink && (block = blocks.GetBlockNumberFromStartAddress(destination)) >= 0)
 	{
 		// It exists! Joy of joy!
 		B(blocks.GetBlock(block)->checkedEntry);
-		b->linkStatus[exit_num] = true;
+		linkData.linkStatus = true;
 	}
 	else
 	{
@@ -212,6 +202,8 @@ void JitArm::WriteExit(u32 destination, int exit_num)
 		MOVI2R(A, (u32)asm_routines.dispatcher);
 		B(A);
 	}
+
+	b->linkData.push_back(linkData);
 }
 
 void STACKALIGN JitArm::Run()
@@ -236,7 +228,7 @@ void JitArm::Trace()
 	{
 		char reg[50];
 		sprintf(reg, "r%02d: %08x ", i, PowerPC::ppcState.gpr[i]);
-		strncat(regs, reg, 500);
+		strncat(regs, reg, sizeof(regs) - 1);
 	}
 #endif
 
@@ -245,7 +237,7 @@ void JitArm::Trace()
 	{
 		char reg[50];
 		sprintf(reg, "f%02d: %016x ", i, riPS0(i));
-		strncat(fregs, reg, 750);
+		strncat(fregs, reg, sizeof(fregs) - 1);
 	}
 #endif
 
@@ -265,19 +257,19 @@ void JitArm::PrintDebug(UGeckoInstruction inst, u32 level)
 		printf("\tOuts\n");
 		if (Info->flags & FL_OUT_A)
 			printf("\t-OUT_A: %x\n", inst.RA);
-		if(Info->flags & FL_OUT_D)
+		if (Info->flags & FL_OUT_D)
 			printf("\t-OUT_D: %x\n", inst.RD);
 		printf("\tIns\n");
 		// A, AO, B, C, S
-		if(Info->flags & FL_IN_A)
+		if (Info->flags & FL_IN_A)
 			printf("\t-IN_A: %x\n", inst.RA);
-		if(Info->flags & FL_IN_A0)
+		if (Info->flags & FL_IN_A0)
 			printf("\t-IN_A0: %x\n", inst.RA);
-		if(Info->flags & FL_IN_B)
+		if (Info->flags & FL_IN_B)
 			printf("\t-IN_B: %x\n", inst.RB);
-		if(Info->flags & FL_IN_C)
+		if (Info->flags & FL_IN_C)
 			printf("\t-IN_C: %x\n", inst.RC);
-		if(Info->flags & FL_IN_S)
+		if (Info->flags & FL_IN_S)
 			printf("\t-IN_S: %x\n", inst.RS);
 	}
 }
@@ -372,7 +364,7 @@ const u8* JitArm::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBlo
 	const u8 *normalEntry = GetCodePtr();
 	b->normalEntry = normalEntry;
 
-	if(ImHereDebug)
+	if (ImHereDebug)
 		QuickCallFunction(R14, (void *)&ImHere); //Used to get a trace of the last few blocks before a crash, sometimes VERY useful
 
 	if (js.fpa.any)
@@ -493,10 +485,10 @@ const u8* JitArm::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBlo
 	}
 	if (memory_exception)
 		BKPT(0x500);
-	if	(broken_block)
+	if (broken_block)
 	{
 		printf("Broken Block going to 0x%08x\n", nextPC);
-		WriteExit(nextPC, 0);
+		WriteExit(nextPC);
 	}
 
 	b->flags = js.block_flags;

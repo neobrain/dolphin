@@ -1,19 +1,6 @@
-// Copyright (C) 2003 Dolphin Project.
-
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, version 2.0.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License 2.0 for more details.
-
-// A copy of the GPL 2.0 should have been included with the program.
-// If not, see http://www.gnu.org/licenses/
-
-// Official SVN repository and contact information can be found at
-// http://code.google.com/p/dolphin-emu/
+// Copyright 2014 Dolphin Emulator Project
+// Licensed under GPLv2
+// Refer to the license.txt file included.
 
 // ========================
 // See comments in Jit.cpp.
@@ -29,24 +16,16 @@
 
 // Settings
 // ----------
-#ifndef _JITARM_H
-#define _JITARM_H
-#include "../CPUCoreBase.h"
-#include "../PPCAnalyst.h"
-#include "JitArmCache.h"
-#include "JitRegCache.h"
-#include "JitFPRCache.h"
-#include "JitAsm.h"
-#include "../JitCommon/JitBase.h"
+#pragma once
 
-// Use these to control the instruction selection
-// #define INSTRUCTION_START Default(inst); return;
-// #define INSTRUCTION_START PPCTables::CountInstruction(inst);
-#define INSTRUCTION_START
-#define JITDISABLE(setting) \
-	if (Core::g_CoreStartupParameter.bJITOff || \
-	Core::g_CoreStartupParameter.setting) \
-	{Default(inst); return;}
+#include "Core/PowerPC/CPUCoreBase.h"
+#include "Core/PowerPC/PPCAnalyst.h"
+#include "Core/PowerPC/JitArm32/JitArmCache.h"
+#include "Core/PowerPC/JitArm32/JitAsm.h"
+#include "Core/PowerPC/JitArm32/JitFPRCache.h"
+#include "Core/PowerPC/JitArm32/JitRegCache.h"
+#include "Core/PowerPC/JitCommon/JitBase.h"
+
 #define PPCSTATE_OFF(elem) ((s32)STRUCT_OFF(PowerPC::ppcState, elem) - (s32)STRUCT_OFF(PowerPC::ppcState, spr[0]))
 class JitArm : public JitBase, public ArmGen::ARMXCodeBlock
 {
@@ -109,7 +88,7 @@ public:
 
 	// Utilities for use by opcodes
 
-	void WriteExit(u32 destination, int exit_num);
+	void WriteExit(u32 destination);
 	void WriteExitDestInR(ARMReg Reg);
 	void WriteRfiExitDestInR(ARMReg Reg);
 	void WriteExceptionExit();
@@ -135,7 +114,7 @@ public:
 
 	// OPCODES
 	void unknown_instruction(UGeckoInstruction _inst);
-	void Default(UGeckoInstruction _inst);
+	void FallBackToInterpreter(UGeckoInstruction _inst);
 	void DoNothing(UGeckoInstruction _inst);
 	void HLEFunction(UGeckoInstruction _inst);
 
@@ -263,5 +242,3 @@ public:
 	void psq_st(UGeckoInstruction _inst);
 	void psq_stx(UGeckoInstruction _inst);
 };
-
-#endif // _JIT64_H

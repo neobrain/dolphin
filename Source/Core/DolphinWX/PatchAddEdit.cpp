@@ -2,8 +2,32 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "PatchAddEdit.h"
-#include "WxUtils.h"
+#include <string>
+#include <vector>
+#include <wx/arrstr.h>
+#include <wx/button.h>
+#include <wx/chartype.h>
+#include <wx/defs.h>
+#include <wx/dialog.h>
+#include <wx/event.h>
+#include <wx/gbsizer.h>
+#include <wx/gdicmn.h>
+#include <wx/radiobox.h>
+#include <wx/sizer.h>
+#include <wx/spinbutt.h>
+#include <wx/statbox.h>
+#include <wx/stattext.h>
+#include <wx/string.h>
+#include <wx/textctrl.h>
+#include <wx/translation.h>
+#include <wx/windowid.h>
+
+#include "Common/Common.h"
+#include "Core/PatchEngine.h"
+#include "DolphinWX/PatchAddEdit.h"
+#include "DolphinWX/WxUtils.h"
+
+class wxWindow;
 
 extern std::vector<PatchEngine::Patch> onFrame;
 
@@ -49,7 +73,7 @@ void CPatchAddEdit::CreateGUIControls(int _selection)
 	wxStaticText* EditPatchOffsetText = new wxStaticText(this, ID_EDITPATCH_OFFSET_TEXT, _("Offset:"));
 	EditPatchOffset = new wxTextCtrl(this, ID_EDITPATCH_OFFSET);
 	EditPatchOffset->SetValue(wxString::Format(wxT("%08X"), tempEntries.at(0).address));
-	EntrySelection = new wxSpinButton(this, ID_ENTRY_SELECT, wxDefaultPosition, wxDefaultSize, wxVERTICAL);
+	EntrySelection = new wxSpinButton(this, ID_ENTRY_SELECT);
 	EntrySelection->SetRange(0, (int)tempEntries.size()-1);
 	EntrySelection->SetValue((int)tempEntries.size()-1);
 	wxArrayString wxArrayStringFor_EditPatchType;

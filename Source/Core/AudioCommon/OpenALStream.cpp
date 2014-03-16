@@ -2,9 +2,9 @@
 // Licensed under GPLv2
 // Refer to the license.txt file included.
 
-#include "aldlist.h"
-#include "OpenALStream.h"
-#include "DPL2Decoder.h"
+#include "AudioCommon/aldlist.h"
+#include "AudioCommon/DPL2Decoder.h"
+#include "AudioCommon/OpenALStream.h"
 
 #if defined HAVE_OPENAL && HAVE_OPENAL
 
@@ -15,22 +15,19 @@ soundtouch::SoundTouch soundTouch;
 //
 bool OpenALStream::Start()
 {
-	ALDeviceList *pDeviceList = NULL;
-	ALCcontext *pContext = NULL;
-	ALCdevice *pDevice = NULL;
 	bool bReturn = false;
 
-	pDeviceList = new ALDeviceList();
-	if ((pDeviceList) && (pDeviceList->GetNumDevices()))
+	ALDeviceList pDeviceList;
+	if (pDeviceList.GetNumDevices())
 	{
-		char *defDevName = pDeviceList->GetDeviceName(pDeviceList->GetDefaultDevice());
+		char *defDevName = pDeviceList.GetDeviceName(pDeviceList.GetDefaultDevice());
 
 		WARN_LOG(AUDIO, "Found OpenAL device %s", defDevName);
 
-		pDevice = alcOpenDevice(defDevName);
+		ALCdevice *pDevice = alcOpenDevice(defDevName);
 		if (pDevice)
 		{
-			pContext = alcCreateContext(pDevice, NULL);
+			ALCcontext *pContext = alcCreateContext(pDevice, nullptr);
 			if (pContext)
 			{
 				// Used to determine an appropriate period size (2x period = total buffer size)
@@ -52,7 +49,6 @@ bool OpenALStream::Start()
 		{
 			PanicAlertT("OpenAL: can't open device %s", defDevName);
 		}
-		delete pDeviceList;
 	}
 	else
 	{
@@ -87,7 +83,7 @@ void OpenALStream::Stop()
 	ALCcontext *pContext = alcGetCurrentContext();
 	ALCdevice *pDevice = alcGetContextsDevice(pContext);
 
-	alcMakeContextCurrent(NULL);
+	alcMakeContextCurrent(nullptr);
 	alcDestroyContext(pContext);
 	alcCloseDevice(pDevice);
 }
@@ -109,7 +105,7 @@ void OpenALStream::Clear(bool mute)
 {
 	m_muted = mute;
 
-	if(m_muted)
+	if (m_muted)
 	{
 		soundTouch.clear();
 		alSourceStop(uiSource);
@@ -192,7 +188,7 @@ void OpenALStream::SoundLoop()
 		unsigned int minSamples = surround_capable ? 240 : 0; // DPL2 accepts 240 samples minimum (FWRDURATION)
 
 		numSamples = (numSamples > OAL_MAX_SAMPLES) ? OAL_MAX_SAMPLES : numSamples;
-		numSamples = m_mixer->Mix(realtimeBuffer, numSamples);
+		numSamples = m_mixer->Mix(realtimeBuffer, numSamples, false);
 
 		// Convert the samples from short to float
 		float dest[OAL_MAX_SAMPLES * STEREO_CHANNELS];
