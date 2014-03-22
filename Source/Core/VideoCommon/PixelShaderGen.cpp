@@ -778,9 +778,9 @@ static inline void WriteStage(T& out, pixel_shader_uid_data& uid_data, int n, AP
 	const char *tevLerpBias[] = // indexed by 2*op+(shift==3)
 	{
 		"",
-		" + 128",
+		"",//" + 128",
 		"",
-		" + 127",
+		"",//" + 127",
 	};
 
 	const char *tevBiasTable[] =
@@ -807,7 +807,7 @@ static inline void WriteStage(T& out, pixel_shader_uid_data& uid_data, int n, AP
 	// combine the color channel
 	if (cc.bias != TevBias_COMPARE) // if not compare
 	{
-		out.Write("((tevin_d.rgb%s)%s %s ((((tevin_a.rgb*256 + (tevin_b.rgb-tevin_a.rgb)*(tevin_c.rgb+(tevin_c.rgb>>7)))%s)%s)>>8))%s", tevBiasTable[cc.bias], tevScaleTableLeft[cc.shift], tevOpTable[cc.op], tevScaleTableLeft[cc.shift], tevLerpBias[2*cc.op+(cc.shift==3)], tevScaleTableRight[cc.shift]);
+		out.Write("(((tevin_d.rgb%s)%s) %s ((((tevin_a.rgb*256 + (tevin_b.rgb-tevin_a.rgb)*(tevin_c.rgb+(tevin_c.rgb>>7)))%s)%s)>>8))%s", tevBiasTable[cc.bias], tevScaleTableLeft[cc.shift], tevOpTable[cc.op], tevScaleTableLeft[cc.shift], tevLerpBias[2*cc.op+(cc.shift==3)], tevScaleTableRight[cc.shift]);
 	}
 	else
 	{
@@ -838,7 +838,8 @@ static inline void WriteStage(T& out, pixel_shader_uid_data& uid_data, int n, AP
 
 	if (ac.bias != TevBias_COMPARE) // if not compare
 	{
-		out.Write("((tevin_d.a%s)%s %s ((((tevin_a.a*256 + (tevin_b.a-tevin_a.a)*(tevin_c.a+(tevin_c.a>>7)))%s)%s)>>8))%s", tevBiasTable[ac.bias], tevScaleTableLeft[ac.shift], tevOpTable[ac.op], tevScaleTableLeft[ac.shift], tevLerpBias[2*ac.op+(ac.shift==3)], tevScaleTableRight[ac.shift]);
+//		out.Write("((tevin_d.a%s)%s %s ((((tevin_a.a*256 + (tevin_b.a-tevin_a.a)*(tevin_c.a+(tevin_c.a>>7)))%s)%s)>>8))%s", tevBiasTable[ac.bias], tevScaleTableLeft[ac.shift], tevOpTable[ac.op], tevScaleTableLeft[ac.shift], tevLerpBias[2*ac.op+(ac.shift==3)], tevScaleTableRight[ac.shift]);
+		out.Write("(((tevin_d.a%s)%s) %s ((((tevin_a.a*255 + (tevin_b.a-tevin_a.a)*tevin_c.a)%s)%s)/255))%s", tevBiasTable[ac.bias], tevScaleTableLeft[ac.shift], tevOpTable[ac.op], tevScaleTableLeft[ac.shift], tevLerpBias[2*ac.op+(ac.shift==3)], tevScaleTableRight[ac.shift]);
 	}
 	else
 	{
