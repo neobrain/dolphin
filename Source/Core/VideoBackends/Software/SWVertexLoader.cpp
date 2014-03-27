@@ -75,17 +75,6 @@ void SWVertexLoader::SetFormat(u8 attributeIndex, u8 primitiveType)
 		g_VtxDesc.Tex4Coord, g_VtxDesc.Tex5Coord, g_VtxDesc.Tex6Coord,
 		(const TVtxDesc::VertexComponentType)((g_VtxDesc.Hex >> 31) & 3) // TODO (neobrain): dumber than necessary?
 	};
-	const u32 tcElements[8] = {
-		m_CurrentVat->Tex0CoordElements, m_CurrentVat->Tex1CoordElements, m_CurrentVat->Tex2CoordElements,
-		m_CurrentVat->Tex3CoordElements, m_CurrentVat->Tex4CoordElements, m_CurrentVat->Tex5CoordElements,
-		m_CurrentVat->Tex6CoordElements, m_CurrentVat->Tex7CoordElements
-	};
-
-	const VAT::VertexComponentFormat tcFormat[8] = {
-		m_CurrentVat->Tex0CoordFormat, m_CurrentVat->Tex1CoordFormat, m_CurrentVat->Tex2CoordFormat,
-		m_CurrentVat->Tex3CoordFormat, m_CurrentVat->Tex4CoordFormat, m_CurrentVat->Tex5CoordFormat,
-		m_CurrentVat->Tex6CoordFormat, m_CurrentVat->Tex7CoordFormat
-	};
 
 	m_VertexSize = 0;
 
@@ -227,8 +216,8 @@ void SWVertexLoader::SetFormat(u8 attributeIndex, u8 primitiveType)
 	for (int i = 0; i < 8; i++)
 	{
 		const TVtxDesc::VertexComponentType desc = tcDesc[i];
-		const VAT::VertexComponentFormat format = tcFormat[i];
-		const int elements = tcElements[i];
+		const VAT::VertexComponentFormat format = m_CurrentVat->GetTexCoordFormats()[i];
+		const int elements = m_CurrentVat->GetTexCoordElements()[i];
 		_assert_msg_(VIDEO, TVtxDesc::NOT_PRESENT <= desc && desc <= TVtxDesc::INDEX16, "Invalid texture coordinates description!\n(desc = %d)", (int)desc);
 		_assert_msg_(VIDEO, VAT::UBYTE <= format && format <= VAT::FLOAT, "Invalid texture coordinates format!\n(format = %d)", format);
 		_assert_msg_(VIDEO, 0 <= elements && elements <= 1, "Invalid number of texture coordinates elements!\n(elements = %d)", elements);
