@@ -130,8 +130,6 @@ private:
 	int m_VertexSize;      // number of bytes of a raw GC vertex. Computed by CompileVertexTranslator.
 
 	// GC vertex format - decoded into easy format
-	ColorAttr m_VtxAttrColor[2];
-	TexAttr m_VtxAttrTexCoord[8];
 	VAT m_VtxAttr;
 	TVtxDesc m_VtxDesc;  // Not really used currently - or well it is, but could be easily avoided.
 
