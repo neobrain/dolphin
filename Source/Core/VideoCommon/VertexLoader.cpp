@@ -555,14 +555,15 @@ void VertexLoader::CompileVertexTranslator()
 		m_VertexSize += 1;
 	}
 
-	if (m_VtxDesc.Tex0MatIdx) { m_VertexSize += 1; components.has_texmtxidx0 = true; WriteCall(TexMtx_ReadDirect_UByte); }
-	if (m_VtxDesc.Tex1MatIdx) { m_VertexSize += 1; components.has_texmtxidx1 = true; WriteCall(TexMtx_ReadDirect_UByte); }
-	if (m_VtxDesc.Tex2MatIdx) { m_VertexSize += 1; components.has_texmtxidx2 = true; WriteCall(TexMtx_ReadDirect_UByte); }
-	if (m_VtxDesc.Tex3MatIdx) { m_VertexSize += 1; components.has_texmtxidx3 = true; WriteCall(TexMtx_ReadDirect_UByte); }
-	if (m_VtxDesc.Tex4MatIdx) { m_VertexSize += 1; components.has_texmtxidx4 = true; WriteCall(TexMtx_ReadDirect_UByte); }
-	if (m_VtxDesc.Tex5MatIdx) { m_VertexSize += 1; components.has_texmtxidx5 = true; WriteCall(TexMtx_ReadDirect_UByte); }
-	if (m_VtxDesc.Tex6MatIdx) { m_VertexSize += 1; components.has_texmtxidx6 = true; WriteCall(TexMtx_ReadDirect_UByte); }
-	if (m_VtxDesc.Tex7MatIdx) { m_VertexSize += 1; components.has_texmtxidx7 = true; WriteCall(TexMtx_ReadDirect_UByte); }
+	// TODO: Simplify
+	if (m_VtxDesc.Tex0MatIdx) { m_VertexSize += 1; components.HasTexMtxIdx()[0] = true; WriteCall(TexMtx_ReadDirect_UByte); }
+	if (m_VtxDesc.Tex1MatIdx) { m_VertexSize += 1; components.HasTexMtxIdx()[1] = true; WriteCall(TexMtx_ReadDirect_UByte); }
+	if (m_VtxDesc.Tex2MatIdx) { m_VertexSize += 1; components.HasTexMtxIdx()[2] = true; WriteCall(TexMtx_ReadDirect_UByte); }
+	if (m_VtxDesc.Tex3MatIdx) { m_VertexSize += 1; components.HasTexMtxIdx()[3] = true; WriteCall(TexMtx_ReadDirect_UByte); }
+	if (m_VtxDesc.Tex4MatIdx) { m_VertexSize += 1; components.HasTexMtxIdx()[4] = true; WriteCall(TexMtx_ReadDirect_UByte); }
+	if (m_VtxDesc.Tex5MatIdx) { m_VertexSize += 1; components.HasTexMtxIdx()[5] = true; WriteCall(TexMtx_ReadDirect_UByte); }
+	if (m_VtxDesc.Tex6MatIdx) { m_VertexSize += 1; components.HasTexMtxIdx()[6] = true; WriteCall(TexMtx_ReadDirect_UByte); }
+	if (m_VtxDesc.Tex7MatIdx) { m_VertexSize += 1; components.HasTexMtxIdx()[7] = true; WriteCall(TexMtx_ReadDirect_UByte); }
 
 	// Write vertex position loader
 	if (g_ActiveConfig.bUseBBox)
@@ -624,12 +625,14 @@ void VertexLoader::CompileVertexTranslator()
 		vtx_decl.colors[i].components = 4;
 		vtx_decl.colors[i].type = VAR_UNSIGNED_BYTE;
 		vtx_decl.colors[i].integer = false;
+
+		auto color_components = m_VtxAttr.GetColorComponents()[i];
 		switch (col[i])
 		{
 		case TVtxDesc::NOT_PRESENT:
 			break;
 		case TVtxDesc::DIRECT:
-			switch (m_VtxAttr.GetColorComponents()[i])
+			switch (color_components)
 			{
 			case FORMAT_16B_565:  m_VertexSize += 2; WriteCall(Color_ReadDirect_16b_565); break;
 			case FORMAT_24B_888:  m_VertexSize += 3; WriteCall(Color_ReadDirect_24b_888); break;
@@ -642,7 +645,7 @@ void VertexLoader::CompileVertexTranslator()
 			break;
 		case TVtxDesc::INDEX8:
 			m_VertexSize += 1;
-			switch (m_VtxAttr.GetColorComponents()[i])
+			switch (color_components)
 			{
 			case FORMAT_16B_565:  WriteCall(Color_ReadIndex8_16b_565); break;
 			case FORMAT_24B_888:  WriteCall(Color_ReadIndex8_24b_888); break;
@@ -655,7 +658,7 @@ void VertexLoader::CompileVertexTranslator()
 			break;
 		case TVtxDesc::INDEX16:
 			m_VertexSize += 2;
-			switch (m_VtxAttr.GetColorComponents()[i])
+			switch (color_components)
 			{
 			case FORMAT_16B_565:  WriteCall(Color_ReadIndex16_16b_565); break;
 			case FORMAT_24B_888:  WriteCall(Color_ReadIndex16_24b_888); break;
@@ -674,10 +677,7 @@ void VertexLoader::CompileVertexTranslator()
 			vtx_decl.colors[i].enable = true;
 			nat_offset += 4;
 
-			if (i == 0)
-				components.has_color0 = true;
-			else
-				components.has_color1 = true;
+			components.HasColor()[i] = true;
 		}
 	}
 
