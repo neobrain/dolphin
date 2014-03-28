@@ -124,8 +124,8 @@ static inline void GenerateVertexShader(T& out, VertexComponents components, API
 
 		for (int i = 0; i < 8; ++i)
 		{
-			if (components.HasUv(i) || components.HasTexMtxIdx(i))
-				out.Write("in float%d tex%d; // ATTR%d,\n", components.HasTexMtxIdx(i) ? 3 : 2, i, SHADER_TEXTURE0_ATTRIB + i);
+			if (components.HasUv()[i] || components.HasTexMtxIdx()[i])
+				out.Write("in float%d tex%d; // ATTR%d,\n", components.HasTexMtxIdx()[i] ? 3 : 2, i, SHADER_TEXTURE0_ATTRIB + i);
 		}
 
 		// Let's set up attributes
@@ -162,8 +162,8 @@ static inline void GenerateVertexShader(T& out, VertexComponents components, API
 			out.Write("  float4 color1 : COLOR1,\n");
 		for (int i = 0; i < 8; ++i)
 		{
-			if (components.HasUv(i) || components.HasTexMtxIdx(i))
-				out.Write("  float%d tex%d : TEXCOORD%d,\n", components.HasTexMtxIdx(i) ? 3 : 2, i, i);
+			if (components.HasUv()[i] || components.HasTexMtxIdx()[i])
+				out.Write("  float%d tex%d : TEXCOORD%d,\n", components.HasTexMtxIdx()[i] ? 3 : 2, i, i);
 		}
 		if (components.has_posmtxidx)
 			out.Write("  float fposmtx : BLENDINDICES,\n");
@@ -288,7 +288,7 @@ static inline void GenerateVertexShader(T& out, VertexComponents components, API
 			break;
 		default:
 			_assert_(texinfo.sourcerow <= XF_SRCTEX7_INROW);
-			if (components.HasUv(texinfo.sourcerow - XF_SRCTEX0_INROW))
+			if (components.HasUv()[texinfo.sourcerow - XF_SRCTEX0_INROW])
 				out.Write("coord = float4(tex%d.x, tex%d.y, 1.0, 1.0);\n", texinfo.sourcerow - XF_SRCTEX0_INROW, texinfo.sourcerow - XF_SRCTEX0_INROW);
 			break;
 		}
@@ -326,7 +326,7 @@ static inline void GenerateVertexShader(T& out, VertexComponents components, API
 			case XF_TEXGEN_REGULAR:
 			default:
 				uid_data.texMtxInfo_n_projection |= xfregs.texMtxInfo[i].projection << i;
-				if (components.HasTexMtxIdx(i))
+				if (components.HasTexMtxIdx()[i])
 				{
 					out.Write("int tmp = int(tex%d.z);\n", i);
 					if (texinfo.projection == XF_TEXPROJ_STQ)
