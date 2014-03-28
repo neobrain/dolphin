@@ -107,19 +107,6 @@ public:
 	int GetNumLoadedVerts() const { return m_numLoadedVertices; }
 
 private:
-	struct ColorAttr
-	{
-		u8 Elements;
-		u8 Comp;
-	};
-
-	struct TexAttr
-	{
-		u8 Elements;
-		u8 Format;
-		u8 Frac;
-	};
-
 	enum
 	{
 		NRM_ZERO  = 0,
