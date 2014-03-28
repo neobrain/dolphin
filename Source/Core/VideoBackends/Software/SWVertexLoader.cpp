@@ -48,33 +48,19 @@ void SWVertexLoader::SetFormat(u8 attributeIndex, u8 primitiveType)
 	m_CurrentVat = &g_VtxAttr[attributeIndex];
 
 	posScale = 1.0f / float(1 << m_CurrentVat->PosFrac);
-	tcScale[0] = 1.0f / float(1 << m_CurrentVat->Tex0Frac);
-	tcScale[1] = 1.0f / float(1 << m_CurrentVat->Tex1Frac);
-	tcScale[2] = 1.0f / float(1 << m_CurrentVat->Tex2Frac);
-	tcScale[3] = 1.0f / float(1 << m_CurrentVat->Tex3Frac);
-	tcScale[4] = 1.0f / float(1 << m_CurrentVat->Tex4Frac);
-	tcScale[5] = 1.0f / float(1 << m_CurrentVat->Tex5Frac);
-	tcScale[6] = 1.0f / float(1 << m_CurrentVat->Tex6Frac);
-	tcScale[7] = 1.0f / float(1 << m_CurrentVat->Tex7Frac);
+	for (int i = 0; i < 8; ++i)
+		tcScale[0] = 1.0f / float(1 << m_CurrentVat->GetTexCoordFracs()[i]);
 
-	//TexMtx
-	const u32 tmDesc[8] = {
-		g_VtxDesc.Tex0MatIdx, g_VtxDesc.Tex1MatIdx, g_VtxDesc.Tex2MatIdx, g_VtxDesc.Tex3MatIdx,
-		g_VtxDesc.Tex4MatIdx, g_VtxDesc.Tex5MatIdx, g_VtxDesc.Tex6MatIdx, g_VtxDesc.Tex7MatIdx
-	};
+	const auto tmDesc = g_VtxDesc.TexMtxIdx();
 
 	// Colors
-	const TVtxDesc::VertexComponentType colDesc[2] = {g_VtxDesc.Color0, g_VtxDesc.Color1};
+	const auto colDesc = g_VtxDesc.Color();
+	const auto colComp = m_CurrentVat->GetColorComponents();
 	colElements[0] = m_CurrentVat->Color0Elements;
 	colElements[1] = m_CurrentVat->Color1Elements;
-	const u32 colComp[2] = {m_CurrentVat->Color0Comp, m_CurrentVat->Color1Comp};
 
 	// TextureCoord
-	const TVtxDesc::VertexComponentType tcDesc[8] = {
-		g_VtxDesc.Tex0Coord, g_VtxDesc.Tex1Coord, g_VtxDesc.Tex2Coord, g_VtxDesc.Tex3Coord,
-		g_VtxDesc.Tex4Coord, g_VtxDesc.Tex5Coord, g_VtxDesc.Tex6Coord,
-		(const TVtxDesc::VertexComponentType)((g_VtxDesc.Hex >> 31) & 3) // TODO (neobrain): dumber than necessary?
-	};
+	const auto tcDesc = g_VtxDesc.TexCoord();
 
 	m_VertexSize = 0;
 
