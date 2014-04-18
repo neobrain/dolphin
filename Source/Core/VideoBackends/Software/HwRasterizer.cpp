@@ -39,7 +39,8 @@ namespace HwRasterizer
 	// Clear shader
 	static GLint clear_apos = -1, clear_ucol = -1;
 
-	static OGL::VertexManager* vm;
+	static OGL::StreamBuffer *s_vertexBuffer;
+	static OGL::StreamBuffer *s_indexBuffer;
 
 	void CreateShaders()
 	{
@@ -50,9 +51,7 @@ namespace HwRasterizer
 			"#endif\n"
 			"varying vec4 TexCoordOut;\n"
 			"void main() {\n"
-			"	gl_FragColor = vec4(1.0,TexCoordOut.rg, 1.0);\n"
-//			"	gl_FragColor = TexCoordOut;\n"
-//			"	gl_FragColor = vec4(1.0,1.0,1.0,1.0);\n"
+			"	gl_FragColor = TexCoordOut;\n"
 			"}\n";
 		// Texture Vertices
 		static const char *fragtexText =
@@ -105,14 +104,19 @@ namespace HwRasterizer
 		clear_apos = glGetAttribLocation(clearProg, "pos");
 		clear_ucol = glGetUniformLocation(clearProg, "Color");
 
-//		vm = new OGL::VertexManager();
+		s_vertexBuffer = OGL::StreamBuffer::Create(GL_ARRAY_BUFFER, 512);
+		s_indexBuffer = OGL::StreamBuffer::Create(GL_ELEMENT_ARRAY_BUFFER, 512);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+
 	}
 
 	void Init()
 	{
 		efbHalfWidth = EFB_WIDTH / 2.0f;
-//		efbHalfHeight = 480 / 2.0f; // TODO: WTF? should be 528...
-		efbHalfHeight = EFB_HEIGHT / 2.0f; // TODO: WTF? should be 528...
+//		efbHalfHeight = 480 / 2.0f; // TODO: WTF? should be 528 instead, shouldn't it?
+		efbHalfHeight = EFB_HEIGHT / 2.0f;
 
 		temp = (u8*)AllocateMemoryPages(TEMP_SIZE);
 	}
@@ -121,7 +125,11 @@ namespace HwRasterizer
 		glDeleteProgram(colProg);
 		glDeleteProgram(texProg);
 		glDeleteProgram(clearProg);
-		delete vm;
+		glBindBuffer(GL_ARRAY_BUFFER, 0 );
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0 );
+
+		delete s_vertexBuffer;
+		delete s_indexBuffer;
 	}
 	void Prepare()
 	{
@@ -150,10 +158,6 @@ namespace HwRasterizer
 		// used by hw rasterizer if it enables blending and depth test
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glDepthFunc(GL_LEQUAL);
-
-		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_BLEND);
-		glDisable(GL_CULL_FACE);
 
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -196,11 +200,8 @@ namespace HwRasterizer
 		// disabling depth test sometimes allows more things to be visible
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_BLEND);
-		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_BLEND);
 
-//		hasTexture = bpmem.tevorders[0].enable0;
-		hasTexture = false;
+		hasTexture = bpmem.tevorders[0].enable0;
 
 		if (hasTexture)
 			LoadTexture();
@@ -219,19 +220,8 @@ namespace HwRasterizer
 		// x-,y+ => top left
 		// x+,y- => bottom right
 		// x-,y- => bottom left
-/*		if (bpmem.genMode.cullmode != GenMode::CULL_NONE)
-		{
-			// TODO: GX_CULL_ALL not supported, yet!
-			glEnable(GL_CULL_FACE);
-			glFrontFace(bpmem.genMode.cullmode == GenMode::CULL_FRONT ? GL_CCW : GL_CW);
-		}
-		else*/
-			glDisable(GL_CULL_FACE);
 
-		glDisable(GL_DEPTH_TEST);
-		glDepthMask(GL_FALSE);
-
-		float pos[18] = {
+		float pos[9] = {
 			(v0->screenPosition.x / efbHalfWidth) - 1.0f,
 			1.0f - (v0->screenPosition.y / efbHalfHeight),
 			v0->screenPosition.z / (float)0x00ffffff,
@@ -243,7 +233,6 @@ namespace HwRasterizer
 			(v2->screenPosition.x / efbHalfWidth) - 1.0f,
 			1.0f - (v2->screenPosition.y / efbHalfHeight),
 			v2->screenPosition.z / (float)0x00ffffff,
-			0,0,0,0,0,0
 		};
 
 		float r0 = v0->color[0][OutputVertexData::RED_C] / 255.0f;
@@ -258,81 +247,57 @@ namespace HwRasterizer
 		float g2 = v2->color[0][OutputVertexData::GRN_C] / 255.0f;
 		float b2 = v2->color[0][OutputVertexData::BLU_C] / 255.0f;
 
-		const GLfloat verts[6*3] = {
+		const GLfloat verts[3*3] = {
 			pos[0], pos[1], pos[2],
 			pos[3], pos[4], pos[5],
-			pos[6], pos[7], pos[8],
-			pos[9], pos[10], pos[11],
-			pos[12], pos[13], pos[14],
-			pos[15], pos[16], pos[17],
+			pos[6], pos[7], pos[8]
 		};
-		const GLfloat col[6*4] = {
-/*			 r0, g0, b0, 1.0f ,
+		const GLfloat col[3*4] = {
+			 r0, g0, b0, 1.0f ,
 			 r1, g1, b1, 1.0f ,
-			 r2, g2, b2, 1.0f */
-
-			192, 192, 192, 1.0f,
-			192, 0, 0, 1.0f,
-			192, 0, 0, 1.0f,
-			192, 0, 0, 1.0f,
-			192, 0, 0, 1.0f,
-			192, 0, 0, 1.0f,
+			 r2, g2, b2, 1.0f 
 		};
-/*		{
-			g_vertex_manager = vm; // lol.
-
-			PortableVertexDeclaration portable;
-			memset(&portable, 0, sizeof(portable));
-			portable.stride = 7 * sizeof(float);
-			portable.position.type = VAR_FLOAT;
-			portable.position.enable = true;
-			portable.position.components = 3;
-			portable.colors[0].type = VAR_FLOAT;
-			portable.colors[0].enable = true;
-			portable.colors[0].components = 4;
-			portable.colors[0].offset = sizeof(float)*3;
-
-			NativeVertexFormat* fmt = vm->CreateNativeVertexFormat();
-			fmt->Initialize(portable);
-			GL_REPORT_ERRORD();
-
-			int vertex_stride = fmt->GetVertexStride(); // should be 7*sizeof(float)
-			std::pair<u8*,size_t> mapping = vm->s_vertexBuffer->Map(VertexManager::MAXVBUFFERSIZE, vertex_stride);
+		{
+			int vertex_stride = sizeof(float) * 7;
+			std::pair<u8*,size_t> mapping = s_vertexBuffer->Map(512, vertex_stride);
 			for (int i = 0; i < 3; ++i)
 			{
 				memcpy(&mapping.first[vertex_stride*i                ], &verts[3*i], 3*sizeof(float));
 				memcpy(&mapping.first[vertex_stride*i+3*sizeof(float)], &col[4*i],   4*sizeof(float));
 			}
-			vm->s_vertexBuffer->Unmap(512);
+			s_vertexBuffer->Unmap(vertex_stride*3);
 			GL_REPORT_ERRORD();
 
-			mapping = vm->s_indexBuffer->Map(VertexManager::MAXIBUFFERSIZE * sizeof(u16));
+			mapping = s_indexBuffer->Map(512 * sizeof(u16));
 			((u16*)mapping.first)[0] = 0;
 			((u16*)mapping.first)[1] = 1;
 			((u16*)mapping.first)[2] = 2;
-			vm->s_indexBuffer->Unmap(512);
+			s_indexBuffer->Unmap(3 * sizeof(u16));
 			GL_REPORT_ERRORD();
 
-			fmt->SetupVertexPointers();
+			GLuint VAO;
+			glGenVertexArrays(1, &VAO);
+			glBindVertexArray(VAO);
 			GL_REPORT_ERRORD();
 
-			glUseProgram(colProg);
-			glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, (u8*)nullptr);
-			GL_REPORT_ERRORD();
+			glBindBuffer(GL_ARRAY_BUFFER, s_vertexBuffer->m_buffer);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_indexBuffer->m_buffer);
 
-			delete fmt;
-		}*/
+			glEnableVertexAttribArray(SHADER_POSITION_ATTRIB);
+			glVertexAttribPointer(SHADER_POSITION_ATTRIB, 3, GL_FLOAT, true, vertex_stride, (u8*)nullptr);
 
-		{
-			glUseProgram(colProg);
-			glEnableVertexAttribArray(col_apos);
 			glEnableVertexAttribArray(col_atex);
+			glVertexAttribPointer(col_atex, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + 3 * sizeof(float));
 
-			glVertexAttribPointer(col_apos, 3, GL_FLOAT, GL_FALSE, 0, verts);
-			glVertexAttribPointer(col_atex, 4, GL_FLOAT, GL_FALSE, 0, col);
-				glDrawArrays(GL_TRIANGLES, 0, 3);
-			glDisableVertexAttribArray(col_atex);
-			glDisableVertexAttribArray(col_apos);
+			glUseProgram(colProg);
+			glBindBuffer(GL_ARRAY_BUFFER, s_vertexBuffer->m_buffer);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_indexBuffer->m_buffer);
+			glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, (u8*)nullptr);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+			GL_REPORT_ERRORD();
+
+			glDeleteVertexArrays(1, &VAO);
 		}
 		GL_REPORT_ERRORD();
 	}
@@ -400,7 +365,6 @@ GL_REPORT_ERRORD();
 
 	void Clear()
 	{
-	  return;
 		u8 r = (bpmem.clearcolorAR & 0x00ff);
 		u8 g = (bpmem.clearcolorGB & 0xff00) >> 8;
 		u8 b = (bpmem.clearcolorGB & 0x00ff);
@@ -446,12 +410,12 @@ GL_REPORT_ERRORD();
 		int image_width = texImage0.width;
 		int image_height = texImage0.height;
 
-/*		DebugUtil::GetTextureRGBA(temp, 0, 0, image_width, image_height);
+		DebugUtil::GetTextureRGBA(temp, 0, 0, image_width, image_height);
 
 		glGenTextures(1, (GLuint *)&texture);
 		glBindTexture(texType, texture);
 		glTexImage2D(texType, 0, GL_RGBA, (GLsizei)image_width, (GLsizei)image_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, temp);
-*/
+
 		GL_REPORT_ERRORD();
 	}
 
@@ -460,7 +424,7 @@ GL_REPORT_ERRORD();
 		if (texture == 0)
 			return;
 
-//		glDeleteTextures(1, &texture);
+		glDeleteTextures(1, &texture);
 		texture = 0;
 	}
 
