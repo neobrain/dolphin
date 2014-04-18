@@ -233,8 +233,207 @@ namespace HwRasterizer
 		glDisable(GL_BLEND);
 	}
 
-	static void DrawColorVertex(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
+	void SetupState()
 	{
+		// SetGenerationMode
+		{
+			// Culling should've already been done by the Clipper!
+			glDisable(GL_CULL_FACE);
+		}
+
+		// SetScissor
+		{
+			const int xoff = bpmem.scissorOffset.x * 2 - 342;
+			const int yoff = bpmem.scissorOffset.y * 2 - 342;
+
+			EFBRectangle rc (bpmem.scissorTL.x - xoff - 342, bpmem.scissorTL.y - yoff - 342,
+							bpmem.scissorBR.x - xoff - 341, bpmem.scissorBR.y - yoff - 341);
+
+			if (rc.left < 0) rc.left = 0;
+			if (rc.top < 0) rc.top = 0;
+			if (rc.right > EFB_WIDTH) rc.right = EFB_WIDTH;
+			if (rc.bottom > EFB_HEIGHT) rc.bottom = EFB_HEIGHT;
+
+			if (rc.left > rc.right) rc.right = rc.left;
+			if (rc.top > rc.bottom) rc.bottom = rc.top;
+
+//			glEnable(GL_SCISSOR_TEST);
+//			glScissor(rc.left, EFB_HEIGHT - rc.bottom, rc.GetWidth(), rc.GetHeight());
+		}
+
+		// SetColorMask
+		{
+			// Only enable alpha channel if it's supported by the current EFB format
+			GLenum ColorMask = GL_FALSE, AlphaMask = GL_FALSE;
+			if (bpmem.alpha_test.TestResult() != AlphaTest::FAIL)
+			{
+				if (bpmem.blendmode.colorupdate)
+					ColorMask = GL_TRUE;
+				if (bpmem.blendmode.alphaupdate && (bpmem.zcontrol.pixel_format == PEControl::RGBA6_Z24))
+					AlphaMask = GL_TRUE;
+			}
+			glColorMask(ColorMask,  ColorMask,  ColorMask,  AlphaMask);
+		}
+
+		// SetDepthMode
+		{
+			const GLenum glCmpFuncs[8] =
+			{
+				GL_NEVER,
+				GL_LESS,
+				GL_EQUAL,
+				GL_LEQUAL,
+				GL_GREATER,
+				GL_NOTEQUAL,
+				GL_GEQUAL,
+				GL_ALWAYS
+			};
+
+			if (bpmem.zmode.testenable)
+			{
+				glEnable(GL_DEPTH_TEST);
+				glDepthMask(bpmem.zmode.updateenable ? GL_TRUE : GL_FALSE);
+				glDepthFunc(glCmpFuncs[bpmem.zmode.func]);
+			}
+			else
+			{
+				// if the test is disabled write is disabled too
+				// TODO: When PE performance metrics are being emulated via occlusion queries, we should (probably?) enable depth test with depth function ALWAYS here
+				glDisable(GL_DEPTH_TEST);
+				glDepthMask(GL_FALSE);
+			}
+		}
+
+		// SetBlendMode(true);
+		{
+			// Our render target always uses an alpha channel, so we need to override the blend functions to assume a destination alpha of 1 if the render target isn't supposed to have an alpha channel
+			// Example: D3DBLEND_DESTALPHA needs to be D3DBLEND_ONE since the result without an alpha channel is assumed to always be 1.
+			bool target_has_alpha = bpmem.zcontrol.pixel_format == PEControl::RGBA6_Z24;
+			bool useDstAlpha = bpmem.dstalpha.enable && bpmem.blendmode.alphaupdate && target_has_alpha;
+			bool useDualSource = useDstAlpha;
+
+			const GLenum glSrcFactors[8] =
+			{
+				GL_ZERO,
+				GL_ONE,
+				GL_DST_COLOR,
+				GL_ONE_MINUS_DST_COLOR,
+				(useDualSource)  ? GL_SRC1_ALPHA : (GLenum)GL_SRC_ALPHA,
+				(useDualSource)  ? GL_ONE_MINUS_SRC1_ALPHA : (GLenum)GL_ONE_MINUS_SRC_ALPHA,
+				(target_has_alpha) ? GL_DST_ALPHA : (GLenum)GL_ONE,
+				(target_has_alpha) ? GL_ONE_MINUS_DST_ALPHA : (GLenum)GL_ZERO
+			};
+			const GLenum glDestFactors[8] =
+			{
+				GL_ZERO,
+				GL_ONE,
+				GL_SRC_COLOR,
+				GL_ONE_MINUS_SRC_COLOR,
+				(useDualSource)  ? GL_SRC1_ALPHA : (GLenum)GL_SRC_ALPHA,
+				(useDualSource)  ? GL_ONE_MINUS_SRC1_ALPHA : (GLenum)GL_ONE_MINUS_SRC_ALPHA,
+				(target_has_alpha) ? GL_DST_ALPHA : (GLenum)GL_ONE,
+				(target_has_alpha) ? GL_ONE_MINUS_DST_ALPHA : (GLenum)GL_ZERO
+			};
+
+			// blend mode bit mask
+			// 0 - blend enable
+			// 1 - dst alpha enabled
+			// 2 - reverse subtract enable (else add)
+			// 3-5 - srcRGB function
+			// 6-8 - dstRGB function
+
+			u32 newval = useDualSource << 1;
+			newval |= bpmem.blendmode.subtract << 2;
+
+			if (bpmem.blendmode.subtract)
+				newval |= 0x0049;   // enable blending src 1 dst 1
+			else if (bpmem.blendmode.blendenable)
+			{
+				newval |= 1;    // enable blending
+				newval |= bpmem.blendmode.srcfactor << 3;
+				newval |= bpmem.blendmode.dstfactor << 6;
+			}
+
+			if (newval & 1)
+				glEnable(GL_BLEND);
+			else
+				glDisable(GL_BLEND);
+
+			{
+				// subtract enable change
+				GLenum equation = newval & 4 ? GL_FUNC_REVERSE_SUBTRACT : GL_FUNC_ADD;
+				GLenum equationAlpha = useDualSource ? GL_FUNC_ADD : equation;
+
+				glBlendEquationSeparate(equation, equationAlpha);
+			}
+
+			{
+				u32 srcidx = (newval >> 3) & 7;
+				u32 dstidx = (newval >> 6) & 7;
+				GLenum srcFactor = glSrcFactors[srcidx];
+				GLenum dstFactor = glDestFactors[dstidx];
+
+				// adjust alpha factors
+				if (useDualSource)
+				{
+					srcidx = BlendMode::ONE;
+					dstidx = BlendMode::ZERO;
+				}
+				else
+				{
+					// we can't use GL_DST_COLOR or GL_ONE_MINUS_DST_COLOR for source in alpha channel so use their alpha equivalent instead
+					if (srcidx == BlendMode::DSTCLR) srcidx = BlendMode::DSTALPHA;
+					if (srcidx == BlendMode::INVDSTCLR) srcidx = BlendMode::INVDSTALPHA;
+
+					// we can't use GL_SRC_COLOR or GL_ONE_MINUS_SRC_COLOR for destination in alpha channel so use their alpha equivalent instead
+					if (dstidx == BlendMode::SRCCLR) dstidx = BlendMode::SRCALPHA;
+					if (dstidx == BlendMode::INVSRCCLR) dstidx = BlendMode::INVSRCALPHA;
+				}
+				GLenum srcFactorAlpha = glSrcFactors[srcidx];
+				GLenum dstFactorAlpha = glDestFactors[dstidx];
+				// blend RGB change
+				glBlendFuncSeparate(srcFactor, dstFactor, srcFactorAlpha, dstFactorAlpha);
+			}
+		}
+
+		// SetLogicOpMode
+		{
+			// Logic ops aren't available in GLES3/GLES2
+			const GLenum glLogicOpCodes[16] =
+			{
+				GL_CLEAR,
+				GL_AND,
+				GL_AND_REVERSE,
+				GL_COPY,
+				GL_AND_INVERTED,
+				GL_NOOP,
+				GL_XOR,
+				GL_OR,
+				GL_NOR,
+				GL_EQUIV,
+				GL_INVERT,
+				GL_OR_REVERSE,
+				GL_COPY_INVERTED,
+				GL_OR_INVERTED,
+				GL_NAND,
+				GL_SET
+			};
+
+			if (bpmem.blendmode.logicopenable)
+			{
+				glEnable(GL_COLOR_LOGIC_OP);
+				glLogicOp(glLogicOpCodes[bpmem.blendmode.logicmode]);
+			}
+			else
+			{
+				glDisable(GL_COLOR_LOGIC_OP);
+			}
+		}
+	}
+
+	void DrawColorVertex(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
+	{
+		SetupState();
 		// x+,y+ => top right
 		// x-,y+ => top left
 		// x+,y- => bottom right
@@ -322,6 +521,7 @@ namespace HwRasterizer
 
 	static void DrawTextureVertex(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
 	{
+		SetupState();
 		// x+,y+ => top right
 		// x-,y+ => top left
 		// x+,y- => bottom right
