@@ -11,10 +11,12 @@
 #include "VideoBackends/Software/NativeVertexFormat.h"
 
 #include "VideoCommon/VideoCommon.h"
+#include <VideoCommon/TextureCacheBase.h>
 
 #include "SWRenderer.h"
 #include <VideoBackends/OGL/StreamBuffer.h>
 #include <VideoBackends/OGL/VertexManager.h>
+#include <VideoBackends/OGL/TextureCache.h>
 
 #define TEMP_SIZE (1024*1024*4)
 
@@ -60,6 +62,13 @@ namespace HwRasterizer
 			"void main() {\n"
 			"	gl_FragColor = texture2DRect(Texture, TexCoordOut.xy);\n"
 			"}\n";
+		static const char *fragtexText130 =
+			"#version 130\n"
+			"varying vec4 TexCoordOut;\n"
+			"uniform sampler2D Texture;\n"
+			"void main() {\n"
+			"	gl_FragColor = texture(Texture, TexCoordOut.xy);\n"
+			"}\n";
 		// Clear shader
 		static const char *fragclearText =
 			"#ifdef GL_ES\n"
@@ -78,6 +87,15 @@ namespace HwRasterizer
 			"	gl_Position = pos;\n"
 			"	TexCoordOut = TexCoordIn;\n"
 			"}\n";
+		static const char *vertShaderText130 =
+			"#version 130\n"
+			"attribute vec4 pos;\n"
+			"attribute vec4 TexCoordIn;\n "
+			"varying vec4 TexCoordOut;\n "
+			"void main() {\n"
+			"	gl_Position = pos;\n"
+			"	TexCoordOut = TexCoordIn;\n"
+			"}\n";
 		static const char *vertclearText =
 			"attribute vec4 pos;\n"
 			"void main() {\n"
@@ -88,7 +106,7 @@ namespace HwRasterizer
 		colProg = OpenGL_CompileProgram(vertShaderText, fragcolText);
 
 		// Texture Program
-		texProg = OpenGL_CompileProgram(vertShaderText, fragtexText);
+		texProg = OpenGL_CompileProgram(vertShaderText130, fragtexText130);
 
 		// Clear Program
 		clearProg = OpenGL_CompileProgram(vertclearText, fragclearText);
@@ -108,8 +126,7 @@ namespace HwRasterizer
 		s_indexBuffer = OGL::StreamBuffer::Create(GL_ELEMENT_ARRAY_BUFFER, 512);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-
+		g_texture_cache = new OGL::TextureCache;
 	}
 
 	void Init()
@@ -130,6 +147,8 @@ namespace HwRasterizer
 
 		delete s_vertexBuffer;
 		delete s_indexBuffer;
+		delete g_texture_cache;
+		g_texture_cache = nullptr;
 	}
 	void Prepare()
 	{
@@ -220,7 +239,6 @@ namespace HwRasterizer
 		// x-,y+ => top left
 		// x+,y- => bottom right
 		// x-,y- => bottom left
-
 		float pos[9] = {
 			(v0->screenPosition.x / efbHalfWidth) - 1.0f,
 			1.0f - (v0->screenPosition.y / efbHalfHeight),
@@ -304,55 +322,84 @@ namespace HwRasterizer
 
 	static void DrawTextureVertex(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
 	{
-		DrawColorVertex(v0, v1,v2);
-		return;
-		glDisable(GL_DEPTH_TEST);
-		glDepthMask(GL_FALSE);
-	float x0 = (v0->screenPosition.x / efbHalfWidth) - 1.0f;
-float y0 = 1.0f - (v0->screenPosition.y / efbHalfHeight);
-float z0 = v0->screenPosition.z;
+		// x+,y+ => top right
+		// x-,y+ => top left
+		// x+,y- => bottom right
+		// x-,y- => bottom left
 
-float x1 = (v1->screenPosition.x / efbHalfWidth) - 1.0f;
-float y1 = 1.0f - (v1->screenPosition.y / efbHalfHeight);
-float z1 = v1->screenPosition.z;
+		float pos[9] = {
+			(v0->screenPosition.x / efbHalfWidth) - 1.0f,
+			1.0f - (v0->screenPosition.y / efbHalfHeight),
+			v0->screenPosition.z / (float)0x00ffffff,
 
-float x2 = (v2->screenPosition.x / efbHalfWidth) - 1.0f;
-float y2 = 1.0f - (v2->screenPosition.y / efbHalfHeight);
-float z2 = v2->screenPosition.z;
+			(v1->screenPosition.x / efbHalfWidth) - 1.0f,
+			1.0f - (v1->screenPosition.y / efbHalfHeight),
+			v1->screenPosition.z / (float)0x00ffffff,
 
-float s0 = v0->texCoords[0].x / width;
-float t0 = v0->texCoords[0].y / height;
+			(v2->screenPosition.x / efbHalfWidth) - 1.0f,
+			1.0f - (v2->screenPosition.y / efbHalfHeight),
+			v2->screenPosition.z / (float)0x00ffffff,
+		};
 
-float s1 = v1->texCoords[0].x / width;
-float t1 = v1->texCoords[0].y / height;
+		float s0 = v0->texCoords[0].x / width;
+		float t0 = v0->texCoords[0].y / height;
 
-float s2 = v2->texCoords[0].x / width;
-float t2 = v2->texCoords[0].y / height;
+		float s1 = v1->texCoords[0].x / width;
+		float t1 = v1->texCoords[0].y / height;
 
-const GLfloat verts[3][3] = {
-{ x0, y0, z0 },
-{ x1, y1, z1 },
-{ x2, y2, z2 }
-};
-const GLfloat tex[3][2] = {
-{ s0, t0 },
-{ s1, t1 },
-{ s2, t2 }
-};
-{
-glUseProgram(texProg);
-glEnableVertexAttribArray(tex_apos);
-glEnableVertexAttribArray(tex_atex);
+		float s2 = v2->texCoords[0].x / width;
+		float t2 = v2->texCoords[0].y / height;
 
-glVertexAttribPointer(tex_apos, 3, GL_FLOAT, GL_FALSE, 0, verts);
-glVertexAttribPointer(tex_atex, 2, GL_FLOAT, GL_FALSE, 0, tex);
-glUniform1i(tex_utex, 0);
-glDrawArrays(GL_TRIANGLES, 0, 3);
-glDisableVertexAttribArray(tex_atex);
-glDisableVertexAttribArray(tex_apos);
-}
-GL_REPORT_ERRORD();
-		
+		const GLfloat verts[3*3] = {
+			pos[0], pos[1], pos[2],
+			pos[3], pos[4], pos[5],
+			pos[6], pos[7], pos[8]
+		};
+
+		const GLfloat tex[3*2] = {
+			s0, t0,
+			s1, t1,
+			s2, t2
+		};
+		{
+		u32 usedtextures = 0;
+		for (u32 i = 0; i < bpmem.genMode.numtevstages + 1u; ++i)
+			if (bpmem.tevorders[i / 2].getEnable(i & 1))
+				usedtextures |= 1 << bpmem.tevorders[i/2].getTexMap(i & 1);
+
+		// TODO: Use imask for this instead
+		if (bpmem.genMode.numindstages > 0)
+			for (unsigned int i = 0; i < bpmem.genMode.numtevstages + 1u; ++i)
+				if (bpmem.tevind[i].IsActive() && bpmem.tevind[i].bt < bpmem.genMode.numindstages)
+					usedtextures |= 1 << bpmem.tevindref.getTexMap(bpmem.tevind[i].bt);
+
+		for (unsigned int i = 0; i < 8; i++)
+		{
+//			g_renderer->SetSamplerState(i & 3, i >> 2);
+			const FourTexUnits &texparams = bpmem.tex[i >> 2];
+			const OGL::TextureCache::TCacheEntryBase* tentry = g_texture_cache->Load(i,
+				(texparams.texImage3[i&3].image_base/* & 0x1FFFFF*/) << 5,
+				texparams.texImage0[i&3].width + 1, texparams.texImage0[i&3].height + 1,
+				texparams.texImage0[i&3].format, texparams.texTlut[i&3].tmem_offset<<9,
+				texparams.texTlut[i&3].tlut_format,
+				((texparams.texMode0[i&3].min_filter & 3) != 0),
+				(texparams.texMode1[i&3].max_lod + 0xf) / 0x10,
+				(texparams.texImage1[i&3].image_type != 0));
+		}
+
+		glUseProgram(texProg);
+		glEnableVertexAttribArray(tex_apos);
+		glEnableVertexAttribArray(tex_atex);
+
+		glVertexAttribPointer(tex_apos, 3, GL_FLOAT, GL_FALSE, 0, verts);
+		glVertexAttribPointer(tex_atex, 2, GL_FLOAT, GL_FALSE, 0, tex);
+		glUniform1i(tex_utex, 0);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDisableVertexAttribArray(tex_atex);
+		glDisableVertexAttribArray(tex_apos);
+		}
+		GL_REPORT_ERRORD();
+
 	}
 
 	void DrawTriangleFrontFace(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
