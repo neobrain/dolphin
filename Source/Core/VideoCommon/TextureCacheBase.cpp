@@ -44,12 +44,12 @@ TextureCache::TextureCache()
 	if (!temp)
 		temp = (u8*)AllocateAlignedMemory(temp_size, 16);
 
-	TexDecoder_SetTexFmtOverlayOptions(g_ActiveConfig.bTexFmtOverlayEnable, g_ActiveConfig.bTexFmtOverlayCenter);
+/*	TexDecoder_SetTexFmtOverlayOptions(g_ActiveConfig.bTexFmtOverlayEnable, g_ActiveConfig.bTexFmtOverlayCenter);
 
 	if (g_ActiveConfig.bHiresTextures && !g_ActiveConfig.bDumpTextures)
-		HiresTextures::Init(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID);
+		HiresTextures::Init(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID);*/
 
-	SetHash64Function(g_ActiveConfig.bHiresTextures || g_ActiveConfig.bDumpTextures);
+	SetHash64Function(/*g_ActiveConfig.bHiresTextures || g_ActiveConfig.bDumpTextures*/ false);
 
 	invalidate_texture_cache_requested = false;
 }
@@ -221,6 +221,7 @@ void TextureCache::ClearRenderTargets()
 
 bool TextureCache::CheckForCustomTextureLODs(u64 tex_hash, int texformat, unsigned int levels)
 {
+	return false;
 	if (levels == 1)
 		return false;
 
@@ -329,8 +330,9 @@ static TextureCache::TCacheEntryBase* ReturnEntry(unsigned int stage, TextureCac
 }
 
 TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
-	u32 const address, unsigned int width, unsigned int height, int const texformat,
-	unsigned int const tlutaddr, int const tlutfmt, bool const use_mipmaps, unsigned int maxlevel, bool const from_tmem)
+	u32 const address, unsigned int width, unsigned int height,
+	int const texformat, unsigned int const tlutaddr, int const tlutfmt,
+	bool const use_mipmaps, unsigned int maxlevel, bool const from_tmem)
 {
 	if (0 == address)
 		return nullptr;
@@ -359,17 +361,17 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
 	const u32 texture_size = TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, texformat);
 
 	const u8* src_data;
-	if (from_tmem)
+	/*if (from_tmem)
 		src_data = &texMem[bpmem.tex[stage / 4].texImage1[stage % 4].tmem_even * TMEM_LINE_SIZE];
-	else
+	else*/
 		src_data = Memory::GetPointer(address);
 
 	// TODO: This doesn't hash GB tiles for preloaded RGBA8 textures (instead, it's hashing more data from the low tmem bank than it should)
-	tex_hash = GetHash64(src_data, texture_size, g_ActiveConfig.iSafeTextureCache_ColorSamples);
+	tex_hash = GetHash64(src_data, texture_size, /*g_ActiveConfig.iSafeTextureCache_ColorSamples*/512);
 	if (isPaletteTexture)
 	{
 		const u32 palette_size = TexDecoder_GetPaletteSize(texformat);
-		tlut_hash = GetHash64(&texMem[tlutaddr], palette_size, g_ActiveConfig.iSafeTextureCache_ColorSamples);
+		tlut_hash = GetHash64(&texMem[tlutaddr], palette_size, /*g_ActiveConfig.iSafeTextureCache_ColorSamples*/512);
 
 		// NOTE: For non-paletted textures, texID is equal to the texture address.
 		//       A paletted texture, however, may have multiple texIDs assigned though depending on the currently used tlut.
@@ -386,19 +388,19 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
 
 	// D3D doesn't like when the specified mipmap count would require more than one 1x1-sized LOD in the mipmap chain
 	// e.g. 64x64 with 7 LODs would have the mipmap chain 64x64,32x32,16x16,8x8,4x4,2x2,1x1,1x1, so we limit the mipmap count to 6 there
-	while (g_ActiveConfig.backend_info.bUseMinimalMipCount && max(expandedWidth, expandedHeight) >> maxlevel == 0)
-		--maxlevel;
+//	while (g_ActiveConfig.backend_info.bUseMinimalMipCount && max(expandedWidth, expandedHeight) >> maxlevel == 0)
+//		--maxlevel;
 
 	TCacheEntryBase *entry = textures[texID];
 	if (entry)
 	{
 		// 1. Calculate reference hash:
 		// calculated from RAM texture data for normal textures. Hashes for paletted textures are modified by tlut_hash. 0 for virtual EFB copies.
-		if (g_ActiveConfig.bCopyEFBToTexture && entry->IsEfbCopy())
-			tex_hash = TEXHASH_INVALID;
+//		if (g_ActiveConfig.bCopyEFBToTexture && entry->IsEfbCopy())
+//			tex_hash = TEXHASH_INVALID;
 
 		// 2. a) For EFB copies, only the hash and the texture address need to match
-		if (entry->IsEfbCopy() && tex_hash == entry->hash && address == entry->addr)
+/*		if (entry->IsEfbCopy() && tex_hash == entry->hash && address == entry->addr)
 		{
 			entry->type = TCET_EC_VRAM;
 
@@ -406,7 +408,7 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
 			// we could reinterpret the internal texture object data to the new pixel format
 			// (similar to what is already being done in Renderer::ReinterpretPixelFormat())
 			return ReturnEntry(stage, entry);
-		}
+		}*/
 
 		// 2. b) For normal textures, all texture parameters need to match
 		if (address == entry->addr && tex_hash == entry->hash && full_format == entry->format &&
@@ -441,7 +443,7 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
 
 	bool using_custom_texture = false;
 
-	if (g_ActiveConfig.bHiresTextures)
+/*	if (g_ActiveConfig.bHiresTextures)
 	{
 		// This function may modify width/height.
 		pcfmt = LoadCustomTexture(tex_hash, texformat, 0, width, height);
@@ -461,20 +463,20 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
 			}
 			using_custom_texture = true;
 		}
-	}
+	}*/
 
 	if (!using_custom_texture)
 	{
-		if (!(texformat == GX_TF_RGBA8 && from_tmem))
+//		if (!(texformat == GX_TF_RGBA8 && from_tmem))
 		{
 			pcfmt = TexDecoder_Decode(temp, src_data, expandedWidth,
 						expandedHeight, texformat, tlutaddr, tlutfmt, g_ActiveConfig.backend_info.bUseRGBATextures);
 		}
-		else
+/*		else
 		{
 			u8* src_data_gb = &texMem[bpmem.tex[stage/4].texImage2[stage%4].tmem_odd * TMEM_LINE_SIZE];
 			pcfmt = TexDecoder_DecodeRGBA8FromTmem(temp, src_data, src_data_gb, expandedWidth, expandedHeight);
-		}
+		}*/
 	}
 
 	u32 texLevels = use_mipmaps ? (maxlevel + 1) : 1;
@@ -498,7 +500,7 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
 		entry->num_mipmaps = maxlevel + 1;
 		entry->type = TCET_NORMAL;
 
-		GFX_DEBUGGER_PAUSE_AT(NEXT_NEW_TEXTURE, true);
+//		GFX_DEBUGGER_PAUSE_AT(NEXT_NEW_TEXTURE, true);
 	}
 	else
 	{
@@ -515,7 +517,7 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
 	else
 		entry->type = TCET_NORMAL;
 
-	if (g_ActiveConfig.bDumpTextures && !using_custom_texture)
+//	if (g_ActiveConfig.bDumpTextures && !using_custom_texture)
 		DumpTexture(entry, 0);
 
 	u32 level = 1;
@@ -528,11 +530,11 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
 
 			const u8* ptr_even = nullptr;
 			const u8* ptr_odd = nullptr;
-			if (from_tmem)
+/*			if (from_tmem)
 			{
 				ptr_even = &texMem[bpmem.tex[stage/4].texImage1[stage%4].tmem_even * TMEM_LINE_SIZE + texture_size];
 				ptr_odd = &texMem[bpmem.tex[stage/4].texImage2[stage%4].tmem_odd * TMEM_LINE_SIZE];
-			}
+			}*/
 
 			for (; level != texLevels; ++level)
 			{
@@ -541,19 +543,19 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
 				const u32 expanded_mip_width = (mip_width + bsw) & (~bsw);
 				const u32 expanded_mip_height = (mip_height + bsh) & (~bsh);
 
-				const u8*& mip_src_data = from_tmem
+				const u8*& mip_src_data = /*from_tmem
 					? ((level % 2) ? ptr_odd : ptr_even)
-					: src_data;
+					:*/ src_data;
 				TexDecoder_Decode(temp, mip_src_data, expanded_mip_width, expanded_mip_height, texformat, tlutaddr, tlutfmt, g_ActiveConfig.backend_info.bUseRGBATextures);
 				mip_src_data += TexDecoder_GetTextureSizeInBytes(expanded_mip_width, expanded_mip_height, texformat);
 
 				entry->Load(mip_width, mip_height, expanded_mip_width, level);
 
-				if (g_ActiveConfig.bDumpTextures)
-					DumpTexture(entry, level);
+/*				if (g_ActiveConfig.bDumpTextures)
+					DumpTexture(entry, level);*/
 			}
 		}
-		else if (using_custom_lods)
+/*		else if (using_custom_lods)
 		{
 			for (; level != texLevels; ++level)
 			{
@@ -563,11 +565,11 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
 				LoadCustomTexture(tex_hash, texformat, level, mip_width, mip_height);
 				entry->Load(mip_width, mip_height, mip_width, level);
 			}
-		}
+		}*/
 	}
 
-	INCSTAT(stats.numTexturesCreated);
-	SETSTAT(stats.numTexturesAlive, textures.size());
+//	INCSTAT(stats.numTexturesCreated);
+//	SETSTAT(stats.numTexturesAlive, textures.size());
 
 	return ReturnEntry(stage, entry);
 }
