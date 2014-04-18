@@ -518,7 +518,7 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int const stage,
 		entry->type = TCET_NORMAL;
 
 //	if (g_ActiveConfig.bDumpTextures && !using_custom_texture)
-		DumpTexture(entry, 0);
+//		DumpTexture(entry, 0);
 
 	u32 level = 1;
 	// load mips - TODO: Loading mipmaps from tmem is untested!

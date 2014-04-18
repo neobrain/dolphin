@@ -431,9 +431,10 @@ namespace HwRasterizer
 		}
 	}
 
-	void DrawColorVertex(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
+	void DrawTriangleFrontFace(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
 	{
 		SetupState();
+
 		// x+,y+ => top right
 		// x-,y+ => top left
 		// x+,y- => bottom right
@@ -464,6 +465,15 @@ namespace HwRasterizer
 		float g2 = v2->color[0][OutputVertexData::GRN_C] / 255.0f;
 		float b2 = v2->color[0][OutputVertexData::BLU_C] / 255.0f;
 
+		float s0 = v0->texCoords[0].x / width;
+		float t0 = v0->texCoords[0].y / height;
+
+		float s1 = v1->texCoords[0].x / width;
+		float t1 = v1->texCoords[0].y / height;
+
+		float s2 = v2->texCoords[0].x / width;
+		float t2 = v2->texCoords[0].y / height;
+
 		const GLfloat verts[3*3] = {
 			pos[0], pos[1], pos[2],
 			pos[3], pos[4], pos[5],
@@ -474,13 +484,48 @@ namespace HwRasterizer
 			 r1, g1, b1, 1.0f ,
 			 r2, g2, b2, 1.0f 
 		};
+		const GLfloat tex[3*2] = {
+			s0, t0,
+			s1, t1,
+			s2, t2
+		};
 		{
-			int vertex_stride = sizeof(float) * 7;
+			if (hasTexture)
+			{
+				u32 usedtextures = 0;
+				for (u32 i = 0; i < bpmem.genMode.numtevstages + 1u; ++i)
+					if (bpmem.tevorders[i / 2].getEnable(i & 1))
+						usedtextures |= 1 << bpmem.tevorders[i/2].getTexMap(i & 1);
+
+				// TODO: Use imask for this instead
+				if (bpmem.genMode.numindstages > 0)
+					for (unsigned int i = 0; i < bpmem.genMode.numtevstages + 1u; ++i)
+						if (bpmem.tevind[i].IsActive() && bpmem.tevind[i].bt < bpmem.genMode.numindstages)
+							usedtextures |= 1 << bpmem.tevindref.getTexMap(bpmem.tevind[i].bt);
+
+				for (unsigned int i = 0; i < 8; i++)
+				{
+		//			g_renderer->SetSamplerState(i & 3, i >> 2);
+					const FourTexUnits &texparams = bpmem.tex[i >> 2];
+					const OGL::TextureCache::TCacheEntryBase* tentry = g_texture_cache->Load(i,
+						(texparams.texImage3[i&3].image_base/* & 0x1FFFFF*/) << 5,
+						texparams.texImage0[i&3].width + 1, texparams.texImage0[i&3].height + 1,
+						texparams.texImage0[i&3].format, texparams.texTlut[i&3].tmem_offset<<9,
+						texparams.texTlut[i&3].tlut_format,
+						((texparams.texMode0[i&3].min_filter & 3) != 0),
+						(texparams.texMode1[i&3].max_lod + 0xf) / 0x10,
+						(texparams.texImage1[i&3].image_type != 0));
+				}
+			}
+			int vertex_stride = hasTexture ? sizeof(float) * 5 : sizeof(float) * 7;
 			std::pair<u8*,size_t> mapping = s_vertexBuffer->Map(512, vertex_stride);
 			for (int i = 0; i < 3; ++i)
 			{
-				memcpy(&mapping.first[vertex_stride*i                ], &verts[3*i], 3*sizeof(float));
-				memcpy(&mapping.first[vertex_stride*i+3*sizeof(float)], &col[4*i],   4*sizeof(float));
+				memcpy(&mapping.first[vertex_stride*i], &verts[3*i], 3*sizeof(float));
+				if (hasTexture)
+					memcpy(&mapping.first[vertex_stride*i+3*sizeof(float)], &tex[2*i],   2*sizeof(float));
+				else
+					memcpy(&mapping.first[vertex_stride*i+3*sizeof(float)], &col[4*i],   4*sizeof(float));
 			}
 			s_vertexBuffer->Unmap(vertex_stride*3);
 			GL_REPORT_ERRORD();
@@ -503,10 +548,20 @@ namespace HwRasterizer
 			glEnableVertexAttribArray(SHADER_POSITION_ATTRIB);
 			glVertexAttribPointer(SHADER_POSITION_ATTRIB, 3, GL_FLOAT, true, vertex_stride, (u8*)nullptr);
 
-			glEnableVertexAttribArray(col_atex);
-			glVertexAttribPointer(col_atex, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + 3 * sizeof(float));
+			glDisableVertexAttribArray(tex_atex);
+			glDisableVertexAttribArray(col_atex);
+			if (hasTexture)
+			{
+				glEnableVertexAttribArray(tex_atex);
+				glVertexAttribPointer(tex_atex, 2, GL_FLOAT, true, vertex_stride, (u8*)nullptr + 3 * sizeof(float));
+			}
+			else
+			{
+				glEnableVertexAttribArray(col_atex);
+				glVertexAttribPointer(col_atex, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + 3 * sizeof(float));
+			}
 
-			glUseProgram(colProg);
+			glUseProgram(hasTexture ? texProg : colProg);
 			glBindBuffer(GL_ARRAY_BUFFER, s_vertexBuffer->m_buffer);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_indexBuffer->m_buffer);
 			glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, (u8*)nullptr);
@@ -517,97 +572,7 @@ namespace HwRasterizer
 			glDeleteVertexArrays(1, &VAO);
 		}
 		GL_REPORT_ERRORD();
-	}
 
-	void DrawTextureVertex(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
-	{
-		SetupState();
-		// x+,y+ => top right
-		// x-,y+ => top left
-		// x+,y- => bottom right
-		// x-,y- => bottom left
-
-		float pos[9] = {
-			(v0->screenPosition.x / efbHalfWidth) - 1.0f,
-			1.0f - (v0->screenPosition.y / efbHalfHeight),
-			v0->screenPosition.z / (float)0x00ffffff,
-
-			(v1->screenPosition.x / efbHalfWidth) - 1.0f,
-			1.0f - (v1->screenPosition.y / efbHalfHeight),
-			v1->screenPosition.z / (float)0x00ffffff,
-
-			(v2->screenPosition.x / efbHalfWidth) - 1.0f,
-			1.0f - (v2->screenPosition.y / efbHalfHeight),
-			v2->screenPosition.z / (float)0x00ffffff,
-		};
-
-		float s0 = v0->texCoords[0].x / width;
-		float t0 = v0->texCoords[0].y / height;
-
-		float s1 = v1->texCoords[0].x / width;
-		float t1 = v1->texCoords[0].y / height;
-
-		float s2 = v2->texCoords[0].x / width;
-		float t2 = v2->texCoords[0].y / height;
-
-		const GLfloat verts[3*3] = {
-			pos[0], pos[1], pos[2],
-			pos[3], pos[4], pos[5],
-			pos[6], pos[7], pos[8]
-		};
-
-		const GLfloat tex[3*2] = {
-			s0, t0,
-			s1, t1,
-			s2, t2
-		};
-		{
-		u32 usedtextures = 0;
-		for (u32 i = 0; i < bpmem.genMode.numtevstages + 1u; ++i)
-			if (bpmem.tevorders[i / 2].getEnable(i & 1))
-				usedtextures |= 1 << bpmem.tevorders[i/2].getTexMap(i & 1);
-
-		// TODO: Use imask for this instead
-		if (bpmem.genMode.numindstages > 0)
-			for (unsigned int i = 0; i < bpmem.genMode.numtevstages + 1u; ++i)
-				if (bpmem.tevind[i].IsActive() && bpmem.tevind[i].bt < bpmem.genMode.numindstages)
-					usedtextures |= 1 << bpmem.tevindref.getTexMap(bpmem.tevind[i].bt);
-
-		for (unsigned int i = 0; i < 8; i++)
-		{
-//			g_renderer->SetSamplerState(i & 3, i >> 2);
-			const FourTexUnits &texparams = bpmem.tex[i >> 2];
-			const OGL::TextureCache::TCacheEntryBase* tentry = g_texture_cache->Load(i,
-				(texparams.texImage3[i&3].image_base/* & 0x1FFFFF*/) << 5,
-				texparams.texImage0[i&3].width + 1, texparams.texImage0[i&3].height + 1,
-				texparams.texImage0[i&3].format, texparams.texTlut[i&3].tmem_offset<<9,
-				texparams.texTlut[i&3].tlut_format,
-				((texparams.texMode0[i&3].min_filter & 3) != 0),
-				(texparams.texMode1[i&3].max_lod + 0xf) / 0x10,
-				(texparams.texImage1[i&3].image_type != 0));
-		}
-
-		glUseProgram(texProg);
-		glEnableVertexAttribArray(tex_apos);
-		glEnableVertexAttribArray(tex_atex);
-
-		glVertexAttribPointer(tex_apos, 3, GL_FLOAT, GL_FALSE, 0, verts);
-		glVertexAttribPointer(tex_atex, 2, GL_FLOAT, GL_FALSE, 0, tex);
-		glUniform1i(tex_utex, 0);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-		glDisableVertexAttribArray(tex_atex);
-		glDisableVertexAttribArray(tex_apos);
-		}
-		GL_REPORT_ERRORD();
-
-	}
-
-	void DrawTriangleFrontFace(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
-	{
-		if (hasTexture)
-			DrawTextureVertex(v0, v1, v2);
-		else
-			DrawColorVertex(v0, v1, v2);
 	}
 
 	void Clear()
