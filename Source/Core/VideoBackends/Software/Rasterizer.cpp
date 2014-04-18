@@ -311,6 +311,7 @@ static void BuildBlock(s32 blockX, s32 blockY)
 
 void DrawTriangleFrontFace(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
 {
+//	return;
 	INCSTAT(swstats.thisFrame.numTrianglesDrawn);
 
 	if (g_SWVideoConfig.bHwRasterizer)

@@ -15,6 +15,7 @@
 #include "VideoBackends/Software/SWStatistics.h"
 #include "VideoCommon/ImageWrite.h"
 #include "VideoCommon/OnScreenDisplay.h"
+#include <VideoCommon/DriverDetails.h>
 
 static GLuint s_RenderTarget = 0;
 
@@ -37,6 +38,8 @@ static RasterFont* s_pfont = nullptr;
 void SWRenderer::Init()
 {
 	s_bScreenshot = false;
+	
+//	DriverDetails::Init();
 }
 
 void SWRenderer::Shutdown()

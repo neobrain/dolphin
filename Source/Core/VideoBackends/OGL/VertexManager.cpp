@@ -35,10 +35,6 @@ namespace OGL
 const u32 MAX_IBUFFER_SIZE =  2*1024*1024;
 const u32 MAX_VBUFFER_SIZE = 32*1024*1024;
 
-static StreamBuffer *s_vertexBuffer;
-static StreamBuffer *s_indexBuffer;
-static size_t s_baseVertex;
-static size_t s_index_offset;
 
 VertexManager::VertexManager()
 {
