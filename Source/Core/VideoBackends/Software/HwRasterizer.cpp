@@ -225,12 +225,12 @@ namespace HwRasterizer
 		float g2 = v2->color[0][OutputVertexData::GRN_C] / 255.0f;
 		float b2 = v2->color[0][OutputVertexData::BLU_C] / 255.0f;
 
-		static const GLfloat verts[3][3] = {
+		const GLfloat verts[3][3] = {
 			{ x0, y0, z0 },
 			{ x1, y1, z1 },
 			{ x2, y2, z2 }
 		};
-		static const GLfloat col[3][4] = {
+		const GLfloat col[3][4] = {
 			{ r0, g0, b0, 1.0f },
 			{ r1, g1, b1, 1.0f },
 			{ r2, g2, b2, 1.0f }
@@ -272,12 +272,12 @@ namespace HwRasterizer
 		float s2 = v2->texCoords[0].x / width;
 		float t2 = v2->texCoords[0].y / height;
 
-		static const GLfloat verts[3][3] = {
+		const GLfloat verts[3][3] = {
 			{ x0, y0, z0 },
 			{ x1, y1, z1 },
 			{ x2, y2, z2 }
 		};
-		static const GLfloat tex[3][2] = {
+		const GLfloat tex[3][2] = {
 			{ s0, t0 },
 			{ s1, t1 },
 			{ s2, t2 }
@@ -317,7 +317,7 @@ namespace HwRasterizer
 		GLfloat right  = (GLfloat)(left + bpmem.copyTexSrcWH.x + 1) / efbHalfWidth - 1.0f;
 		GLfloat bottom = 1.0f - (GLfloat)(top + bpmem.copyTexSrcWH.y + 1) / efbHalfHeight;
 		GLfloat depth = (GLfloat)bpmem.clearZValue / (GLfloat)0x00ffffff;
-		static const GLfloat verts[4][3] = {
+		const GLfloat verts[4][3] = {
 			{ left, top, depth },
 			{ right, top, depth },
 			{ right, bottom, depth },
