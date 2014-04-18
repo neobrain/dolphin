@@ -9,7 +9,6 @@
 #include "VideoBackends/OGL/StreamBuffer.h"
 
 #include "VideoCommon/DriverDetails.h"
-#include "VideoCommon/OnScreenDisplay.h"
 
 namespace OGL
 {
@@ -311,6 +310,7 @@ public:
 	}
 
 	void Unmap(size_t used_size) override {
+		glBindBuffer(m_buffertype, m_buffer);
 		glBufferSubData(m_buffertype, 0, used_size, m_pointer);
 	}
 
@@ -339,6 +339,7 @@ public:
 	}
 
 	void Unmap(size_t used_size) override {
+		glBindBuffer(m_buffertype, m_buffer);
 		glBufferData(m_buffertype, used_size, m_pointer, GL_STREAM_DRAW);
 	}
 

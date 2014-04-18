@@ -537,10 +537,21 @@ union GenMode
 		u32 numcolchans   : 5; //   0x1E0
 		u32 multisampling : 1; //   0x200
 		u32 numtevstages  : 4; //  0x3C00
-		u32 cullmode      : 2; //  0xC000
+		u32               : 2; //  0xC000
 		u32 numindstages  : 3; // 0x30000
 		u32 zfreeze       : 5; //0x3C0000
 	};
+
+	enum CullMode : u32
+	{
+		CULL_NONE,
+		CULL_BACK,
+		CULL_FRONT,
+		CULL_ALL
+	};
+
+	BitField<14, 2, CullMode> cullmode;
+
 	u32 hex;
 };
 

@@ -9,6 +9,8 @@
 
 namespace OGL
 {
+class StreamBuffer;
+
 	class GLVertexFormat : public NativeVertexFormat
 	{
 		PortableVertexDeclaration vtx_decl;
@@ -38,6 +40,11 @@ public:
 	GLuint m_vertex_buffers;
 	GLuint m_index_buffers;
 	GLuint m_last_vao;
+
+	StreamBuffer *s_vertexBuffer;
+	StreamBuffer *s_indexBuffer;
+	size_t s_baseVertex;
+	size_t s_index_offset;
 protected:
 	virtual void ResetBuffer(u32 stride) override;
 private:
