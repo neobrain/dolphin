@@ -47,7 +47,8 @@ namespace HwRasterizer
 	void CreateShaders()
 	{
 		// Color Vertices
-		static const char *fragcolText =
+		static const char *fragcolText130 =
+			"#version 130\n"
 			"#ifdef GL_ES\n"
 			"precision highp float;\n"
 			"#endif\n"
@@ -56,12 +57,6 @@ namespace HwRasterizer
 			"	gl_FragColor = TexCoordOut;\n"
 			"}\n";
 		// Texture Vertices
-		static const char *fragtexText =
-			"varying vec4 TexCoordOut;\n"
-			"uniform sampler2DRect Texture;\n"
-			"void main() {\n"
-			"	gl_FragColor = texture2DRect(Texture, TexCoordOut.xy);\n"
-			"}\n";
 		static const char *fragtexText130 =
 			"#version 130\n"
 			"varying vec4 TexCoordOut;\n"
@@ -78,15 +73,7 @@ namespace HwRasterizer
 			"void main() {\n"
 			"	gl_FragColor = Color;\n"
 			"}\n";
-		// Generic passthrough vertice shaders
-		static const char *vertShaderText =
-			"attribute vec4 pos;\n"
-			"attribute vec4 TexCoordIn;\n "
-			"varying vec4 TexCoordOut;\n "
-			"void main() {\n"
-			"	gl_Position = pos;\n"
-			"	TexCoordOut = TexCoordIn;\n"
-			"}\n";
+		// Generic passthrough vertex shaders
 		static const char *vertShaderText130 =
 			"#version 130\n"
 			"attribute vec4 pos;\n"
@@ -103,7 +90,7 @@ namespace HwRasterizer
 			"}\n";
 
 		// Color Program
-		colProg = OpenGL_CompileProgram(vertShaderText, fragcolText);
+		colProg = OpenGL_CompileProgram(vertShaderText130, fragcolText130);
 
 		// Texture Program
 		texProg = OpenGL_CompileProgram(vertShaderText130, fragtexText130);
@@ -545,23 +532,133 @@ namespace HwRasterizer
 			glBindBuffer(GL_ARRAY_BUFFER, s_vertexBuffer->m_buffer);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_indexBuffer->m_buffer);
 
+			static char vbuf[1024];
+			static char pbuf[1024];
+
+			ShaderCode vcode;
+			vcode.SetBuffer(vbuf);
+			vcode.Write("#version 130\n");
+
+			vcode.Write("in vec4 rawpos; // ATTR%d,\n", SHADER_POSITION_ATTRIB);
+			if (!hasTexture)
+				vcode.Write("in vec4 color0; // ATTR%d,\n", SHADER_COLOR0_ATTRIB);
+			else
+				vcode.Write("in vec2 tex0; // ATTR%d,\n", SHADER_TEXTURE0_ATTRIB);
+
+			if (hasTexture)
+				vcode.Write("centroid out vec3 uv0_2;\n");
+			vcode.Write("centroid out vec4 clipPos_2;\n");
+			if (!hasTexture)
+			vcode.Write("centroid out vec4 colors_02;\n");
+
+			vcode.Write("void main()\n{\n");
+			if (hasTexture)
+				vcode.Write("uv0_2 = vec3(tex0, 1.0);\n");
+			vcode.Write("clipPos_2 = rawpos;\n");
+			if (!hasTexture)
+				vcode.Write("colors_02 = color0;\n");
+			vcode.Write("gl_Position = rawpos;\n");
+
+			vcode.Write("}\n");
+
+
+
+			ShaderCode pcode;
+			pcode.SetBuffer(pbuf);
+			pcode.Write("#version 130\n");
+			pcode.Write("out vec4 ocol0;\n");
+
+			if (hasTexture)
+				pcode.Write("uniform sampler2D samp0;\n");
+			pcode.Write("centroid in vec4 colors_02;\n");
+	//		pcode.Write("centroid in vec4 colors_12;\n");
+			pcode.Write("centroid in vec3 uv0_2;\n");
+			pcode.Write("centroid in vec4 clipPos_2;\n");
+
+			pcode.Write("void main()\n{\n");
+			if (hasTexture)
+				pcode.Write("    gl_FragColor = texture(samp0, uv0_2.xy);\n");
+			else
+				pcode.Write("    gl_FragColor = colors_02;\n");
+			pcode.Write("}\n");
+
+//			Gluint prog = OpenGL_CompileProgram(vcode.GetBuffer(), pcode.GetBuffer());
+
+			GLuint programID;
+			{
+				// generate objects
+				GLuint vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
+				GLuint fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+				programID = glCreateProgram();
+
+				// compile vertex shader
+				const char *src[] = { vcode.GetBuffer() };
+				glShaderSource(vertexShaderID, 1, src, nullptr);
+				glCompileShader(vertexShaderID);
+
+				GLint compileStatus;
+				glGetShaderiv(vertexShaderID, GL_COMPILE_STATUS, &compileStatus);
+				GLsizei length2 = 0;
+				glGetShaderiv(vertexShaderID, GL_INFO_LOG_LENGTH, &length2);
+
+				if (compileStatus != GL_TRUE)
+				{
+					GLsizei charsWritten;
+					GLchar* infoLog = new GLchar[length2];
+					glGetShaderInfoLog(vertexShaderID, length2, &charsWritten, infoLog);
+					ERROR_LOG(VIDEO, "VS Shader info log:\n%s", infoLog);
+				}
+
+
+				// compile fragment shader
+				const char *fsrc[] = { pcode.GetBuffer() };
+				glShaderSource(fragmentShaderID, 1, fsrc, nullptr);
+				glCompileShader(fragmentShaderID);
+
+				// link them
+				glAttachShader(programID, vertexShaderID);
+				glAttachShader(programID, fragmentShaderID);
+
+				glBindAttribLocation(programID, SHADER_POSITION_ATTRIB, "rawpos");
+				glBindAttribLocation(programID, SHADER_COLOR0_ATTRIB,   "color0");
+				glBindAttribLocation(programID, SHADER_TEXTURE0_ATTRIB,   "tex0");
+
+				glLinkProgram(programID);
+				GLint linkStatus;
+				glGetProgramiv(programID, GL_LINK_STATUS, &linkStatus);
+				GLsizei length = 0;
+				glGetProgramiv(programID, GL_INFO_LOG_LENGTH, &length);
+				if (linkStatus != GL_TRUE || (length > 1 && DEBUG_GLSL))
+				{
+		GLsizei charsWritten;
+		GLchar* infoLog = new GLchar[length];
+		glGetProgramInfoLog(programID, length, &charsWritten, infoLog);
+					ERROR_LOG(VIDEO, "yo.. linking failed! %s", infoLog);
+				}
+
+				// cleanup
+				glDeleteShader(vertexShaderID);
+				glDeleteShader(fragmentShaderID);
+			}
+
 			glEnableVertexAttribArray(SHADER_POSITION_ATTRIB);
 			glVertexAttribPointer(SHADER_POSITION_ATTRIB, 3, GL_FLOAT, true, vertex_stride, (u8*)nullptr);
 
-			glDisableVertexAttribArray(tex_atex);
-			glDisableVertexAttribArray(col_atex);
+			glDisableVertexAttribArray(SHADER_TEXTURE0_ATTRIB);
+			glDisableVertexAttribArray(SHADER_COLOR0_ATTRIB);
 			if (hasTexture)
 			{
-				glEnableVertexAttribArray(tex_atex);
-				glVertexAttribPointer(tex_atex, 2, GL_FLOAT, true, vertex_stride, (u8*)nullptr + 3 * sizeof(float));
+				glEnableVertexAttribArray(SHADER_TEXTURE0_ATTRIB);
+				glVertexAttribPointer(SHADER_TEXTURE0_ATTRIB, 2, GL_FLOAT, true, vertex_stride, (u8*)nullptr + 3 * sizeof(float));
 			}
 			else
 			{
-				glEnableVertexAttribArray(col_atex);
-				glVertexAttribPointer(col_atex, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + 3 * sizeof(float));
+				glEnableVertexAttribArray(SHADER_COLOR0_ATTRIB);
+				glVertexAttribPointer(SHADER_COLOR0_ATTRIB, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + 3 * sizeof(float));
 			}
 
-			glUseProgram(hasTexture ? texProg : colProg);
+//			glUseProgram(hasTexture ? texProg : colProg);
+			glUseProgram(programID);
 			glBindBuffer(GL_ARRAY_BUFFER, s_vertexBuffer->m_buffer);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_indexBuffer->m_buffer);
 			glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, (u8*)nullptr);
@@ -570,6 +667,7 @@ namespace HwRasterizer
 			GL_REPORT_ERRORD();
 
 			glDeleteVertexArrays(1, &VAO);
+			glDeleteProgram(programID);
 		}
 		GL_REPORT_ERRORD();
 
