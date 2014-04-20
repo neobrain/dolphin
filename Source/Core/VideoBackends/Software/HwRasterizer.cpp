@@ -12,6 +12,7 @@
 
 #include "VideoCommon/VideoCommon.h"
 #include <VideoCommon/TextureCacheBase.h>
+#include <VideoCommon/PixelShaderManager.h>
 
 #include "SWRenderer.h"
 #include <VideoBackends/OGL/StreamBuffer.h>
@@ -43,6 +44,7 @@ namespace HwRasterizer
 
 	static OGL::StreamBuffer *s_vertexBuffer;
 	static OGL::StreamBuffer *s_indexBuffer;
+	static OGL::StreamBuffer *s_uniformBuffer;
 
 	void CreateShaders()
 	{
@@ -111,9 +113,12 @@ namespace HwRasterizer
 
 		s_vertexBuffer = OGL::StreamBuffer::Create(GL_ARRAY_BUFFER, 512);
 		s_indexBuffer = OGL::StreamBuffer::Create(GL_ELEMENT_ARRAY_BUFFER, 512);
+		s_uniformBuffer = OGL::StreamBuffer::Create(GL_UNIFORM_BUFFER, 512);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 		g_texture_cache = new OGL::TextureCache;
+		PixelShaderManager::Init();
 	}
 
 	void Init()
@@ -207,7 +212,8 @@ namespace HwRasterizer
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_BLEND);
 
-		hasTexture = bpmem.tevorders[0].enable0;
+		bpmem.genMode.numtexgens = std::min(bpmem.genMode.numtexgens, xfregs.numTexGen.numTexGens);
+		hasTexture = bpmem.tevorders[0].enable0 && (xfregs.numTexGen.numTexGens>0) && (bpmem.genMode.numtexgens>0);
 
 		if (hasTexture)
 			LoadTexture();
@@ -452,14 +458,14 @@ namespace HwRasterizer
 		float g2 = v2->color[0][OutputVertexData::GRN_C] / 255.0f;
 		float b2 = v2->color[0][OutputVertexData::BLU_C] / 255.0f;
 
-		float s0 = v0->texCoords[0].x / width;
-		float t0 = v0->texCoords[0].y / height;
+		float s0 = v0->texCoords[0].x;
+		float t0 = v0->texCoords[0].y;
 
-		float s1 = v1->texCoords[0].x / width;
-		float t1 = v1->texCoords[0].y / height;
+		float s1 = v1->texCoords[0].x;
+		float t1 = v1->texCoords[0].y;
 
-		float s2 = v2->texCoords[0].x / width;
-		float t2 = v2->texCoords[0].y / height;
+		float s2 = v2->texCoords[0].x;
+		float t2 = v2->texCoords[0].y;
 
 		const GLfloat verts[3*3] = {
 			pos[0], pos[1], pos[2],
@@ -476,6 +482,18 @@ namespace HwRasterizer
 			s1, t1,
 			s2, t2
 		};
+
+		// width, height
+		// TODO: Upload uniforms!
+		{
+			PixelShaderManager::SetTexDims(0, width, height, 0, 0);
+
+			auto buffer = s_uniformBuffer->Map(512, 64);
+			memcpy(buffer.first, &PixelShaderManager::constants, sizeof(PixelShaderConstants));
+			s_uniformBuffer->Unmap(512);
+			glBindBufferRange(GL_UNIFORM_BUFFER, 1, s_uniformBuffer->m_buffer, buffer.second, sizeof(PixelShaderConstants));
+		}
+
 		{
 			if (hasTexture)
 			{
@@ -565,7 +583,7 @@ namespace HwRasterizer
 
 			ShaderCode pcode;
 			pcode.SetBuffer(pbuf);
-			pcode.Write("#version 130\n");
+/*			pcode.Write("#version 130\n");
 			pcode.Write("out vec4 ocol0;\n");
 
 			if (hasTexture)
@@ -580,7 +598,11 @@ namespace HwRasterizer
 				pcode.Write("    gl_FragColor = texture(samp0, uv0_2.xy);\n");
 			else
 				pcode.Write("    gl_FragColor = colors_02;\n");
-			pcode.Write("}\n");
+			pcode.Write("}\n");*/
+
+			u32 components = 0;
+			components |= hasTexture ? VB_HAS_UV0 : VB_HAS_COL0;
+			GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
 
 //			Gluint prog = OpenGL_CompileProgram(vcode.GetBuffer(), pcode.GetBuffer());
 
@@ -611,9 +633,48 @@ namespace HwRasterizer
 
 
 				// compile fragment shader
-				const char *fsrc[] = { pcode.GetBuffer() };
-				glShaderSource(fragmentShaderID, 1, fsrc, nullptr);
+				static char s_glsl_header[512];
+				snprintf(s_glsl_header, sizeof(s_glsl_header),
+					"#version 130\n"
+					"#extension GL_ARB_uniform_buffer_object : enable\n" // ubo
+//					"%s\n" // early-z
+//					"%s\n" // 420pack
+
+					// Silly differences
+					"#define float2 vec2\n"
+					"#define float3 vec3\n"
+					"#define float4 vec4\n"
+					"#define uint2 uvec2\n"
+					"#define uint3 uvec3\n"
+					"#define uint4 uvec4\n"
+					"#define int2 ivec2\n"
+					"#define int3 ivec3\n"
+					"#define int4 ivec4\n"
+
+					// hlsl to glsl function translation
+					"#define frac fract\n"
+					"#define lerp mix\n"
+
+//					, (g_ActiveConfig.backend_info.bSupportsBindingLayout && v < GLSLES_310) ? "#extension GL_ARB_shading_language_420pack : enable" : ""
+				);
+
+				const char *fsrc[] = { s_glsl_header, pcode.GetBuffer() };
+				glShaderSource(fragmentShaderID, 2, fsrc, nullptr);
 				glCompileShader(fragmentShaderID);
+
+				glGetShaderiv(fragmentShaderID, GL_COMPILE_STATUS, &compileStatus);
+				length2 = 0;
+				glGetShaderiv(fragmentShaderID, GL_INFO_LOG_LENGTH, &length2);
+
+				if (compileStatus != GL_TRUE)
+				{
+					GLsizei charsWritten;
+					GLchar* infoLog = new GLchar[length2];
+					glGetShaderInfoLog(fragmentShaderID, length2, &charsWritten, infoLog);
+					ERROR_LOG(VIDEO, "PS Shader info log:\n%s", infoLog);
+					ERROR_LOG(VIDEO, "%s\n", pcode.GetBuffer());
+					delete[] infoLog;
+				}
 
 				// link them
 				glAttachShader(programID, vertexShaderID);
@@ -661,9 +722,11 @@ namespace HwRasterizer
 			glUseProgram(programID);
 			glBindBuffer(GL_ARRAY_BUFFER, s_vertexBuffer->m_buffer);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_indexBuffer->m_buffer);
+			glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
 			glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, (u8*)nullptr);
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+			glBindBuffer(GL_UNIFORM_BUFFER, 0);
 			GL_REPORT_ERRORD();
 
 			glDeleteVertexArrays(1, &VAO);
