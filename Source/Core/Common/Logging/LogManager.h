@@ -13,7 +13,7 @@
 #include "Common/StdMutex.h"
 
 #define MAX_MESSAGES 8000
-#define MAX_MSGLEN  1024
+#define MAX_MSGLEN  102400
 
 
 // pure virtual interface
