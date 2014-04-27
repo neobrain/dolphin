@@ -212,8 +212,9 @@ namespace HwRasterizer
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_BLEND);
 
-		bpmem.genMode.numtexgens = std::min(bpmem.genMode.numtexgens, xfregs.numTexGen.numTexGens);
-		hasTexture = bpmem.tevorders[0].enable0 && (xfregs.numTexGen.numTexGens>0) && (bpmem.genMode.numtexgens>0);
+//		bpmem.genMode.numtexgens = std::min(bpmem.genMode.numtexgens, xfregs.numTexGen.numTexGens);
+//		hasTexture = bpmem.tevorders[0].enable0 && (xfregs.numTexGen.numTexGens>0) && (bpmem.genMode.numtexgens>0);
+		hasTexture = xfregs.numTexGen.numTexGens > 0;
 
 		if (hasTexture)
 			LoadTexture();
@@ -571,7 +572,7 @@ namespace HwRasterizer
 
 			vcode.Write("void main()\n{\n");
 			if (hasTexture)
-				vcode.Write("uv0_2 = vec3(tex0, 1.0);\n");
+				vcode.Write("uv0_2 = vec3(tex0, 0.0);\n");
 			vcode.Write("clipPos_2 = rawpos;\n");
 			if (!hasTexture)
 				vcode.Write("colors_02 = color0;\n");
@@ -583,28 +584,29 @@ namespace HwRasterizer
 
 			ShaderCode pcode;
 			pcode.SetBuffer(pbuf);
-/*			pcode.Write("#version 130\n");
+
 			pcode.Write("out vec4 ocol0;\n");
 
 			if (hasTexture)
 				pcode.Write("uniform sampler2D samp0;\n");
-			pcode.Write("centroid in vec4 colors_02;\n");
-	//		pcode.Write("centroid in vec4 colors_12;\n");
-			pcode.Write("centroid in vec3 uv0_2;\n");
+
+			if (hasTexture)
+				pcode.Write("centroid in vec3 uv0_2;\n");
 			pcode.Write("centroid in vec4 clipPos_2;\n");
+			if (!hasTexture)
+				pcode.Write("centroid in vec4 colors_02;\n");
 
 			pcode.Write("void main()\n{\n");
 			if (hasTexture)
 				pcode.Write("    gl_FragColor = texture(samp0, uv0_2.xy);\n");
+//				pcode.Write("    gl_FragColor = float4(uv0_2.xyz, 1.0);\n");
 			else
 				pcode.Write("    gl_FragColor = colors_02;\n");
-			pcode.Write("}\n");*/
+			pcode.Write("}\n");
 
-			u32 components = 0;
-			components |= hasTexture ? VB_HAS_UV0 : VB_HAS_COL0;
-			GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
-
-//			Gluint prog = OpenGL_CompileProgram(vcode.GetBuffer(), pcode.GetBuffer());
+//			u32 components = 0;
+//			components |= hasTexture ? VB_HAS_UV0 : VB_HAS_COL0;
+//			GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
 
 			GLuint programID;
 			{
@@ -691,9 +693,9 @@ namespace HwRasterizer
 				glGetProgramiv(programID, GL_INFO_LOG_LENGTH, &length);
 				if (linkStatus != GL_TRUE || (length > 1 && DEBUG_GLSL))
 				{
-		GLsizei charsWritten;
-		GLchar* infoLog = new GLchar[length];
-		glGetProgramInfoLog(programID, length, &charsWritten, infoLog);
+					GLsizei charsWritten;
+					GLchar* infoLog = new GLchar[length];
+					glGetProgramInfoLog(programID, length, &charsWritten, infoLog);
 					ERROR_LOG(VIDEO, "yo.. linking failed! %s", infoLog);
 				}
 
@@ -759,7 +761,7 @@ namespace HwRasterizer
 			glVertexAttribPointer(clear_apos, 3, GL_FLOAT, GL_FALSE, 0, verts);
 			glUniform4f(clear_ucol, r, g, b, a);
 			glEnableVertexAttribArray(col_apos);
-				glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+//				glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 			glDisableVertexAttribArray(col_apos);
 		}
 		GL_REPORT_ERRORD();
