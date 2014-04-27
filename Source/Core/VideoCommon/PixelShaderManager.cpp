@@ -177,7 +177,7 @@ void PixelShaderManager::SetTexDims(int texmapid, u32 width, u32 height, u32 wra
 {
 	// TODO: move this check out to callee. There we could just call this function on texture changes
 	// or better, use textureSize() in glsl
-	if (constants.texdims[texmapid][0] != 1.0f/width || constants.texdims[texmapid][1] != 1.0f/height)
+//	if (constants.texdims[texmapid][0] != 1.0f/width || constants.texdims[texmapid][1] != 1.0f/height)
 		dirty = true;
 
 	constants.texdims[texmapid][0] = 1.0f/width;

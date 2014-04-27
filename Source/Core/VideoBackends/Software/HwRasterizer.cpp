@@ -459,14 +459,15 @@ namespace HwRasterizer
 		float g2 = v2->color[0][OutputVertexData::GRN_C] / 255.0f;
 		float b2 = v2->color[0][OutputVertexData::BLU_C] / 255.0f;
 
-		float s0 = v0->texCoords[0].x;
-		float t0 = v0->texCoords[0].y;
+		// TODO: Dividing by width/height shouldn't be needed
+		float s0 = v0->texCoords[0].x / width;
+		float t0 = v0->texCoords[0].y / height;
 
-		float s1 = v1->texCoords[0].x;
-		float t1 = v1->texCoords[0].y;
+		float s1 = v1->texCoords[0].x / width;
+		float t1 = v1->texCoords[0].y / height;
 
-		float s2 = v2->texCoords[0].x;
-		float t2 = v2->texCoords[0].y;
+		float s2 = v2->texCoords[0].x / width;
+		float t2 = v2->texCoords[0].y / height;
 
 		const GLfloat verts[3*3] = {
 			pos[0], pos[1], pos[2],
@@ -483,17 +484,6 @@ namespace HwRasterizer
 			s1, t1,
 			s2, t2
 		};
-
-		// width, height
-		// TODO: Upload uniforms!
-		{
-			PixelShaderManager::SetTexDims(0, width, height, 0, 0);
-
-			auto buffer = s_uniformBuffer->Map(512, 64);
-			memcpy(buffer.first, &PixelShaderManager::constants, sizeof(PixelShaderConstants));
-			s_uniformBuffer->Unmap(512);
-			glBindBufferRange(GL_UNIFORM_BUFFER, 1, s_uniformBuffer->m_buffer, buffer.second, sizeof(PixelShaderConstants));
-		}
 
 		{
 			if (hasTexture)
@@ -557,6 +547,7 @@ namespace HwRasterizer
 			ShaderCode vcode;
 			vcode.SetBuffer(vbuf);
 			vcode.Write("#version 130\n");
+			vcode.Write("#extension GL_ARB_uniform_buffer_object : enable\n");
 
 			vcode.Write("in vec4 rawpos; // ATTR%d,\n", SHADER_POSITION_ATTRIB);
 			if (!hasTexture)
@@ -581,32 +572,12 @@ namespace HwRasterizer
 			vcode.Write("}\n");
 
 
-
 			ShaderCode pcode;
 			pcode.SetBuffer(pbuf);
 
-			pcode.Write("out vec4 ocol0;\n");
-
-			if (hasTexture)
-				pcode.Write("uniform sampler2D samp0;\n");
-
-			if (hasTexture)
-				pcode.Write("centroid in vec3 uv0_2;\n");
-			pcode.Write("centroid in vec4 clipPos_2;\n");
-			if (!hasTexture)
-				pcode.Write("centroid in vec4 colors_02;\n");
-
-			pcode.Write("void main()\n{\n");
-			if (hasTexture)
-				pcode.Write("    gl_FragColor = texture(samp0, uv0_2.xy);\n");
-//				pcode.Write("    gl_FragColor = float4(uv0_2.xyz, 1.0);\n");
-			else
-				pcode.Write("    gl_FragColor = colors_02;\n");
-			pcode.Write("}\n");
-
-//			u32 components = 0;
-//			components |= hasTexture ? VB_HAS_UV0 : VB_HAS_COL0;
-//			GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
+			u32 components = 0;
+			components |= hasTexture ? VB_HAS_UV0 : VB_HAS_COL0;
+			GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
 
 			GLuint programID;
 			{
@@ -704,6 +675,21 @@ namespace HwRasterizer
 				glDeleteShader(fragmentShaderID);
 			}
 
+			// Set texture width and height
+			// TODO: Set _all_ uniforms!
+			{
+				// TODO: Uploading constants does not seem to work, yet!
+				glUseProgram(programID);
+
+				PixelShaderManager::SetTexDims(0, width, height, 0, 0);
+
+				glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
+				auto buffer = s_uniformBuffer->Map(512, 64);
+				memcpy(buffer.first, &PixelShaderManager::constants, sizeof(PixelShaderConstants));
+				s_uniformBuffer->Unmap(512);
+				glBindBufferRange(GL_UNIFORM_BUFFER, 1, s_uniformBuffer->m_buffer, buffer.second, sizeof(PixelShaderConstants));
+			}
+
 			glEnableVertexAttribArray(SHADER_POSITION_ATTRIB);
 			glVertexAttribPointer(SHADER_POSITION_ATTRIB, 3, GL_FLOAT, true, vertex_stride, (u8*)nullptr);
 
@@ -720,7 +706,6 @@ namespace HwRasterizer
 				glVertexAttribPointer(SHADER_COLOR0_ATTRIB, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + 3 * sizeof(float));
 			}
 
-//			glUseProgram(hasTexture ? texProg : colProg);
 			glUseProgram(programID);
 			glBindBuffer(GL_ARRAY_BUFFER, s_vertexBuffer->m_buffer);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_indexBuffer->m_buffer);
