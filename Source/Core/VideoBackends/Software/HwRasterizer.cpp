@@ -113,7 +113,7 @@ namespace HwRasterizer
 
 		s_vertexBuffer = OGL::StreamBuffer::Create(GL_ARRAY_BUFFER, 512);
 		s_indexBuffer = OGL::StreamBuffer::Create(GL_ELEMENT_ARRAY_BUFFER, 512);
-		s_uniformBuffer = OGL::StreamBuffer::Create(GL_UNIFORM_BUFFER, 512);
+		s_uniformBuffer = OGL::StreamBuffer::Create(GL_UNIFORM_BUFFER, 65536);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
@@ -681,12 +681,13 @@ namespace HwRasterizer
 				// TODO: Uploading constants does not seem to work, yet!
 				glUseProgram(programID);
 
-				PixelShaderManager::SetTexDims(0, width, height, 0, 0);
+//				PixelShaderManager::SetTexDims(0, width, height, 0, 0);
+				PixelShaderManager::SetTexDims(0, 1, 1, 0, 0);
 
 				glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
-				auto buffer = s_uniformBuffer->Map(512, 64);
+				auto buffer = s_uniformBuffer->Map(sizeof(PixelShaderConstants), 0);
 				memcpy(buffer.first, &PixelShaderManager::constants, sizeof(PixelShaderConstants));
-				s_uniformBuffer->Unmap(512);
+				s_uniformBuffer->Unmap(sizeof(PixelShaderConstants));
 				glBindBufferRange(GL_UNIFORM_BUFFER, 1, s_uniformBuffer->m_buffer, buffer.second, sizeof(PixelShaderConstants));
 			}
 
