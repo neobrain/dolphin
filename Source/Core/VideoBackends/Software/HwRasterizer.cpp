@@ -460,14 +460,14 @@ namespace HwRasterizer
 		float b2 = v2->color[0][OutputVertexData::BLU_C] / 255.0f;
 
 		// TODO: Dividing by width/height shouldn't be needed
-		float s0 = v0->texCoords[0].x / width;
-		float t0 = v0->texCoords[0].y / height;
+		float s0 = v0->texCoords[0].x;
+		float t0 = v0->texCoords[0].y;
 
-		float s1 = v1->texCoords[0].x / width;
-		float t1 = v1->texCoords[0].y / height;
+		float s1 = v1->texCoords[0].x;
+		float t1 = v1->texCoords[0].y;
 
-		float s2 = v2->texCoords[0].x / width;
-		float t2 = v2->texCoords[0].y / height;
+		float s2 = v2->texCoords[0].x;
+		float t2 = v2->texCoords[0].y;
 
 		const GLfloat verts[3*3] = {
 			pos[0], pos[1], pos[2],
@@ -575,6 +575,11 @@ namespace HwRasterizer
 			ShaderCode pcode;
 			pcode.SetBuffer(pbuf);
 
+			g_ActiveConfig.backend_info.bSupportsBindingLayout = true;
+//			g_ActiveConfig.backend_info.bSupportsDualSourceBlend = true;// needs glBindFragDataLocationIndexed
+//			g_ActiveConfig.backend_info.bSupportsEarlyZ = true;
+//			g_ActiveConfig.backend_info.bSupportsOversizedViewports = true;
+
 			u32 components = 0;
 			components |= hasTexture ? VB_HAS_UV0 : VB_HAS_COL0;
 			GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
@@ -610,6 +615,7 @@ namespace HwRasterizer
 				snprintf(s_glsl_header, sizeof(s_glsl_header),
 					"#version 130\n"
 					"#extension GL_ARB_uniform_buffer_object : enable\n" // ubo
+					"#extension GL_ARB_shading_language_420pack : enable\n"
 //					"%s\n" // early-z
 //					"%s\n" // 420pack
 
@@ -681,8 +687,7 @@ namespace HwRasterizer
 				// TODO: Uploading constants does not seem to work, yet!
 				glUseProgram(programID);
 
-//				PixelShaderManager::SetTexDims(0, width, height, 0, 0);
-				PixelShaderManager::SetTexDims(0, 1, 1, 0, 0);
+				PixelShaderManager::SetTexDims(0, width, height, 0, 0);
 
 				glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
 				auto buffer = s_uniformBuffer->Map(sizeof(PixelShaderConstants), 0);
