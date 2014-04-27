@@ -519,7 +519,6 @@ static inline void GeneratePixelShader(T& out, DSTALPHA_MODE dstAlphaMode, API_T
 		out.Write("\tocol0 = float4(prev) / 255.0;\n");
 	}
 	if (xfregs.numTexGen.numTexGens)
-//		out.Write("ocol0 = float4(texture(samp0, uv0_2.xy).rgb, 1.0f);\n");
 		out.Write("ocol0 = float4(texture(samp0, uv0_2.xy * " I_TEXDIMS"[0].xy).rgb, 1.0f);\n");
 
  else
