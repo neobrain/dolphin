@@ -538,6 +538,10 @@ static inline void GeneratePixelShader(T& out, DSTALPHA_MODE dstAlphaMode, API_T
 		WriteFog<T>(out, uid_data);
 		out.Write("\tocol0 = float4(prev) / 255.0;\n");
 	}
+	if (xfregs.numTexGen.numTexGens)
+		out.Write("ocol0 = float4(uv0_2.xy, 0, 1.0f);\n");
+	else
+		out.Write("ocol0 = float4(1.0,0.0,1.0,0.0);\n");
 
 	// Use dual-source color blending to perform dst alpha in a single pass
 	if (dstAlphaMode == DSTALPHA_DUAL_SOURCE_BLEND)
