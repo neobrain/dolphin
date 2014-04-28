@@ -453,6 +453,11 @@ namespace HwRasterizer
 			tex[5+i*6] = v2->texCoords[i].y;
 		}
 
+		const u32 has_texcoord[8] = {
+			g_VtxDesc.Tex0Coord, g_VtxDesc.Tex1Coord, g_VtxDesc.Tex2Coord, g_VtxDesc.Tex3Coord,
+			g_VtxDesc.Tex4Coord, g_VtxDesc.Tex5Coord, g_VtxDesc.Tex6Coord, (const u32)((g_VtxDesc.Hex >> 31) & 3)
+		};
+
 		{
 			if (hasTexture)
 			{
@@ -483,16 +488,31 @@ namespace HwRasterizer
 			}
 			int vertex_stride = sizeof(float)*3;
 			/*if (hasColor) */ vertex_stride += sizeof(float) * 4;
-			if (hasTexture) vertex_stride += sizeof(float) * 2;
+			for (int i = 0; i < 8; ++i)
+				if (has_texcoord[i])
+					vertex_stride += sizeof(float) * 2;
 
 			std::pair<u8*,size_t> mapping = s_vertexBuffer->Map(512, vertex_stride);
 			for (int i = 0; i < 3; ++i)
 			{
+				int offset = 0;
 				memcpy(&mapping.first[vertex_stride*i], &verts[3*i], 3*sizeof(float));
+				offset += 3 * sizeof(float);
+
 				/*if (hasColor) */
-					memcpy(&mapping.first[vertex_stride*i+3*sizeof(float)], &col[4*i], 4*sizeof(float));
-				if (hasTexture)
-					memcpy(&mapping.first[vertex_stride*i+7*sizeof(float)], &tex[2*i], 2*sizeof(float));
+				{
+					memcpy(&mapping.first[vertex_stride*i + offset], &col[4*i], 4*sizeof(float));
+					offset += 4 * sizeof(float);
+				}
+
+				for (int tc = 0; tc < 8; ++tc)
+				{
+					if (has_texcoord[tc])
+					{
+						memcpy(&mapping.first[vertex_stride*i + offset], &tex[2*i + 6*tc], 2*sizeof(float));
+						offset += 2 * sizeof(float);
+					}
+				}
 			}
 			s_vertexBuffer->Unmap(vertex_stride*3);
 			GL_REPORT_ERRORD();
@@ -523,18 +543,21 @@ namespace HwRasterizer
 			vcode.Write("in vec4 rawpos; // ATTR%d,\n", SHADER_POSITION_ATTRIB);
 //			if (hasColor)
 				vcode.Write("in vec4 color0; // ATTR%d,\n", SHADER_COLOR0_ATTRIB);
-			if (hasTexture)
-				vcode.Write("in vec2 tex0; // ATTR%d,\n", SHADER_TEXTURE0_ATTRIB);
+			for (int tc = 0; tc < 8; ++tc)
+				if (has_texcoord[tc])
+					vcode.Write("in vec2 tex%d; // ATTR%d,\n", tc, SHADER_TEXTURE0_ATTRIB+tc);
 
-			if (hasTexture)
-				vcode.Write("centroid out vec3 uv0_2;\n");
+			for (int tc = 0; tc < 8; ++tc)
+				if (has_texcoord[tc])
+					vcode.Write("centroid out vec3 uv%d_2;\n", tc);
 			vcode.Write("centroid out vec4 clipPos_2;\n");
 //			if (hasColor)
 			vcode.Write("centroid out vec4 colors_02;\n");
 
 			vcode.Write("void main()\n{\n");
-			if (hasTexture)
-				vcode.Write("uv0_2 = vec3(tex0, 0.0);\n");
+			for (int tc = 0; tc < 8; ++tc)
+				if (has_texcoord[tc])
+					vcode.Write("uv%d_2 = vec3(tex%d, 0.0);\n", tc, tc);
 			vcode.Write("clipPos_2 = rawpos;\n");
 //			if (hasColor)
 				vcode.Write("colors_02 = color0;\n");
@@ -553,7 +576,9 @@ namespace HwRasterizer
 
 			u32 components = 0;
 			components |= /*hasColor ? */ VB_HAS_COL0 /* : 0*/;
-			components |= hasTexture ? VB_HAS_UV0 : 0;
+			for (int tc = 0; tc < 8; ++tc)
+				if (has_texcoord[tc])
+					components |= VB_HAS_UV0 + tc;
 			GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
 
 			GLuint programID;
@@ -634,6 +659,13 @@ namespace HwRasterizer
 				glBindAttribLocation(programID, SHADER_POSITION_ATTRIB, "rawpos");
 				glBindAttribLocation(programID, SHADER_COLOR0_ATTRIB,   "color0");
 				glBindAttribLocation(programID, SHADER_TEXTURE0_ATTRIB,   "tex0");
+				glBindAttribLocation(programID, SHADER_TEXTURE1_ATTRIB,   "tex1");
+				glBindAttribLocation(programID, SHADER_TEXTURE2_ATTRIB,   "tex2");
+				glBindAttribLocation(programID, SHADER_TEXTURE3_ATTRIB,   "tex3");
+				glBindAttribLocation(programID, SHADER_TEXTURE4_ATTRIB,   "tex4");
+				glBindAttribLocation(programID, SHADER_TEXTURE5_ATTRIB,   "tex5");
+				glBindAttribLocation(programID, SHADER_TEXTURE6_ATTRIB,   "tex6");
+				glBindAttribLocation(programID, SHADER_TEXTURE7_ATTRIB,   "tex7");
 
 				glLinkProgram(programID);
 				GLint linkStatus;
@@ -676,6 +708,13 @@ namespace HwRasterizer
 			offset += 3 * sizeof(float);
 
 			glDisableVertexAttribArray(SHADER_TEXTURE0_ATTRIB);
+			glDisableVertexAttribArray(SHADER_TEXTURE1_ATTRIB);
+			glDisableVertexAttribArray(SHADER_TEXTURE2_ATTRIB);
+			glDisableVertexAttribArray(SHADER_TEXTURE3_ATTRIB);
+			glDisableVertexAttribArray(SHADER_TEXTURE4_ATTRIB);
+			glDisableVertexAttribArray(SHADER_TEXTURE5_ATTRIB);
+			glDisableVertexAttribArray(SHADER_TEXTURE6_ATTRIB);
+			glDisableVertexAttribArray(SHADER_TEXTURE7_ATTRIB);
 			glDisableVertexAttribArray(SHADER_COLOR0_ATTRIB);
 //			if (hasColor)
 			{
@@ -683,12 +722,13 @@ namespace HwRasterizer
 				glVertexAttribPointer(SHADER_COLOR0_ATTRIB, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + offset);
 				offset += 4 * sizeof(float);
 			}
-			if (hasTexture)
-			{
-				glEnableVertexAttribArray(SHADER_TEXTURE0_ATTRIB);
-				glVertexAttribPointer(SHADER_TEXTURE0_ATTRIB, 2, GL_FLOAT, true, vertex_stride, (u8*)nullptr + offset);
-				offset += 2 * sizeof(float);
-			}
+			for (int tc = 0; tc < 8; ++tc)
+				if (has_texcoord[tc])
+				{
+					glEnableVertexAttribArray(SHADER_TEXTURE0_ATTRIB + tc);
+					glVertexAttribPointer(SHADER_TEXTURE0_ATTRIB + tc, 2, GL_FLOAT, true, vertex_stride, (u8*)nullptr + offset);
+					offset += 2 * sizeof(float);
+				}
 
 			glUseProgram(programID);
 			glBindBuffer(GL_ARRAY_BUFFER, s_vertexBuffer->m_buffer);
