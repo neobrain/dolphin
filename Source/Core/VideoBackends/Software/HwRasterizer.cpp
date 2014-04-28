@@ -702,7 +702,12 @@ namespace HwRasterizer
 
 				PixelShaderManager::Dirty();
 				for (int i = 0; i < 8; ++i)
+				{
 					PixelShaderManager::SetTexDims(i, bpmem.tex[i/2].texImage0[i%4].width, bpmem.tex[i/2].texImage0[i%4].height, 0, 0);
+
+					// Disabling scaling because we already did this in TransformUnit!
+					PixelShaderManager::SetTexCoordChangedCustom(i, 0, 0);
+				}
 
 				glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
 				auto buffer = s_uniformBuffer->Map(sizeof(PixelShaderConstants), 0);

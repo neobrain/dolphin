@@ -36,6 +36,7 @@ public:
 	static void SetZTextureTypeChanged();
 	static void SetIndTexScaleChanged(bool high);
 	static void SetTexCoordChanged(u8 texmapid);
+	static void SetTexCoordChangedCustom(u8 texmapid, u32 s_scale_minus_1, u32 t_scale_minus_1);
 	static void SetFogColorChanged();
 	static void SetFogParamChanged();
 	static void SetFogRangeAdjustChanged();
