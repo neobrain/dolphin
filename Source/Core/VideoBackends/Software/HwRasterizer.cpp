@@ -19,7 +19,12 @@
 #include <VideoBackends/OGL/VertexManager.h>
 #include <VideoBackends/OGL/TextureCache.h>
 
+#include "Tev.h"
 #define TEMP_SIZE (1024*1024*4)
+
+namespace Rasterizer {
+extern Tev tev;
+}
 
 namespace HwRasterizer
 {
@@ -445,12 +450,13 @@ namespace HwRasterizer
 		GLfloat tex[3*2*8];
 		for (int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
 		{
-			tex[0+i*6] = v0->texCoords[i].x;
-			tex[1+i*6] = v0->texCoords[i].y;
-			tex[2+i*6] = v1->texCoords[i].x;
-			tex[3+i*6] = v1->texCoords[i].y;
-			tex[4+i*6] = v2->texCoords[i].x;
-			tex[5+i*6] = v2->texCoords[i].y;
+			// Undoing texcoord scaling here for compatibility with PixelShaderGen
+			tex[0+i*6] = v0->texCoords[i].x / (float)(bpmem.texcoords[i].s.scale_minus_1 + 1);
+			tex[1+i*6] = v0->texCoords[i].y / (float)(bpmem.texcoords[i].t.scale_minus_1 + 1);
+			tex[2+i*6] = v1->texCoords[i].x / (float)(bpmem.texcoords[i].s.scale_minus_1 + 1);
+			tex[3+i*6] = v1->texCoords[i].y / (float)(bpmem.texcoords[i].t.scale_minus_1 + 1);
+			tex[4+i*6] = v2->texCoords[i].x / (float)(bpmem.texcoords[i].s.scale_minus_1 + 1);
+			tex[5+i*6] = v2->texCoords[i].y / (float)(bpmem.texcoords[i].t.scale_minus_1 + 1);
 		}
 
 		const u32 has_texcoord[8] = {
@@ -704,9 +710,18 @@ namespace HwRasterizer
 				for (int i = 0; i < 8; ++i)
 				{
 					PixelShaderManager::SetTexDims(i, bpmem.tex[i/2].texImage0[i%4].width, bpmem.tex[i/2].texImage0[i%4].height, 0, 0);
+				}
 
-					// Disabling scaling because we already did this in TransformUnit!
-					PixelShaderManager::SetTexCoordChangedCustom(i, 0, 0);
+				for (int i = 0; i < 4; ++i) 
+				{
+					PixelShaderManager::SetColorChangedCustom(0, i, Rasterizer::tev.Reg[i][Tev::RED_C],
+											Rasterizer::tev.Reg[i][Tev::ALP_C],
+											Rasterizer::tev.Reg[i][Tev::BLU_C],
+											Rasterizer::tev.Reg[i][Tev::GRN_C]);
+					PixelShaderManager::SetColorChangedCustom(1, i, Rasterizer::tev.KonstantColors[i][Tev::RED_C],
+											Rasterizer::tev.KonstantColors[i][Tev::ALP_C],
+											Rasterizer::tev.KonstantColors[i][Tev::BLU_C],
+											Rasterizer::tev.KonstantColors[i][Tev::GRN_C]);
 				}
 
 				glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
@@ -780,6 +795,12 @@ namespace HwRasterizer
 			{ left, bottom, depth }
 		};
 		{
+			GLboolean const
+				color_mask = bpmem.blendmode.colorupdate ? GL_TRUE : GL_FALSE,
+				alpha_mask = bpmem.blendmode.alphaupdate ? GL_TRUE : GL_FALSE;
+			glColorMask(color_mask,  color_mask,  color_mask,  alpha_mask);
+			glDepthMask(bpmem.zmode.updateenable ? GL_TRUE : GL_FALSE);
+
 			glUseProgram(clearProg);
 			glVertexAttribPointer(clear_apos, 3, GL_FLOAT, GL_FALSE, 0, verts);
 			glUniform4f(clear_ucol, r, g, b, a);

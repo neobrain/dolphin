@@ -119,6 +119,18 @@ void PixelShaderManager::SetColorChanged(int type, int num)
 	PRIM_LOG("pixel %scolor%d: %d %d %d %d\n", type?"k":"", num, c[num][0], c[num][1], c[num][2], c[num][3]);
 }
 
+void PixelShaderManager::SetColorChangedCustom(int type, int num, u32 red, u32 alpha, u32 blue, u32 green)
+{
+	int4* c = type ? constants.kcolors : constants.colors;
+	c[num][0] = red;
+	c[num][3] = alpha;
+	c[num][2] = blue;
+	c[num][1] = green;
+	dirty = true;
+
+	PRIM_LOG("pixel %scolor%d: %d %d %d %d\n", type?"k":"", num, c[num][0], c[num][1], c[num][2], c[num][3]);
+}
+
 void PixelShaderManager::SetAlpha()
 {
 	constants.alpha[0] = bpmem.alpha_test.ref0;

@@ -55,6 +55,7 @@ bool cInterfaceGLX::Create(void *&window_handle)
 	int attrListSgl[] = {GLX_RGBA, GLX_RED_SIZE, 8,
 		GLX_GREEN_SIZE, 8,
 		GLX_BLUE_SIZE, 8,
+		GLX_DEPTH_SIZE, 24,
 		None};
 
 	// attributes for a double buffered visual in RGBA format with at least
@@ -63,6 +64,7 @@ bool cInterfaceGLX::Create(void *&window_handle)
 		GLX_RED_SIZE, 8,
 		GLX_GREEN_SIZE, 8,
 		GLX_BLUE_SIZE, 8,
+		GLX_DEPTH_SIZE, 24,
 		None };
 
 	int attrListDefault[] = {
@@ -71,6 +73,7 @@ bool cInterfaceGLX::Create(void *&window_handle)
 		GLX_GREEN_SIZE, 1,
 		GLX_BLUE_SIZE, 1,
 		GLX_DOUBLEBUFFER,
+		GLX_DEPTH_SIZE, 24,
 		None };
 
 	GLWin.dpy = XOpenDisplay(nullptr);

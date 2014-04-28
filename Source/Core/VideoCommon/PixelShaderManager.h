@@ -38,6 +38,7 @@ public:
 	static void SetTexCoordChanged(u8 texmapid);
 	static void SetTexCoordChangedCustom(u8 texmapid, u32 s_scale_minus_1, u32 t_scale_minus_1);
 	static void SetFogColorChanged();
+	static void SetColorChangedCustom(int type, int num, u32 red, u32 alpha, u32 blue, u32 green);
 	static void SetFogParamChanged();
 	static void SetFogRangeAdjustChanged();
 
