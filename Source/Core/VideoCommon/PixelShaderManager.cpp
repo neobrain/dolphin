@@ -220,8 +220,13 @@ void PixelShaderManager::SetZTextureTypeChanged()
 void PixelShaderManager::SetTexCoordChanged(u8 texmapid)
 {
 	TCoordInfo& tc = bpmem.texcoords[texmapid];
-	constants.texdims[texmapid][2] = (float)(tc.s.scale_minus_1 + 1);
-	constants.texdims[texmapid][3] = (float)(tc.t.scale_minus_1 + 1);
+	SetTexCoordChangedCustom(texmapid, tc.s.scale_minus_1, tc.t.scale_minus_1);
+}
+
+void PixelShaderManager::SetTexCoordChangedCustom(u8 texmapid, u32 s_scale_minus_1, u32 t_scale_minus_1)
+{
+	constants.texdims[texmapid][2] = (float)(s_scale_minus_1 + 1);
+	constants.texdims[texmapid][3] = (float)(t_scale_minus_1 + 1);
 	dirty = true;
 }
 
