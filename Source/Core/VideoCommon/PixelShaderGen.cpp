@@ -456,6 +456,7 @@ static inline void GeneratePixelShader(T& out, DSTALPHA_MODE dstAlphaMode, API_T
 			out.Write("\tprev.a = %s;\n", tevAOutputTable[bpmem.combiners[numStages - 1].alphaC.dest]);
 		}
 	}
+//	out.Write("prev = int4(255.0*texture(samp0, uv0_2.xy));\n");
 	out.Write("\tprev = prev & 255;\n");
 
 	AlphaTest::TEST_RESULT Pretest = bpmem.alpha_test.TestResult();
@@ -463,8 +464,8 @@ static inline void GeneratePixelShader(T& out, DSTALPHA_MODE dstAlphaMode, API_T
 
 	// NOTE: Fragment may not be discarded if alpha test always fails and early depth test is enabled
 	// (in this case we need to write a depth value if depth test passes regardless of the alpha testing result)
-	if (Pretest == AlphaTest::UNDETERMINED || (Pretest == AlphaTest::FAIL && bpmem.UseLateDepthTest()))
-		WriteAlphaTest<T>(out, uid_data, ApiType, dstAlphaMode, per_pixel_depth);
+//	if (Pretest == AlphaTest::UNDETERMINED || (Pretest == AlphaTest::FAIL && bpmem.UseLateDepthTest()))
+//		WriteAlphaTest<T>(out, uid_data, ApiType, dstAlphaMode, per_pixel_depth);
 
 	// FastDepth means to trust the depth generated in perspective division.
 	// It should be correct, but it seems not to be as accurate as required. TODO: Find out why!

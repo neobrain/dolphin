@@ -24,6 +24,7 @@ class Tev
 	};
 
 	// color order: ABGR
+public:
 	s16 Reg[4][4];
 	s16 KonstantColors[4][4];
 	s16 TexColor[4];
