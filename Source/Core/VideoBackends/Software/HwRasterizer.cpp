@@ -180,31 +180,6 @@ namespace HwRasterizer
 
 		GL_REPORT_ERRORD();
 	}
-	static float width, height;
-	void LoadTexture()
-	{
-		FourTexUnits &texUnit = bpmem.tex[0];
-		u32 imageAddr = texUnit.texImage3[0].image_base;
-		// Texture Rectangle uses pixel coordinates
-		// While GLES uses texture coordinates
-		if (GLInterface->GetMode() == GLInterfaceMode::MODE_OPENGL)
-		{
-			width = (float)texUnit.texImage0[0].width;
-			height = (float)texUnit.texImage0[0].height;
-		}
-		else
-		{
-			width = 1;
-			height = 1;
-		}
-		TexCacheEntry &cacheEntry = textures[imageAddr];
-		cacheEntry.Update();
-
-		glBindTexture(texType, cacheEntry.texture);
-		glTexParameteri(texType, GL_TEXTURE_MAG_FILTER, texUnit.texMode0[0].mag_filter ? GL_LINEAR : GL_NEAREST);
-		glTexParameteri(texType, GL_TEXTURE_MIN_FILTER, (texUnit.texMode0[0].min_filter >= 4) ? GL_LINEAR : GL_NEAREST);
-		GL_REPORT_ERRORD();
-	}
 
 	void BeginTriangles()
 	{
@@ -215,9 +190,6 @@ namespace HwRasterizer
 //		bpmem.genMode.numtexgens = std::min(bpmem.genMode.numtexgens, xfregs.numTexGen.numTexGens);
 //		hasTexture = bpmem.tevorders[0].enable0 && (xfregs.numTexGen.numTexGens>0) && (bpmem.genMode.numtexgens>0);
 		hasTexture = xfregs.numTexGen.numTexGens > 0;
-
-		if (hasTexture)
-			LoadTexture();
 	}
 
 	void EndTriangles()
@@ -509,15 +481,18 @@ namespace HwRasterizer
 						(texparams.texImage1[i&3].image_type != 0));
 				}
 			}
-			int vertex_stride = hasTexture ? sizeof(float) * 5 : sizeof(float) * 7;
+			int vertex_stride = sizeof(float)*3;
+			/*if (hasColor) */ vertex_stride += sizeof(float) * 4;
+			if (hasTexture) vertex_stride += sizeof(float) * 2;
+
 			std::pair<u8*,size_t> mapping = s_vertexBuffer->Map(512, vertex_stride);
 			for (int i = 0; i < 3; ++i)
 			{
 				memcpy(&mapping.first[vertex_stride*i], &verts[3*i], 3*sizeof(float));
+				/*if (hasColor) */
+					memcpy(&mapping.first[vertex_stride*i+3*sizeof(float)], &col[4*i], 4*sizeof(float));
 				if (hasTexture)
-					memcpy(&mapping.first[vertex_stride*i+3*sizeof(float)], &tex[2*i],   2*sizeof(float));
-				else
-					memcpy(&mapping.first[vertex_stride*i+3*sizeof(float)], &col[4*i],   4*sizeof(float));
+					memcpy(&mapping.first[vertex_stride*i+7*sizeof(float)], &tex[2*i], 2*sizeof(float));
 			}
 			s_vertexBuffer->Unmap(vertex_stride*3);
 			GL_REPORT_ERRORD();
@@ -546,22 +521,22 @@ namespace HwRasterizer
 			vcode.Write("#extension GL_ARB_uniform_buffer_object : enable\n");
 
 			vcode.Write("in vec4 rawpos; // ATTR%d,\n", SHADER_POSITION_ATTRIB);
-			if (!hasTexture)
+//			if (hasColor)
 				vcode.Write("in vec4 color0; // ATTR%d,\n", SHADER_COLOR0_ATTRIB);
-			else
+			if (hasTexture)
 				vcode.Write("in vec2 tex0; // ATTR%d,\n", SHADER_TEXTURE0_ATTRIB);
 
 			if (hasTexture)
 				vcode.Write("centroid out vec3 uv0_2;\n");
 			vcode.Write("centroid out vec4 clipPos_2;\n");
-			if (!hasTexture)
+//			if (hasColor)
 			vcode.Write("centroid out vec4 colors_02;\n");
 
 			vcode.Write("void main()\n{\n");
 			if (hasTexture)
 				vcode.Write("uv0_2 = vec3(tex0, 0.0);\n");
 			vcode.Write("clipPos_2 = rawpos;\n");
-			if (!hasTexture)
+//			if (hasColor)
 				vcode.Write("colors_02 = color0;\n");
 			vcode.Write("gl_Position = rawpos;\n");
 
@@ -577,7 +552,8 @@ namespace HwRasterizer
 //			g_ActiveConfig.backend_info.bSupportsOversizedViewports = true;
 
 			u32 components = 0;
-			components |= hasTexture ? VB_HAS_UV0 : VB_HAS_COL0;
+			components |= /*hasColor ? */ VB_HAS_COL0 /* : 0*/;
+			components |= hasTexture ? VB_HAS_UV0 : 0;
 			GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
 
 			GLuint programID;
@@ -684,7 +660,8 @@ namespace HwRasterizer
 				glUseProgram(programID);
 
 				PixelShaderManager::Dirty();
-				PixelShaderManager::SetTexDims(0, width, height, 0, 0);
+				for (int i = 0; i < 8; ++i)
+					PixelShaderManager::SetTexDims(i, bpmem.tex[i/2].texImage0[i%4].width, bpmem.tex[i/2].texImage0[i%4].height, 0, 0);
 
 				glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
 				auto buffer = s_uniformBuffer->Map(sizeof(PixelShaderConstants), 0);
@@ -693,20 +670,24 @@ namespace HwRasterizer
 				glBindBufferRange(GL_UNIFORM_BUFFER, 1, s_uniformBuffer->m_buffer, buffer.second, sizeof(PixelShaderConstants));
 			}
 
+			int offset = 0;
 			glEnableVertexAttribArray(SHADER_POSITION_ATTRIB);
 			glVertexAttribPointer(SHADER_POSITION_ATTRIB, 3, GL_FLOAT, true, vertex_stride, (u8*)nullptr);
+			offset += 3 * sizeof(float);
 
 			glDisableVertexAttribArray(SHADER_TEXTURE0_ATTRIB);
 			glDisableVertexAttribArray(SHADER_COLOR0_ATTRIB);
+//			if (hasColor)
+			{
+				glEnableVertexAttribArray(SHADER_COLOR0_ATTRIB);
+				glVertexAttribPointer(SHADER_COLOR0_ATTRIB, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + offset);
+				offset += 4 * sizeof(float);
+			}
 			if (hasTexture)
 			{
 				glEnableVertexAttribArray(SHADER_TEXTURE0_ATTRIB);
-				glVertexAttribPointer(SHADER_TEXTURE0_ATTRIB, 2, GL_FLOAT, true, vertex_stride, (u8*)nullptr + 3 * sizeof(float));
-			}
-			else
-			{
-				glEnableVertexAttribArray(SHADER_COLOR0_ATTRIB);
-				glVertexAttribPointer(SHADER_COLOR0_ATTRIB, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + 3 * sizeof(float));
+				glVertexAttribPointer(SHADER_TEXTURE0_ATTRIB, 2, GL_FLOAT, true, vertex_stride, (u8*)nullptr + offset);
+				offset += 2 * sizeof(float);
 			}
 
 			glUseProgram(programID);
