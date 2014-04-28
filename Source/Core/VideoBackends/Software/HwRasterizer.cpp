@@ -579,10 +579,18 @@ namespace HwRasterizer
 			for (int tc = 0; tc < 8; ++tc)
 				if (has_texcoord[tc])
 					components |= VB_HAS_UV0 + tc;
-			GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
 
-			GLuint programID;
+			PixelShaderUid ps_uid;
+			GetPixelShaderUid(ps_uid, DSTALPHA_NONE, API_OPENGL, components);
+
+			static std::map<PixelShaderUid, GLuint> programs;
+
+			if (programs.find(ps_uid) == programs.end())
 			{
+				GLuint& programID = programs[ps_uid];
+				ERROR_LOG(VIDEO, "Number of active programs: %d", programs.size());
+				GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
+
 				// generate objects
 				GLuint vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
 				GLuint fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
@@ -605,7 +613,6 @@ namespace HwRasterizer
 					glGetShaderInfoLog(vertexShaderID, length2, &charsWritten, infoLog);
 					ERROR_LOG(VIDEO, "VS Shader info log:\n%s", infoLog);
 				}
-
 
 				// compile fragment shader
 				static char s_glsl_header[512];
@@ -685,6 +692,8 @@ namespace HwRasterizer
 				glDeleteShader(fragmentShaderID);
 			}
 
+			GLuint& programID = programs[ps_uid];
+
 			// Set texture width and height
 			// TODO: Set _all_ uniforms!
 			{
@@ -741,7 +750,7 @@ namespace HwRasterizer
 			GL_REPORT_ERRORD();
 
 			glDeleteVertexArrays(1, &VAO);
-			glDeleteProgram(programID);
+//			glDeleteProgram(programID); // TODO: Free those!
 		}
 		GL_REPORT_ERRORD();
 
