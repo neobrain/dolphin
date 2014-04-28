@@ -459,16 +459,6 @@ namespace HwRasterizer
 		float g2 = v2->color[0][OutputVertexData::GRN_C] / 255.0f;
 		float b2 = v2->color[0][OutputVertexData::BLU_C] / 255.0f;
 
-		// TODO: Dividing by width/height shouldn't be needed
-		float s0 = v0->texCoords[0].x;
-		float t0 = v0->texCoords[0].y;
-
-		float s1 = v1->texCoords[0].x;
-		float t1 = v1->texCoords[0].y;
-
-		float s2 = v2->texCoords[0].x;
-		float t2 = v2->texCoords[0].y;
-
 		const GLfloat verts[3*3] = {
 			pos[0], pos[1], pos[2],
 			pos[3], pos[4], pos[5],
@@ -479,11 +469,17 @@ namespace HwRasterizer
 			 r1, g1, b1, 1.0f ,
 			 r2, g2, b2, 1.0f 
 		};
-		const GLfloat tex[3*2] = {
-			s0, t0,
-			s1, t1,
-			s2, t2
-		};
+
+		GLfloat tex[3*2*8];
+		for (int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
+		{
+			tex[0+i*6] = v0->texCoords[i].x;
+			tex[1+i*6] = v0->texCoords[i].y;
+			tex[2+i*6] = v1->texCoords[i].x;
+			tex[3+i*6] = v1->texCoords[i].y;
+			tex[4+i*6] = v2->texCoords[i].x;
+			tex[5+i*6] = v2->texCoords[i].y;
+		}
 
 		{
 			if (hasTexture)
@@ -687,6 +683,7 @@ namespace HwRasterizer
 				// TODO: Uploading constants does not seem to work, yet!
 				glUseProgram(programID);
 
+				PixelShaderManager::Dirty();
 				PixelShaderManager::SetTexDims(0, width, height, 0, 0);
 
 				glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
@@ -752,7 +749,7 @@ namespace HwRasterizer
 			glVertexAttribPointer(clear_apos, 3, GL_FLOAT, GL_FALSE, 0, verts);
 			glUniform4f(clear_ucol, r, g, b, a);
 			glEnableVertexAttribArray(col_apos);
-//				glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+				glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 			glDisableVertexAttribArray(col_apos);
 		}
 		GL_REPORT_ERRORD();
