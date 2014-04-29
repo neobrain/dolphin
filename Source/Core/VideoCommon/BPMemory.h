@@ -1073,8 +1073,10 @@ struct BPMemory
 	u32 bpMask; //0xFE
 	u32 unknown18; //ff
 
-	bool UseEarlyDepthTest() const { return zcontrol.early_ztest && zmode.testenable; }
-	bool UseLateDepthTest() const { return !zcontrol.early_ztest && zmode.testenable; }
+//	bool UseEarlyDepthTest() const { return zcontrol.early_ztest && zmode.testenable; }
+//	bool UseLateDepthTest() const { return !zcontrol.early_ztest && zmode.testenable; }
+	bool UseEarlyDepthTest() const { return false; }
+	bool UseLateDepthTest() const { return zmode.testenable; }
 };
 
 #pragma pack()

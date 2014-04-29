@@ -23,6 +23,8 @@ namespace HwRasterizer
 
 	void DrawTriangleFrontFace(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2);
 
+	void Swap(const EFBRectangle& targetRc);
+
 	void Clear();
 
 	struct TexCacheEntry

@@ -13,6 +13,7 @@
 #include "VideoBackends/Software/SWCommandProcessor.h"
 #include "VideoBackends/Software/SWRenderer.h"
 #include "VideoBackends/Software/SWStatistics.h"
+#include "HwRasterizer.h"
 #include "VideoCommon/ImageWrite.h"
 #include "VideoCommon/OnScreenDisplay.h"
 #include <VideoCommon/DriverDetails.h>
@@ -207,6 +208,17 @@ void SWRenderer::UpdateColorTexture(EfbInterface::yuv422_packed *xfb, u32 fbWidt
 // Called on the GPU thread
 void SWRenderer::Swap(u32 fbWidth, u32 fbHeight)
 {
+	if (g_SWVideoConfig.bHwRasterizer)
+	{
+		EFBRectangle rc;
+		rc.top = 0;
+		rc.bottom = 0;
+		rc.left = 0;
+		rc.right = 0;
+		HwRasterizer::Swap(rc);
+		return;
+	}
+
 	GLInterface->Update(); // just updates the render window position and the backbuffer size
 	if (!g_SWVideoConfig.bHwRasterizer)
 		SWRenderer::DrawTexture(getCurrentColorTexture(), fbWidth, fbHeight);
@@ -285,7 +297,7 @@ void SWRenderer::SwapBuffer()
 
 	swstats.ResetFrame();
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	GL_REPORT_ERRORD();
 }

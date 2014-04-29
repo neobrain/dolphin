@@ -20,6 +20,7 @@
 #include <VideoBackends/OGL/TextureCache.h>
 
 #include "Tev.h"
+#include <Core/Core.h>
 #define TEMP_SIZE (1024*1024*4)
 
 namespace Rasterizer {
@@ -50,6 +51,10 @@ namespace HwRasterizer
 	static OGL::StreamBuffer *s_vertexBuffer;
 	static OGL::StreamBuffer *s_indexBuffer;
 	static OGL::StreamBuffer *s_uniformBuffer;
+
+	static GLuint m_efbFramebuffer = 0;
+	static GLuint m_efbColor = 0;
+	static GLuint m_efbDepth = 0;
 
 	static void CreateShaders()
 	{
@@ -124,6 +129,34 @@ namespace HwRasterizer
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 		g_texture_cache = new OGL::TextureCache;
 		PixelShaderManager::Init();
+
+		// render target setup
+		glGenFramebuffers(1, &m_efbFramebuffer);
+		glActiveTexture(GL_TEXTURE0 + 9);
+
+		GLuint glObj[2];
+		glGenTextures(2, glObj);
+		m_efbColor = glObj[0];
+		m_efbDepth = glObj[1];
+
+		glBindTexture(GL_TEXTURE_2D, m_efbColor);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, EFB_WIDTH, EFB_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+		glBindTexture(GL_TEXTURE_2D, m_efbDepth);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, EFB_WIDTH, EFB_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
+
+		// Bind target textures to the EFB framebuffer.
+
+		glBindFramebuffer(GL_FRAMEBUFFER, m_efbFramebuffer);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_efbColor, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_efbDepth, 0);
 	}
 
 	void Init()
@@ -579,6 +612,9 @@ namespace HwRasterizer
 //			g_ActiveConfig.backend_info.bSupportsDualSourceBlend = true;// needs glBindFragDataLocationIndexed
 //			g_ActiveConfig.backend_info.bSupportsEarlyZ = true;
 //			g_ActiveConfig.backend_info.bSupportsOversizedViewports = true;
+			g_ActiveConfig.backend_info.bSupportsEarlyZ = false;
+//			g_ActiveConfig.backend_info.bUseRGBATextures = true;
+			g_ActiveConfig.bFastDepthCalc = true;
 
 			u32 components = 0;
 			components |= /*hasColor ? */ VB_HAS_COL0 /* : 0*/;
@@ -774,6 +810,30 @@ namespace HwRasterizer
 		}
 		GL_REPORT_ERRORD();
 
+	}
+
+	void Swap(const EFBRectangle& targetRc)
+	{
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		GLuint fb = m_efbFramebuffer;
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, fb);
+		glBlitFramebuffer(targetRc.left, targetRc.bottom, targetRc.right, targetRc.top,
+			targetRc.left, targetRc.bottom, targetRc.right, targetRc.top,
+			GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		GLInterface->Update(); // just updates the render window position and the backbuffer size
+//		swstats.frameCount++;
+		GLInterface->Swap();
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, m_efbFramebuffer);
+
+//		OSDChoice::DoCallbacks(OSD::OSD_ONFRAME);
+
+//		DrawDebugText();
+		glFlush(); // TODO: Seems unnecessary
+
+		Core::Callback_VideoCopiedToXFB(true); // FIXME: should this function be called FrameRendered?
 	}
 
 	void Clear()
