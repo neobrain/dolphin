@@ -59,6 +59,17 @@ namespace HwRasterizer
 	static GLuint m_efbColor = 0;
 	static GLuint m_efbDepth = 0;
 
+
+	struct SimpleVertex
+	{
+		float pos[3]; // screen coordinates
+		GLfloat col0[4];
+		GLfloat col1[4];
+		GLfloat tex[2*8];
+	};
+
+	static std::vector<SimpleVertex> vertices;
+
 	static void CreateShaders()
 	{
 		// Color Vertices
@@ -124,8 +135,10 @@ namespace HwRasterizer
 		clear_apos = glGetAttribLocation(clearProg, "pos");
 		clear_ucol = glGetUniformLocation(clearProg, "Color");
 
-		s_vertexBuffer = OGL::StreamBuffer::Create(GL_ARRAY_BUFFER, 512);
-		s_indexBuffer = OGL::StreamBuffer::Create(GL_ELEMENT_ARRAY_BUFFER, 512);
+#define VBUFFER_SIZE 65536
+#define IBUFFER_SIZE (VBUFFER_SIZE/sizeof(SimpleVertex))
+		s_vertexBuffer = OGL::StreamBuffer::Create(GL_ARRAY_BUFFER, VBUFFER_SIZE);
+		s_indexBuffer = OGL::StreamBuffer::Create(GL_ELEMENT_ARRAY_BUFFER, IBUFFER_SIZE);
 		s_uniformBuffer = OGL::StreamBuffer::Create(GL_UNIFORM_BUFFER, 65536);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -235,24 +248,6 @@ namespace HwRasterizer
 			texType = GL_TEXTURE_2D;
 
 		GL_REPORT_ERRORD();
-	}
-
-	void BeginTriangles()
-	{
-		// disabling depth test sometimes allows more things to be visible
-		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_BLEND);
-
-//		bpmem.genMode.numtexgens = std::min(bpmem.genMode.numtexgens, xfregs.numTexGen.numTexGens);
-//		hasTexture = bpmem.tevorders[0].enable0 && (xfregs.numTexGen.numTexGens>0) && (bpmem.genMode.numtexgens>0);
-		hasTexture = xfregs.numTexGen.numTexGens > 0;
-	}
-
-	void EndTriangles()
-	{
-		glBindTexture(texType, 0);
-		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_BLEND);
 	}
 
 	void SetupState()
@@ -466,59 +461,18 @@ namespace HwRasterizer
 			rc, bpmem.triggerEFBCopy.intensity_fmt, bpmem.triggerEFBCopy.half_scale);
 	}
 
-	void DrawTriangleFrontFace(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
+	void BeginTriangles()
+	{
+		// disabling depth test sometimes allows more things to be visible
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_BLEND);
+
+		hasTexture = xfregs.numTexGen.numTexGens > 0;
+	}
+
+	void EndTriangles()
 	{
 		SetupState();
-
-		// x+,y+ => top right
-		// x-,y+ => top left
-		// x+,y- => bottom right
-		// x-,y- => bottom left
-		float pos[9] = {
-			(v0->screenPosition.x / efbHalfWidth) - 1.0f,
-			1.0f - (v0->screenPosition.y / efbHalfHeight),
-			v0->screenPosition.z / (float)0x00ffffff,
-
-			(v1->screenPosition.x / efbHalfWidth) - 1.0f,
-			1.0f - (v1->screenPosition.y / efbHalfHeight),
-			v1->screenPosition.z / (float)0x00ffffff,
-
-			(v2->screenPosition.x / efbHalfWidth) - 1.0f,
-			1.0f - (v2->screenPosition.y / efbHalfHeight),
-			v2->screenPosition.z / (float)0x00ffffff,
-		};
-
-		const GLfloat verts[3*3] = {
-			pos[0], pos[1], pos[2],
-			pos[3], pos[4], pos[5],
-			pos[6], pos[7], pos[8]
-		};
-		GLfloat col0[3*4];
-		GLfloat col1[3*4];
-		for (int i = 0; i < 3; ++i)
-		{
-			OutputVertexData* v[3] = { v0, v1, v2 };
-			col0[4*i+0] = v[i]->color[0][OutputVertexData::RED_C] / 255.0f;
-			col0[4*i+1] = v[i]->color[0][OutputVertexData::GRN_C] / 255.0f;
-			col0[4*i+2] = v[i]->color[0][OutputVertexData::BLU_C] / 255.0f;
-			col0[4*i+3] = v[i]->color[0][OutputVertexData::ALP_C] / 255.0f;
-			col1[4*i+0] = v[i]->color[1][OutputVertexData::RED_C] / 255.0f;
-			col1[4*i+1] = v[i]->color[1][OutputVertexData::GRN_C] / 255.0f;
-			col1[4*i+2] = v[i]->color[1][OutputVertexData::BLU_C] / 255.0f;
-			col1[4*i+3] = v[i]->color[1][OutputVertexData::ALP_C] / 255.0f;
-		};
-
-		GLfloat tex[3*2*8];
-		for (int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
-		{
-			// Undoing texcoord scaling here for compatibility with PixelShaderGen
-			tex[0+i*6] = v0->texCoords[i].x / (float)(bpmem.texcoords[i].s.scale_minus_1 + 1);
-			tex[1+i*6] = v0->texCoords[i].y / (float)(bpmem.texcoords[i].t.scale_minus_1 + 1);
-			tex[2+i*6] = v1->texCoords[i].x / (float)(bpmem.texcoords[i].s.scale_minus_1 + 1);
-			tex[3+i*6] = v1->texCoords[i].y / (float)(bpmem.texcoords[i].t.scale_minus_1 + 1);
-			tex[4+i*6] = v2->texCoords[i].x / (float)(bpmem.texcoords[i].s.scale_minus_1 + 1);
-			tex[5+i*6] = v2->texCoords[i].y / (float)(bpmem.texcoords[i].t.scale_minus_1 + 1);
-		}
 
 		const u32 has_texcoord[8] = {
 			g_VtxDesc.Tex0Coord, g_VtxDesc.Tex1Coord, g_VtxDesc.Tex2Coord, g_VtxDesc.Tex3Coord,
@@ -560,22 +514,22 @@ namespace HwRasterizer
 				if (has_texcoord[i])
 					vertex_stride += sizeof(float) * 2;
 
-			std::pair<u8*,size_t> mapping = s_vertexBuffer->Map(512, vertex_stride);
-			for (int i = 0; i < 3; ++i)
+			std::pair<u8*,size_t> mapping = s_vertexBuffer->Map(VBUFFER_SIZE, vertex_stride);
+			for (int i = 0; i < vertices.size(); ++i)
 			{
 				int offset = 0;
-				memcpy(&mapping.first[vertex_stride*i], &verts[3*i], 3*sizeof(float));
+				memcpy(&mapping.first[vertex_stride*i], vertices[i].pos, 3*sizeof(float));
 				offset += 3 * sizeof(float);
 
 				/*if (hasColor0) */
 				{
-					memcpy(&mapping.first[vertex_stride*i + offset], &col0[4*i], 4*sizeof(float));
+					memcpy(&mapping.first[vertex_stride*i + offset], vertices[i].col0, 4*sizeof(float));
 					offset += 4 * sizeof(float);
 				}
 
 				/*if (hasColor1) */
 				{
-					memcpy(&mapping.first[vertex_stride*i + offset], &col1[4*i], 4*sizeof(float));
+					memcpy(&mapping.first[vertex_stride*i + offset], vertices[i].col1, 4*sizeof(float));
 					offset += 4 * sizeof(float);
 				}
 
@@ -583,19 +537,18 @@ namespace HwRasterizer
 				{
 					if (has_texcoord[tc])
 					{
-						memcpy(&mapping.first[vertex_stride*i + offset], &tex[2*i + 6*tc], 2*sizeof(float));
+						memcpy(&mapping.first[vertex_stride*i + offset], &vertices[i].tex[2*tc], 2*sizeof(float));
 						offset += 2 * sizeof(float);
 					}
 				}
 			}
-			s_vertexBuffer->Unmap(vertex_stride*3);
+			s_vertexBuffer->Unmap(vertex_stride*vertices.size());
 			GL_REPORT_ERRORD();
 
-			mapping = s_indexBuffer->Map(512 * sizeof(u16));
-			((u16*)mapping.first)[0] = 0;
-			((u16*)mapping.first)[1] = 1;
-			((u16*)mapping.first)[2] = 2;
-			s_indexBuffer->Unmap(3 * sizeof(u16));
+			mapping = s_indexBuffer->Map(IBUFFER_SIZE * sizeof(u16));
+			for (int i = 0; i < vertices.size(); ++i)
+				((u16*)mapping.first)[i] = i;
+			s_indexBuffer->Unmap(vertices.size() * sizeof(u16));
 			GL_REPORT_ERRORD();
 
 			GLuint VAO;
@@ -849,7 +802,7 @@ namespace HwRasterizer
 			glBindBuffer(GL_ARRAY_BUFFER, s_vertexBuffer->m_buffer);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_indexBuffer->m_buffer);
 			glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
-			glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, (u8*)nullptr);
+			glDrawElements(GL_TRIANGLES, vertices.size(), GL_UNSIGNED_SHORT, (u8*)nullptr);
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 			glBindBuffer(GL_UNIFORM_BUFFER, 0);
@@ -860,6 +813,66 @@ namespace HwRasterizer
 		}
 		GL_REPORT_ERRORD();
 
+		vertices.clear();
+
+
+		glBindTexture(texType, 0);
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_BLEND);
+	}
+
+	void DrawTriangleFrontFace(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
+	{
+		SimpleVertex verts[3];
+		// x+,y+ => top right
+		// x-,y+ => top left
+		// x+,y- => bottom right
+		// x-,y- => bottom left
+
+		verts[0].pos[0] = (v0->screenPosition.x / efbHalfWidth) - 1.0f;
+		verts[0].pos[1] = 1.0f - (v0->screenPosition.y / efbHalfHeight);
+		verts[0].pos[2] = v0->screenPosition.z / (float)0x00ffffff;
+		verts[1].pos[0] = (v1->screenPosition.x / efbHalfWidth) - 1.0f;
+		verts[1].pos[1] = 1.0f - (v1->screenPosition.y / efbHalfHeight);
+		verts[1].pos[2] = v1->screenPosition.z / (float)0x00ffffff;
+		verts[2].pos[0] = (v2->screenPosition.x / efbHalfWidth) - 1.0f;
+		verts[2].pos[1] = 1.0f - (v2->screenPosition.y / efbHalfHeight);
+		verts[2].pos[2] = v2->screenPosition.z / (float)0x00ffffff;
+
+		for (int i = 0; i < 3; ++i)
+		{
+			OutputVertexData* v[3] = { v0, v1, v2 };
+			verts[i].col0[0] = v[i]->color[0][OutputVertexData::RED_C] / 255.0f;
+			verts[i].col0[1] = v[i]->color[0][OutputVertexData::GRN_C] / 255.0f;
+			verts[i].col0[2] = v[i]->color[0][OutputVertexData::BLU_C] / 255.0f;
+			verts[i].col0[3] = v[i]->color[0][OutputVertexData::ALP_C] / 255.0f;
+			verts[i].col1[0] = v[i]->color[1][OutputVertexData::RED_C] / 255.0f;
+			verts[i].col1[1] = v[i]->color[1][OutputVertexData::GRN_C] / 255.0f;
+			verts[i].col1[2] = v[i]->color[1][OutputVertexData::BLU_C] / 255.0f;
+			verts[i].col1[3] = v[i]->color[1][OutputVertexData::ALP_C] / 255.0f;
+		};
+
+		GLfloat tex[3*2*8];
+		for (int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
+		{
+			OutputVertexData* v[3] = { v0, v1, v2 };
+			// Undoing texcoord scaling here for compatibility with PixelShaderGen
+			verts[0].tex[2*i  ] = v0->texCoords[i].x / (float)(bpmem.texcoords[i].s.scale_minus_1 + 1);
+			verts[0].tex[2*i+1] = v0->texCoords[i].y / (float)(bpmem.texcoords[i].t.scale_minus_1 + 1);
+			verts[1].tex[2*i  ] = v1->texCoords[i].x / (float)(bpmem.texcoords[i].s.scale_minus_1 + 1);
+			verts[1].tex[2*i+1] = v1->texCoords[i].y / (float)(bpmem.texcoords[i].t.scale_minus_1 + 1);
+			verts[2].tex[2*i  ] = v2->texCoords[i].x / (float)(bpmem.texcoords[i].s.scale_minus_1 + 1);
+			verts[2].tex[2*i+1] = v2->texCoords[i].y / (float)(bpmem.texcoords[i].t.scale_minus_1 + 1);
+		}
+		vertices.push_back(verts[0]);
+		vertices.push_back(verts[1]);
+		vertices.push_back(verts[2]);
+
+		if (vertices.size() > VBUFFER_SIZE/sizeof(SimpleVertex)/3)
+		{
+			EndTriangles();
+			BeginTriangles();
+		}
 	}
 
 	void Swap(const EFBRectangle& targetRc)
