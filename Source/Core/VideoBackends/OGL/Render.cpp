@@ -1674,10 +1674,10 @@ void Renderer::RestoreAPIState()
 	if (GLInterface->GetMode() == GLInterfaceMode::MODE_OPENGL)
 		glPolygonMode(GL_FRONT_AND_BACK, g_ActiveConfig.bWireFrame ? GL_LINE : GL_FILL);
 
-	VertexManager *vm = (OGL::VertexManager*)g_vertex_manager;
+/*	VertexManager *vm = (OGL::VertexManager*)g_vertex_manager;
 	glBindBuffer(GL_ARRAY_BUFFER, vm->m_vertex_buffers);
 	glBindVertexArray(vm->m_last_vao);
-
+*/
 	TextureCache::SetStage();
 }
 

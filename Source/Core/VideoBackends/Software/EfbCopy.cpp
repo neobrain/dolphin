@@ -132,7 +132,10 @@ namespace EfbCopy
 			}
 			else
 			{
-				CopyToRam(); // FIXME: should use the rectangle we have already created above
+				if (g_SWVideoConfig.bHwRasterizer)
+					HwRasterizer::CopyEfb();
+				else
+					CopyToRam(); // FIXME: should use the rectangle we have already created above
 			}
 
 			if (bpmem.triggerEFBCopy.clear)

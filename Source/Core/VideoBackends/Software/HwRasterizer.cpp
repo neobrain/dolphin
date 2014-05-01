@@ -15,9 +15,12 @@
 #include <VideoCommon/PixelShaderManager.h>
 
 #include "SWRenderer.h"
+#include <VideoBackends/OGL/ProgramShaderCache.h>
 #include <VideoBackends/OGL/StreamBuffer.h>
 #include <VideoBackends/OGL/VertexManager.h>
 #include <VideoBackends/OGL/TextureCache.h>
+#include <VideoBackends/OGL/Render.h>
+#include <VideoBackends/OGL/TextureConverter.h>
 
 #include "Tev.h"
 #include <Core/Core.h>
@@ -127,7 +130,18 @@ namespace HwRasterizer
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+		g_renderer = new OGL::Renderer;
+		memset(&g_ActiveConfig, 0, sizeof(g_ActiveConfig)); // TODO: Uh.. no
+		memset(&OGL::g_ogl_config, 0, sizeof(OGL::g_ogl_config));
+
+		g_ActiveConfig.bCopyEFBToTexture = false;
+		OGL::g_ogl_config.bSupportOGL31 = true;
+		OGL::g_ogl_config.eSupportedGLSLVersion = OGL::GLSL_130;
+		OGL::ProgramShaderCache::Init();
+
 		g_texture_cache = new OGL::TextureCache;
+		OGL::TextureConverter::Init();
 		PixelShaderManager::Init();
 
 		// render target setup
@@ -178,6 +192,7 @@ namespace HwRasterizer
 		delete s_vertexBuffer;
 		delete s_indexBuffer;
 		delete g_texture_cache;
+		OGL::ProgramShaderCache::Shutdown();
 		g_texture_cache = nullptr;
 	}
 	void Prepare()
@@ -435,6 +450,19 @@ namespace HwRasterizer
 		}
 	}
 
+	void CopyEfb()
+	{
+		EFBRectangle rc;
+		rc.left = (int)bpmem.copyTexSrcXY.x;
+		rc.top = (int)bpmem.copyTexSrcXY.y;
+
+		rc.right = (int)(bpmem.copyTexSrcXY.x + bpmem.copyTexSrcWH.x + 1);
+		rc.bottom = (int)(bpmem.copyTexSrcXY.y + bpmem.copyTexSrcWH.y + 1);
+
+		g_texture_cache->CopyRenderTargetToTexture(bpmem.copyTexDest << 5, bpmem.triggerEFBCopy.tp_realFormat(), bpmem.zcontrol.pixel_format,
+			rc, bpmem.triggerEFBCopy.intensity_fmt, bpmem.triggerEFBCopy.half_scale);
+	}
+
 	void DrawTriangleFrontFace(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)
 	{
 		SetupState();
@@ -457,27 +485,24 @@ namespace HwRasterizer
 			v2->screenPosition.z / (float)0x00ffffff,
 		};
 
-		float r0 = v0->color[0][OutputVertexData::RED_C] / 255.0f;
-		float g0 = v0->color[0][OutputVertexData::GRN_C] / 255.0f;
-		float b0 = v0->color[0][OutputVertexData::BLU_C] / 255.0f;
-
-		float r1 = v1->color[0][OutputVertexData::RED_C] / 255.0f;
-		float g1 = v1->color[0][OutputVertexData::GRN_C] / 255.0f;
-		float b1 = v1->color[0][OutputVertexData::BLU_C] / 255.0f;
-
-		float r2 = v2->color[0][OutputVertexData::RED_C] / 255.0f;
-		float g2 = v2->color[0][OutputVertexData::GRN_C] / 255.0f;
-		float b2 = v2->color[0][OutputVertexData::BLU_C] / 255.0f;
-
 		const GLfloat verts[3*3] = {
 			pos[0], pos[1], pos[2],
 			pos[3], pos[4], pos[5],
 			pos[6], pos[7], pos[8]
 		};
-		const GLfloat col[3*4] = {
-			 r0, g0, b0, 1.0f ,
-			 r1, g1, b1, 1.0f ,
-			 r2, g2, b2, 1.0f 
+		GLfloat col0[3*4];
+		GLfloat col1[3*4];
+		for (int i = 0; i < 3; ++i)
+		{
+			OutputVertexData* v[3] = { v0, v1, v2 };
+			col0[4*i+0] = v[i]->color[0][OutputVertexData::RED_C] / 255.0f;
+			col0[4*i+1] = v[i]->color[0][OutputVertexData::GRN_C] / 255.0f;
+			col0[4*i+2] = v[i]->color[0][OutputVertexData::BLU_C] / 255.0f;
+			col0[4*i+3] = v[i]->color[0][OutputVertexData::ALP_C] / 255.0f;
+			col1[4*i+0] = v[i]->color[1][OutputVertexData::RED_C] / 255.0f;
+			col1[4*i+1] = v[i]->color[1][OutputVertexData::GRN_C] / 255.0f;
+			col1[4*i+2] = v[i]->color[1][OutputVertexData::BLU_C] / 255.0f;
+			col1[4*i+3] = v[i]->color[1][OutputVertexData::ALP_C] / 255.0f;
 		};
 
 		GLfloat tex[3*2*8];
@@ -526,7 +551,8 @@ namespace HwRasterizer
 				}
 			}
 			int vertex_stride = sizeof(float)*3;
-			/*if (hasColor) */ vertex_stride += sizeof(float) * 4;
+			/*if (hasColor0) */ vertex_stride += sizeof(float) * 4;
+			/*if (hasColor1) */ vertex_stride += sizeof(float) * 4;
 			for (int i = 0; i < 8; ++i)
 				if (has_texcoord[i])
 					vertex_stride += sizeof(float) * 2;
@@ -538,9 +564,15 @@ namespace HwRasterizer
 				memcpy(&mapping.first[vertex_stride*i], &verts[3*i], 3*sizeof(float));
 				offset += 3 * sizeof(float);
 
-				/*if (hasColor) */
+				/*if (hasColor0) */
 				{
-					memcpy(&mapping.first[vertex_stride*i + offset], &col[4*i], 4*sizeof(float));
+					memcpy(&mapping.first[vertex_stride*i + offset], &col0[4*i], 4*sizeof(float));
+					offset += 4 * sizeof(float);
+				}
+
+				/*if (hasColor1) */
+				{
+					memcpy(&mapping.first[vertex_stride*i + offset], &col1[4*i], 4*sizeof(float));
 					offset += 4 * sizeof(float);
 				}
 
@@ -580,8 +612,10 @@ namespace HwRasterizer
 			vcode.Write("#extension GL_ARB_uniform_buffer_object : enable\n");
 
 			vcode.Write("in vec4 rawpos; // ATTR%d,\n", SHADER_POSITION_ATTRIB);
-//			if (hasColor)
+//			if (hasColor0)
 				vcode.Write("in vec4 color0; // ATTR%d,\n", SHADER_COLOR0_ATTRIB);
+//			if (hasColor1)
+				vcode.Write("in vec4 color1; // ATTR%d,\n", SHADER_COLOR1_ATTRIB);
 			for (int tc = 0; tc < 8; ++tc)
 				if (has_texcoord[tc])
 					vcode.Write("in vec2 tex%d; // ATTR%d,\n", tc, SHADER_TEXTURE0_ATTRIB+tc);
@@ -590,16 +624,20 @@ namespace HwRasterizer
 				if (has_texcoord[tc])
 					vcode.Write("centroid out vec3 uv%d_2;\n", tc);
 			vcode.Write("centroid out vec4 clipPos_2;\n");
-//			if (hasColor)
+//			if (hasColor0)
 			vcode.Write("centroid out vec4 colors_02;\n");
+//			if (hasColor1)
+			vcode.Write("centroid out vec4 colors_12;\n");
 
 			vcode.Write("void main()\n{\n");
 			for (int tc = 0; tc < 8; ++tc)
 				if (has_texcoord[tc])
 					vcode.Write("uv%d_2 = vec3(tex%d, 0.0);\n", tc, tc);
 			vcode.Write("clipPos_2 = rawpos;\n");
-//			if (hasColor)
+//			if (hasColor0)
 				vcode.Write("colors_02 = color0;\n");
+//			if (hasColor1)
+				vcode.Write("colors_12 = color1;\n");
 			vcode.Write("gl_Position = rawpos;\n");
 
 			vcode.Write("}\n");
@@ -617,7 +655,8 @@ namespace HwRasterizer
 			g_ActiveConfig.bFastDepthCalc = true;
 
 			u32 components = 0;
-			components |= /*hasColor ? */ VB_HAS_COL0 /* : 0*/;
+			components |= /*hasColor0 ? */ VB_HAS_COL0 /* : 0*/;
+			components |= /*hasColor1 ? */ VB_HAS_COL1 /* : 0*/;
 			for (int tc = 0; tc < 8; ++tc)
 				if (has_texcoord[tc])
 					components |= VB_HAS_UV0 + tc;
@@ -707,6 +746,7 @@ namespace HwRasterizer
 
 				glBindAttribLocation(programID, SHADER_POSITION_ATTRIB, "rawpos");
 				glBindAttribLocation(programID, SHADER_COLOR0_ATTRIB,   "color0");
+				glBindAttribLocation(programID, SHADER_COLOR1_ATTRIB,   "color1");
 				glBindAttribLocation(programID, SHADER_TEXTURE0_ATTRIB,   "tex0");
 				glBindAttribLocation(programID, SHADER_TEXTURE1_ATTRIB,   "tex1");
 				glBindAttribLocation(programID, SHADER_TEXTURE2_ATTRIB,   "tex2");
@@ -781,10 +821,17 @@ namespace HwRasterizer
 			glDisableVertexAttribArray(SHADER_TEXTURE6_ATTRIB);
 			glDisableVertexAttribArray(SHADER_TEXTURE7_ATTRIB);
 			glDisableVertexAttribArray(SHADER_COLOR0_ATTRIB);
-//			if (hasColor)
+			glDisableVertexAttribArray(SHADER_COLOR1_ATTRIB);
+//			if (hasColor0)
 			{
 				glEnableVertexAttribArray(SHADER_COLOR0_ATTRIB);
 				glVertexAttribPointer(SHADER_COLOR0_ATTRIB, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + offset);
+				offset += 4 * sizeof(float);
+			}
+//			if (hasColor1)
+			{
+				glEnableVertexAttribArray(SHADER_COLOR1_ATTRIB);
+				glVertexAttribPointer(SHADER_COLOR1_ATTRIB, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + offset);
 				offset += 4 * sizeof(float);
 			}
 			for (int tc = 0; tc < 8; ++tc)
@@ -869,58 +916,6 @@ namespace HwRasterizer
 			glDisableVertexAttribArray(col_apos);
 		}
 		GL_REPORT_ERRORD();
-	}
-
-	TexCacheEntry::TexCacheEntry()
-	{
-		Create();
-	}
-
-	void TexCacheEntry::Create()
-	{
-		FourTexUnits &texUnit = bpmem.tex[0];
-
-		texImage0.hex = texUnit.texImage0[0].hex;
-		texImage1.hex = texUnit.texImage1[0].hex;
-		texImage2.hex = texUnit.texImage2[0].hex;
-		texImage3.hex = texUnit.texImage3[0].hex;
-		texTlut.hex = texUnit.texTlut[0].hex;
-
-		int image_width = texImage0.width;
-		int image_height = texImage0.height;
-
-		DebugUtil::GetTextureRGBA(temp, 0, 0, image_width, image_height);
-
-		glGenTextures(1, (GLuint *)&texture);
-		glBindTexture(texType, texture);
-		glTexImage2D(texType, 0, GL_RGBA, (GLsizei)image_width, (GLsizei)image_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, temp);
-
-		GL_REPORT_ERRORD();
-	}
-
-	void TexCacheEntry::Destroy()
-	{
-		if (texture == 0)
-			return;
-
-		glDeleteTextures(1, &texture);
-		texture = 0;
-	}
-
-	void TexCacheEntry::Update()
-	{
-		FourTexUnits &texUnit = bpmem.tex[0];
-
-		// extra checks cause textures to be reloaded much more
-		if (texUnit.texImage0[0].hex != texImage0.hex ||
-		//	texUnit.texImage1[0].hex != texImage1.hex ||
-		//	texUnit.texImage2[0].hex != texImage2.hex ||
-			texUnit.texImage3[0].hex != texImage3.hex ||
-			texUnit.texTlut[0].hex   != texTlut.hex)
-		{
-			Destroy();
-			Create();
-		}
 	}
 }
 

@@ -296,7 +296,11 @@ void TextureCache::TCacheEntry::FromRenderTarget(u32 dstAddr, unsigned int dstFo
 			s_ColorCbufid = cbufid;
 		}
 
-		TargetRectangle R = g_renderer->ConvertEFBRectangle(srcRect);
+		TargetRectangle R;
+		R.left = srcRect.left;
+		R.right = srcRect.right;
+		R.bottom = srcRect.bottom;
+		R.top = srcRect.top;
 		glUniform4f(srcFormat == PEControl::Z24 ? s_DepthCopyPositionUniform : s_ColorCopyPositionUniform,
 			R.left, R.top, R.right, R.bottom);
 		GL_REPORT_ERRORD();
@@ -381,7 +385,7 @@ TextureCache::TextureCache()
 		"	gl_Position = vec4(rawpos*2.0-1.0, 0.0, 1.0);\n"
 		"}\n";
 
-/*	ProgramShaderCache::CompileShader(s_ColorMatrixProgram, VProgram, pColorMatrixProg);
+	ProgramShaderCache::CompileShader(s_ColorMatrixProgram, VProgram, pColorMatrixProg);
 	ProgramShaderCache::CompileShader(s_DepthMatrixProgram, VProgram, pDepthMatrixProg);
 
 	s_ColorMatrixUniform = glGetUniformLocation(s_ColorMatrixProgram.glprogid, "colmat");
@@ -391,7 +395,7 @@ TextureCache::TextureCache()
 
 	s_ColorCopyPositionUniform = glGetUniformLocation(s_ColorMatrixProgram.glprogid, "copy_position");
 	s_DepthCopyPositionUniform = glGetUniformLocation(s_DepthMatrixProgram.glprogid, "copy_position");
-*/
+
 	s_ActiveTexture = -1;
 	for (auto& gtex : s_Textures)
 		gtex = -1;

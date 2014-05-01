@@ -27,23 +27,5 @@ namespace HwRasterizer
 
 	void Clear();
 
-	struct TexCacheEntry
-	{
-		TexImage0 texImage0;
-		TexImage1 texImage1;
-		TexImage2 texImage2;
-		TexImage3 texImage3;
-		TexTLUT texTlut;
-
-		GLuint texture;
-
-		TexCacheEntry();
-
-		void Create();
-		void Destroy();
-		void Update();
-	};
-
-	typedef std::map<u32, TexCacheEntry> TextureCache;
-	static TextureCache textures;
+	void CopyEfb();
 }
