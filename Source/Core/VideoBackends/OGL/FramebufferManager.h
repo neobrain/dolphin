@@ -102,11 +102,14 @@ private:
 
 	static GLenum m_textureType;
 
+public:
 	static GLuint m_efbFramebuffer;
 	static GLuint m_xfbFramebuffer;
-	static GLuint m_efbColor;
-	static GLuint m_efbDepth;
-	static GLuint m_efbColorSwap;// will be hot swapped with m_efbColor when reinterpreting EFB pixel formats
+	static GLuint m_efbColor; // Renderbuffer in MSAA mode; Texture otherwise
+	static GLuint m_efbDepth; // Renderbuffer in MSAA mode; Texture otherwise
+	static GLuint m_efbColorSwap; // will be hot swapped with m_efbColor when reinterpreting EFB pixel formats
+
+private:
 
 	// Only used in MSAA mode, TODO: try to avoid them
 	static GLuint m_resolvedFramebuffer;

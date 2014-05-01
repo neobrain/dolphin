@@ -270,7 +270,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(u32 dstAddr, unsigned int dstFo
 
 	GL_REPORT_ERRORD();
 
-	if (type != TCET_EC_DYNAMIC || g_ActiveConfig.bCopyEFBToTexture)
+/*	if (type != TCET_EC_DYNAMIC || g_ActiveConfig.bCopyEFBToTexture)
 	{
 		FramebufferManager::SetFramebuffer(framebuffer);
 
@@ -308,7 +308,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(u32 dstAddr, unsigned int dstFo
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 		GL_REPORT_ERRORD();
-	}
+	}*/
 
 	if (false == g_ActiveConfig.bCopyEFBToTexture)
 	{

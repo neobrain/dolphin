@@ -171,6 +171,9 @@ namespace HwRasterizer
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_efbColor, 0);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_efbDepth, 0);
+
+		OGL::FramebufferManager::m_efbFramebuffer = m_efbFramebuffer;
+		g_ActiveConfig.bCopyEFBToTexture = false;
 	}
 
 	void Init()
@@ -873,7 +876,8 @@ namespace HwRasterizer
 		GLInterface->Update(); // just updates the render window position and the backbuffer size
 //		swstats.frameCount++;
 		GLInterface->Swap();
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, m_efbFramebuffer);
+//		glBindFramebuffer(GL_FRAMEBUFFER, m_efbFramebuffer);
+		OGL::FramebufferManager::SetFramebuffer(0);
 
 //		OSDChoice::DoCallbacks(OSD::OSD_ONFRAME);
 

@@ -645,8 +645,8 @@ void Renderer::Shutdown()
 void Renderer::Init()
 {
 	// Initialize the FramebufferManager
-	g_framebuffer_manager = new FramebufferManager(s_target_width, s_target_height,
-			s_MSAASamples);
+//	g_framebuffer_manager = new FramebufferManager(s_target_width, s_target_height,
+//			s_MSAASamples);
 
 	s_pfont = new RasterFont();
 

@@ -212,9 +212,9 @@ void SWRenderer::Swap(u32 fbWidth, u32 fbHeight)
 	{
 		EFBRectangle rc;
 		rc.top = 0;
-		rc.bottom = 0;
+		rc.bottom = 480;
 		rc.left = 0;
-		rc.right = 0;
+		rc.right = 640;
 		HwRasterizer::Swap(rc);
 		return;
 	}
