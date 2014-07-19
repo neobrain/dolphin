@@ -47,7 +47,7 @@ static s32 scissorTop = 0;
 static s32 scissorRight = 0;
 static s32 scissorBottom = 0;
 
-static Tev tev;
+Tev tev; // TODO: Make static...
 static RasterBlock rasterBlock;
 
 void DoState(PointerWrap &p)

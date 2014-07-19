@@ -250,7 +250,7 @@ namespace HwRasterizer
 		GL_REPORT_ERRORD();
 	}
 
-	void SetupState()
+	static void SetupState()
 	{
 		// SetGenerationMode
 		{
@@ -467,7 +467,7 @@ namespace HwRasterizer
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_BLEND);
 
-		hasTexture = xfregs.numTexGen.numTexGens > 0;
+		hasTexture = xfmem.numTexGen.numTexGens > 0;
 	}
 
 	void EndTriangles()
@@ -625,7 +625,7 @@ namespace HwRasterizer
 			if (programs.find(ps_uid) == programs.end())
 			{
 				GLuint& programID = programs[ps_uid];
-				ERROR_LOG(VIDEO, "Number of active programs: %d", programs.size());
+				ERROR_LOG(VIDEO, "Number of active programs: %d", (int)programs.size());
 				GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
 
 				// generate objects
@@ -659,6 +659,7 @@ namespace HwRasterizer
 					"#extension GL_ARB_shading_language_420pack : enable\n"
 //					"%s\n" // early-z
 //					"%s\n" // 420pack
+                    "%s\n" // sampler binding
 
 					// Silly differences
 					"#define float2 vec2\n"
@@ -676,6 +677,7 @@ namespace HwRasterizer
 					"#define lerp mix\n"
 
 //					, (g_ActiveConfig.backend_info.bSupportsBindingLayout && v < GLSLES_310) ? "#extension GL_ARB_shading_language_420pack : enable" : ""
+                    , g_ActiveConfig.backend_info.bSupportsBindingLayout ? "#define SAMPLER_BINDING(x) layout(binding = x)" : "#define SAMPLER_BINDING(x)"
 				);
 
 				const char *fsrc[] = { s_glsl_header, pcode.GetBuffer() };
@@ -744,7 +746,7 @@ namespace HwRasterizer
 					PixelShaderManager::SetTexDims(i, bpmem.tex[i/2].texImage0[i%4].width, bpmem.tex[i/2].texImage0[i%4].height, 0, 0);
 				}
 
-				for (int i = 0; i < 4; ++i) 
+				for (int i = 0; i < 4; ++i)
 				{
 					PixelShaderManager::SetColorChangedCustom(0, i, Rasterizer::tev.Reg[i][Tev::RED_C],
 											Rasterizer::tev.Reg[i][Tev::ALP_C],
@@ -757,7 +759,9 @@ namespace HwRasterizer
 				}
 
 				glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
-				auto buffer = s_uniformBuffer->Map(sizeof(PixelShaderConstants), 0);
+                auto buffer = s_uniformBuffer->Map(sizeof(PixelShaderConstants), sizeof(PixelShaderConstants));
+//                auto buffer = s_uniformBuffer->Map(sizeof(PixelShaderConstants));
+//                memset(&PixelShaderManager::constants, 0xFF, sizeof(PixelShaderConstants));
 				memcpy(buffer.first, &PixelShaderManager::constants, sizeof(PixelShaderConstants));
 				s_uniformBuffer->Unmap(sizeof(PixelShaderConstants));
 				glBindBufferRange(GL_UNIFORM_BUFFER, 1, s_uniformBuffer->m_buffer, buffer.second, sizeof(PixelShaderConstants));
@@ -853,7 +857,7 @@ namespace HwRasterizer
 		};
 
 		GLfloat tex[3*2*8];
-		for (int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
+		for (int i = 0; i < xfmem.numTexGen.numTexGens; ++i)
 		{
 			OutputVertexData* v[3] = { v0, v1, v2 };
 			// Undoing texcoord scaling here for compatibility with PixelShaderGen
