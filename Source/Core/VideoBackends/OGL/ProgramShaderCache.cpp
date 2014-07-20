@@ -231,8 +231,8 @@ SHADER* ProgramShaderCache::SetShader ( DSTALPHA_MODE dstAlphaMode, u32 componen
 
 bool ProgramShaderCache::CompileShader ( SHADER& shader, const char* vcode, const char* pcode )
 {
-	GLuint vsid = CompileSingleShader(GL_VERTEX_SHADER, vcode);
-	GLuint psid = CompileSingleShader(GL_FRAGMENT_SHADER, pcode);
+	GLuint vsid = CompileSingleShader(GL_VERTEX_SHADER, vcode, s_glsl_header, g_ogl_config);
+	GLuint psid = CompileSingleShader(GL_FRAGMENT_SHADER, pcode, s_glsl_header, g_ogl_config);
 
 	if (!vsid || !psid)
 	{
@@ -299,11 +299,11 @@ bool ProgramShaderCache::CompileShader ( SHADER& shader, const char* vcode, cons
 	return true;
 }
 
-GLuint ProgramShaderCache::CompileSingleShader (GLuint type, const char* code )
+GLuint ProgramShaderCache::CompileSingleShader(GLuint type, const char* code, const std::string& header, const VideoConfig& ogl_config)
 {
 	GLuint result = glCreateShader(type);
 
-	const char *src[] = {s_glsl_header.c_str(), code};
+	const char *src[] = { header.c_str(), code };
 
 	glShaderSource(result, 2, src, nullptr);
 	glCompileShader(result);
@@ -328,16 +328,16 @@ GLuint ProgramShaderCache::CompileSingleShader (GLuint type, const char* code )
 			num_failures++);
 		std::ofstream file;
 		OpenFStream(file, filename, std::ios_base::out);
-		file << s_glsl_header << code << infoLog;
+		file << header << code << infoLog;
 		file.close();
 
 		if (compileStatus != GL_TRUE)
 			PanicAlert("Failed to compile %s shader!\nThis usually happens when trying to use Dolphin with an outdated GPU or integrated GPU like the Intel GMA series.\n\nIf you're sure this is Dolphin's error anyway, post the contents of %s along with this error message at the forums.\n\nDebug info (%s, %s, %s):\n%s",
 				type==GL_VERTEX_SHADER ? "vertex" : "pixel",
 				filename.c_str(),
-				g_ogl_config.gl_vendor,
-				g_ogl_config.gl_renderer,
-				g_ogl_config.gl_version,
+				ogl_config.gl_vendor,
+				ogl_config.gl_renderer,
+				ogl_config.gl_version,
 				infoLog);
 
 		delete[] infoLog;
