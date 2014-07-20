@@ -144,6 +144,8 @@ namespace HwRasterizer
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
+		// having FramebufferManager around would be good enough, but we also use Renderer::RestoreAPIState
+//		g_framebuffer_manager = new OGL::FramebufferManager(640, 528, 0);
 		g_renderer = new OGL::Renderer;
 		memset(&g_ActiveConfig, 0, sizeof(g_ActiveConfig)); // TODO: Uh.. no
 		memset(&OGL::g_ogl_config, 0, sizeof(OGL::g_ogl_config));
@@ -152,7 +154,6 @@ namespace HwRasterizer
 		g_ActiveConfig.bCopyEFBToTexture = false;
 		OGL::g_ogl_config.bSupportOGL31 = true;
 		OGL::g_ogl_config.eSupportedGLSLVersion = OGL::GLSL_130;
-		OGL::ProgramShaderCache::Init();
 
 		g_texture_cache = new OGL::TextureCache;
 		OGL::TextureConverter::Init();
@@ -187,7 +188,8 @@ namespace HwRasterizer
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_efbDepth, 0);
 
 		OGL::FramebufferManager::m_efbFramebuffer = m_efbFramebuffer;
-		g_ActiveConfig.bCopyEFBToTexture = false;
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 	void Init()
@@ -253,6 +255,9 @@ namespace HwRasterizer
 
 	static void SetupState()
 	{
+		// Bind correct framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, m_efbFramebuffer);
+
 		// SetGenerationMode
 		{
 			// Culling should've already been done by the Clipper!
@@ -780,6 +785,7 @@ namespace HwRasterizer
 		glBindTexture(texType, 0);
 		glDisable(GL_DEPTH_TEST);
 		glDisable(GL_BLEND);
+		glBindFramebuffer(GL_FRAMEBUFFER, m_efbFramebuffer);
 	}
 
 	void DrawTriangleFrontFace(OutputVertexData *v0, OutputVertexData *v1, OutputVertexData *v2)

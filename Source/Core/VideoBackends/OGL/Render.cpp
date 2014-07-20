@@ -645,8 +645,8 @@ void Renderer::Shutdown()
 void Renderer::Init()
 {
 	// Initialize the FramebufferManager
-//	g_framebuffer_manager = new FramebufferManager(s_target_width, s_target_height,
-//			s_MSAASamples);
+	g_framebuffer_manager = new FramebufferManager(s_target_width, s_target_height,
+			s_MSAASamples);
 
 	s_pfont = new RasterFont();
 
@@ -1675,10 +1675,13 @@ void Renderer::RestoreAPIState()
 	if (GLInterface->GetMode() == GLInterfaceMode::MODE_OPENGL)
 		glPolygonMode(GL_FRONT_AND_BACK, g_ActiveConfig.bWireFrame ? GL_LINE : GL_FILL);
 
+	// NOTE (hw rasterizer code path):
+	// RestoreAPIState is called when TextureCache is trying to create an EFB copy!
 /*	VertexManager *vm = (OGL::VertexManager*)g_vertex_manager;
 	glBindBuffer(GL_ARRAY_BUFFER, vm->m_vertex_buffers);
 	glBindVertexArray(vm->m_last_vao);
 */
+
 	TextureCache::SetStage();
 }
 
