@@ -657,35 +657,8 @@ namespace HwRasterizer
 				}
 
 				// compile fragment shader
-				static char s_glsl_header[512];
-				snprintf(s_glsl_header, sizeof(s_glsl_header),
-					"#version 130\n"
-					"#extension GL_ARB_uniform_buffer_object : enable\n" // ubo
-					"#extension GL_ARB_shading_language_420pack : enable\n"
-//					"%s\n" // early-z
-//					"%s\n" // 420pack
-                    "%s\n" // sampler binding
-
-					// Silly differences
-					"#define float2 vec2\n"
-					"#define float3 vec3\n"
-					"#define float4 vec4\n"
-					"#define uint2 uvec2\n"
-					"#define uint3 uvec3\n"
-					"#define uint4 uvec4\n"
-					"#define int2 ivec2\n"
-					"#define int3 ivec3\n"
-					"#define int4 ivec4\n"
-
-					// hlsl to glsl function translation
-					"#define frac fract\n"
-					"#define lerp mix\n"
-
-//					, (g_ActiveConfig.backend_info.bSupportsBindingLayout && v < GLSLES_310) ? "#extension GL_ARB_shading_language_420pack : enable" : ""
-                    , g_ActiveConfig.backend_info.bSupportsBindingLayout ? "#define SAMPLER_BINDING(x) layout(binding = x)" : "#define SAMPLER_BINDING(x)"
-				);
-
-				const char *fsrc[] = { s_glsl_header, pcode.GetBuffer() };
+				const std::string glsl_header = OGL::ProgramShaderCache::CreateHeader(g_ActiveConfig, OGL::g_ogl_config);
+				const char *fsrc[] = { glsl_header.c_str(), pcode.GetBuffer() };
 				glShaderSource(fragmentShaderID, 2, fsrc, nullptr);
 				glCompileShader(fragmentShaderID);
 

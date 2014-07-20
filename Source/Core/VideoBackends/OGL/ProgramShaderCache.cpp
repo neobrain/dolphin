@@ -37,7 +37,7 @@ SHADERUID ProgramShaderCache::last_uid;
 UidChecker<PixelShaderUid,PixelShaderCode> ProgramShaderCache::pixel_uid_checker;
 UidChecker<VertexShaderUid,VertexShaderCode> ProgramShaderCache::vertex_uid_checker;
 
-static char s_glsl_header[1024] = "";
+static std::string s_glsl_header = "";
 
 static std::string GetGLSLVersionString()
 {
@@ -303,7 +303,7 @@ GLuint ProgramShaderCache::CompileSingleShader (GLuint type, const char* code )
 {
 	GLuint result = glCreateShader(type);
 
-	const char *src[] = {s_glsl_header, code};
+	const char *src[] = {s_glsl_header.c_str(), code};
 
 	glShaderSource(result, 2, src, nullptr);
 	glCompileShader(result);
@@ -415,7 +415,7 @@ void ProgramShaderCache::Init(void)
 		SETSTAT(stats.numPixelShadersAlive, pshaders.size());
 	}
 
-	CreateHeader();
+	s_glsl_header = CreateHeader(g_ActiveConfig, g_ogl_config);
 
 	CurrentProgram = 0;
 	last_entry = nullptr;
@@ -468,55 +468,59 @@ void ProgramShaderCache::Shutdown(void)
 	s_buffer = nullptr;
 }
 
-void ProgramShaderCache::CreateHeader ( void )
+std::string ProgramShaderCache::CreateHeader(const ::VideoConfig& global_config, const OGL::VideoConfig& ogl_config)
 {
 	GLSL_VERSION v = g_ogl_config.eSupportedGLSLVersion;
-	snprintf(s_glsl_header, sizeof(s_glsl_header),
-		"%s\n"
-		"%s\n" // ubo
-		"%s\n" // early-z
-		"%s\n" // 420pack
-		"%s\n" // msaa
-		"%s\n" // sample shading
-		"%s\n" // Sampler binding
+	auto& backend_info = global_config.backend_info;
 
-		// Precision defines for GLSL ES
-		"%s\n"
-		"%s\n"
+	std::string header;
+	header += StringFromFormat("%s\n", GetGLSLVersionString().c_str());
+	if (v < GLSL_140)
+		header += "#extension GL_ARB_uniform_buffer_object : enable\n";
 
-		// Silly differences
-		"#define float2 vec2\n"
-		"#define float3 vec3\n"
-		"#define float4 vec4\n"
-		"#define uint2 uvec2\n"
-		"#define uint3 uvec3\n"
-		"#define uint4 uvec4\n"
-		"#define int2 ivec2\n"
-		"#define int3 ivec3\n"
-		"#define int4 ivec4\n"
+	if (backend_info.bSupportsEarlyZ)
+		header += "#extension GL_ARB_shader_image_load_store : enable\n";
 
-		// hlsl to glsl function translation
-		"#define frac fract\n"
-		"#define lerp mix\n"
+	if (backend_info.bSupportsBindingLayout && v < GLSLES_310)
+		header += "#extension GL_ARB_shading_language_420pack : enable\n";
 
-		// Terrible hacks, look at DriverDetails.h
-		"%s\n" // replace textureSize as constant
-		"%s\n" // wipe out all centroid usages
+	if (ogl_config.bSupportsMSAA && v < GLSL_150)
+		header += "#extension GL_ARB_texture_multisample : enable\n";
 
-		, GetGLSLVersionString().c_str()
-		, v<GLSL_140 ? "#extension GL_ARB_uniform_buffer_object : enable" : ""
-		, g_ActiveConfig.backend_info.bSupportsEarlyZ ? "#extension GL_ARB_shader_image_load_store : enable" : ""
-		, (g_ActiveConfig.backend_info.bSupportsBindingLayout && v < GLSLES_310) ? "#extension GL_ARB_shading_language_420pack : enable" : ""
-		, (g_ogl_config.bSupportsMSAA && v < GLSL_150) ? "#extension GL_ARB_texture_multisample : enable" : ""
-		, (g_ogl_config.bSupportSampleShading) ? "#extension GL_ARB_sample_shading : enable" : ""
-		, g_ActiveConfig.backend_info.bSupportsBindingLayout ? "#define SAMPLER_BINDING(x) layout(binding = x)" : "#define SAMPLER_BINDING(x)"
+	if (ogl_config.bSupportSampleShading)
+		header += "#extension GL_ARB_sample_shading : enable\n";
 
-		, v>=GLSLES_300 ? "precision highp float;" : ""
-		, v>=GLSLES_300 ? "precision highp int;" : ""
+	if (backend_info.bSupportsBindingLayout)
+		header += "#define SAMPLER_BINDING(x) layout(binding = x)\n";
+	else
+		header += "#define SAMPLER_BINDING(x)\n";
 
-		, DriverDetails::HasBug(DriverDetails::BUG_BROKENTEXTURESIZE) ? "#define textureSize(x, y) ivec2(1, 1)" : ""
-		, DriverDetails::HasBug(DriverDetails::BUG_BROKENCENTROID) ? "#define centroid" : ""
-	);
+	if (v >= GLSLES_300)
+	{
+		header += "precision highp float;\n";
+		header += "precision highp int;\n";
+	}
+
+	// HLSL to GLSL translation
+	header += "#define float2 vec2\n";
+	header += "#define float3 vec3\n";
+	header += "#define float4 vec4\n";
+	header += "#define uint2 uvec2\n";
+	header += "#define uint3 uvec3\n";
+	header += "#define uint4 uvec4\n";
+	header += "#define int2 ivec2\n";
+	header += "#define int3 ivec3\n";
+	header += "#define int4 ivec4\n";
+	header += "#define frac fract\n";
+	header += "#define lerp mix\n";
+
+	if (DriverDetails::HasBug(DriverDetails::BUG_BROKENTEXTURESIZE))
+		header += "#define textureSize(x, y) ivec2(1, 1)\n";
+
+	if (DriverDetails::HasBug(DriverDetails::BUG_BROKENCENTROID))
+		header += "#define centroid\n";
+
+	return header;
 }
 
 

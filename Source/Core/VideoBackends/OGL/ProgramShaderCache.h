@@ -13,6 +13,8 @@
 namespace OGL
 {
 
+struct VideoConfig;
+
 class SHADERUID
 {
 public:
@@ -83,7 +85,7 @@ public:
 
 	static void Init(void);
 	static void Shutdown(void);
-	static void CreateHeader(void);
+	static std::string CreateHeader(const ::VideoConfig& global_config, const OGL::VideoConfig& ogl_config);
 
 private:
 	class ProgramShaderCacheInserter : public LinearDiskCacheReader<SHADERUID, u8>
