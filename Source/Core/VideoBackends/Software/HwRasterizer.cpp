@@ -598,44 +598,6 @@ namespace HwRasterizer
 			glBindBuffer(GL_ARRAY_BUFFER, s_vertexBuffer->m_buffer);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_indexBuffer->m_buffer);
 
-			static char vbuf[1024];
-			static char pbuf[1024];
-
-			ShaderCode vcode;
-			vcode.SetBuffer(vbuf);
-			vcode.Write("#version 130\n");
-			vcode.Write("#extension GL_ARB_uniform_buffer_object : enable\n");
-
-			vcode.Write("in vec4 rawpos; // ATTR%d,\n", SHADER_POSITION_ATTRIB);
-			if (has_color[0])
-				vcode.Write("in vec4 color0; // ATTR%d,\n", SHADER_COLOR0_ATTRIB);
-			if (has_color[1])
-				vcode.Write("in vec4 color1; // ATTR%d,\n", SHADER_COLOR1_ATTRIB);
-			for (int tc = 0; tc < 8; ++tc)
-				if (has_texcoord[tc])
-					vcode.Write("in vec2 tex%d; // ATTR%d,\n", tc, SHADER_TEXTURE0_ATTRIB+tc);
-
-			for (int tc = 0; tc < 8; ++tc)
-				if (has_texcoord[tc])
-					vcode.Write("centroid out vec3 uv%d;\n", tc);
-			vcode.Write("centroid out vec4 clipPos_2;\n");
-			if (has_color[0])
-                vcode.Write("centroid out vec4 colors_02;\n");
-			if (has_color[1])
-                vcode.Write("centroid out vec4 colors_12;\n");
-
-			vcode.Write("void main()\n{\n");
-			for (int tc = 0; tc < 8; ++tc)
-				if (has_texcoord[tc])
-					vcode.Write("uv%d = vec3(tex%d, 0.0);\n", tc, tc);
-			vcode.Write("clipPos_2 = rawpos;\n");
-			if (has_color[0])
-				vcode.Write("colors_02 = color0;\n");
-			if (has_color[1])
-				vcode.Write("colors_12 = color1;\n");
-			vcode.Write("gl_Position = rawpos;\n");
-
-			vcode.Write("}\n");
 			int vertex_shader_uid = has_color[0] | (has_color[1]<<1) |
 			                        (has_texcoord[0] << 2) |
 			                        (has_texcoord[1] << 3) |
@@ -645,9 +607,6 @@ namespace HwRasterizer
 			                        (has_texcoord[5] << 7) |
 			                        (has_texcoord[6] << 8) |
 			                        (has_texcoord[7] << 9);
-
-			ShaderCode pcode;
-			pcode.SetBuffer(pbuf);
 
 			g_ActiveConfig.backend_info.bSupportsBindingLayout = true;
 //			g_ActiveConfig.backend_info.bSupportsDualSourceBlend = true;// needs glBindFragDataLocationIndexed
@@ -675,6 +634,49 @@ namespace HwRasterizer
 			{
 				GLuint& programID = programs[program_uid];
 				ERROR_LOG(VIDEO, "Number of active programs: %d", (int)programs.size());
+
+				// generate shader code
+				static char vbuf[1024];
+				static char pbuf[1024];
+
+				ShaderCode vcode;
+				vcode.SetBuffer(vbuf);
+				vcode.Write("#version 130\n");
+				vcode.Write("#extension GL_ARB_uniform_buffer_object : enable\n");
+
+				vcode.Write("in vec4 rawpos; // ATTR%d,\n", SHADER_POSITION_ATTRIB);
+				if (has_color[0])
+					vcode.Write("in vec4 color0; // ATTR%d,\n", SHADER_COLOR0_ATTRIB);
+				if (has_color[1])
+					vcode.Write("in vec4 color1; // ATTR%d,\n", SHADER_COLOR1_ATTRIB);
+				for (int tc = 0; tc < 8; ++tc)
+					if (has_texcoord[tc])
+						vcode.Write("in vec2 tex%d; // ATTR%d,\n", tc, SHADER_TEXTURE0_ATTRIB+tc);
+
+				for (int tc = 0; tc < 8; ++tc)
+					if (has_texcoord[tc])
+						vcode.Write("centroid out vec3 uv%d;\n", tc);
+				vcode.Write("centroid out vec4 clipPos_2;\n");
+				if (has_color[0])
+					vcode.Write("centroid out vec4 colors_02;\n");
+				if (has_color[1])
+					vcode.Write("centroid out vec4 colors_12;\n");
+
+				vcode.Write("void main()\n{\n");
+				for (int tc = 0; tc < 8; ++tc)
+					if (has_texcoord[tc])
+						vcode.Write("uv%d = vec3(tex%d, 0.0);\n", tc, tc);
+				vcode.Write("clipPos_2 = rawpos;\n");
+				if (has_color[0])
+					vcode.Write("colors_02 = color0;\n");
+				if (has_color[1])
+					vcode.Write("colors_12 = color1;\n");
+				vcode.Write("gl_Position = rawpos;\n");
+
+				vcode.Write("}\n");
+
+				ShaderCode pcode;
+				pcode.SetBuffer(pbuf);
 				GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
 
 				// generate objects
