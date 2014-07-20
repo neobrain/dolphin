@@ -39,7 +39,7 @@ static RasterFont* s_pfont = nullptr;
 void SWRenderer::Init()
 {
 	s_bScreenshot = false;
-	
+
 //	DriverDetails::Init();
 }
 
@@ -297,7 +297,8 @@ void SWRenderer::SwapBuffer()
 
 	swstats.ResetFrame();
 
-//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); ?
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	GL_REPORT_ERRORD();
 }

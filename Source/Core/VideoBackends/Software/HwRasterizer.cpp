@@ -148,6 +148,7 @@ namespace HwRasterizer
 		memset(&g_ActiveConfig, 0, sizeof(g_ActiveConfig)); // TODO: Uh.. no
 		memset(&OGL::g_ogl_config, 0, sizeof(OGL::g_ogl_config));
 
+		g_ActiveConfig.bEFBCopyEnable = true;
 		g_ActiveConfig.bCopyEFBToTexture = false;
 		OGL::g_ogl_config.bSupportOGL31 = true;
 		OGL::g_ogl_config.eSupportedGLSLVersion = OGL::GLSL_130;
@@ -508,11 +509,11 @@ namespace HwRasterizer
 	{
 		SetupState();
 
-        const u32 has_color[2] = {
-            1, 1
-            // TODO: These don't work for whatever reason.
-//            g_VtxDesc.Color0, g_VtxDesc.Color1
-        };
+		const u32 has_color[2] = {
+			1, 1
+			// TODO: These don't work for whatever reason.
+			// g_VtxDesc.Color0, g_VtxDesc.Color1
+		};
 		const u32 has_texcoord[8] = {
 			g_VtxDesc.Tex0Coord, g_VtxDesc.Tex1Coord, g_VtxDesc.Tex2Coord, g_VtxDesc.Tex3Coord,
 			g_VtxDesc.Tex4Coord, g_VtxDesc.Tex5Coord, g_VtxDesc.Tex6Coord, (const u32)((g_VtxDesc.Hex >> 31) & 3)
@@ -717,7 +718,7 @@ namespace HwRasterizer
 				}
 
 				glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
-                auto buffer = s_uniformBuffer->Map(sizeof(PixelShaderConstants), sizeof(PixelShaderConstants));
+				auto buffer = s_uniformBuffer->Map(sizeof(PixelShaderConstants), sizeof(PixelShaderConstants));
 				memcpy(buffer.first, &PixelShaderManager::constants, sizeof(PixelShaderConstants));
 				s_uniformBuffer->Unmap(sizeof(PixelShaderConstants));
 				glBindBufferRange(GL_UNIFORM_BUFFER, 1, s_uniformBuffer->m_buffer, buffer.second, sizeof(PixelShaderConstants));
