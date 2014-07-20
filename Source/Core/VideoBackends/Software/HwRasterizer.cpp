@@ -578,7 +578,7 @@ namespace HwRasterizer
 
 			for (int tc = 0; tc < 8; ++tc)
 				if (has_texcoord[tc])
-					vcode.Write("centroid out vec3 uv%d_2;\n", tc);
+					vcode.Write("centroid out vec3 uv%d;\n", tc);
 			vcode.Write("centroid out vec4 clipPos_2;\n");
 //			if (hasColor0)
 			vcode.Write("centroid out vec4 colors_02;\n");
@@ -588,7 +588,7 @@ namespace HwRasterizer
 			vcode.Write("void main()\n{\n");
 			for (int tc = 0; tc < 8; ++tc)
 				if (has_texcoord[tc])
-					vcode.Write("uv%d_2 = vec3(tex%d, 0.0);\n", tc, tc);
+					vcode.Write("uv%d = vec3(tex%d, 0.0);\n", tc, tc);
 			vcode.Write("clipPos_2 = rawpos;\n");
 //			if (hasColor0)
 				vcode.Write("colors_02 = color0;\n");
