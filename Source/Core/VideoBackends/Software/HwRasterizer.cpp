@@ -602,7 +602,15 @@ namespace HwRasterizer
 			vcode.Write("gl_Position = rawpos;\n");
 
 			vcode.Write("}\n");
-
+			int vertex_shader_uid = has_color[0] | (has_color[1]<<1) |
+			                        (has_texcoord[0] << 2) |
+			                        (has_texcoord[1] << 3) |
+			                        (has_texcoord[2] << 4) |
+			                        (has_texcoord[3] << 5) |
+			                        (has_texcoord[4] << 6) |
+			                        (has_texcoord[5] << 7) |
+			                        (has_texcoord[6] << 8) |
+			                        (has_texcoord[7] << 9);
 
 			ShaderCode pcode;
 			pcode.SetBuffer(pbuf);
@@ -625,11 +633,13 @@ namespace HwRasterizer
 			PixelShaderUid ps_uid;
 			GetPixelShaderUid(ps_uid, DSTALPHA_NONE, API_OPENGL, components);
 
-			static std::map<PixelShaderUid, GLuint> programs;
+			using ProgramUid = std::pair<PixelShaderUid,int>;
+			ProgramUid program_uid = {ps_uid, vertex_shader_uid};
+			static std::map<ProgramUid, GLuint> programs;
 
-			if (programs.find(ps_uid) == programs.end())
+			if (programs.find(program_uid) == programs.end())
 			{
-				GLuint& programID = programs[ps_uid];
+				GLuint& programID = programs[program_uid];
 				ERROR_LOG(VIDEO, "Number of active programs: %d", (int)programs.size());
 				GeneratePixelShaderCode(pcode, DSTALPHA_NONE, API_OPENGL, components);
 
@@ -638,79 +648,14 @@ namespace HwRasterizer
 				GLuint fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 				programID = glCreateProgram();
 
-				// compile vertex shader
-				const char *src[] = { vcode.GetBuffer() };
-				glShaderSource(vertexShaderID, 1, src, nullptr);
-				glCompileShader(vertexShaderID);
-
-				GLint compileStatus;
-				glGetShaderiv(vertexShaderID, GL_COMPILE_STATUS, &compileStatus);
-				GLsizei length2 = 0;
-				glGetShaderiv(vertexShaderID, GL_INFO_LOG_LENGTH, &length2);
-
-				if (compileStatus != GL_TRUE)
-				{
-					GLsizei charsWritten;
-					GLchar* infoLog = new GLchar[length2];
-					glGetShaderInfoLog(vertexShaderID, length2, &charsWritten, infoLog);
-					ERROR_LOG(VIDEO, "VS Shader info log:\n%s", infoLog);
-				}
-
-				// compile fragment shader
+				// compile shaders
 				const std::string glsl_header = OGL::ProgramShaderCache::CreateHeader(g_ActiveConfig, OGL::g_ogl_config);
-				const char *fsrc[] = { glsl_header.c_str(), pcode.GetBuffer() };
-				glShaderSource(fragmentShaderID, 2, fsrc, nullptr);
-				glCompileShader(fragmentShaderID);
-
-				glGetShaderiv(fragmentShaderID, GL_COMPILE_STATUS, &compileStatus);
-				length2 = 0;
-				glGetShaderiv(fragmentShaderID, GL_INFO_LOG_LENGTH, &length2);
-
-				if (compileStatus != GL_TRUE)
-				{
-					GLsizei charsWritten;
-					GLchar* infoLog = new GLchar[length2];
-					glGetShaderInfoLog(fragmentShaderID, length2, &charsWritten, infoLog);
-					ERROR_LOG(VIDEO, "PS Shader info log:\n%s", infoLog);
-					ERROR_LOG(VIDEO, "%s\n", pcode.GetBuffer());
-					delete[] infoLog;
-				}
-
-				// link them
-				glAttachShader(programID, vertexShaderID);
-				glAttachShader(programID, fragmentShaderID);
-
-				glBindAttribLocation(programID, SHADER_POSITION_ATTRIB, "rawpos");
-				glBindAttribLocation(programID, SHADER_COLOR0_ATTRIB,   "color0");
-				glBindAttribLocation(programID, SHADER_COLOR1_ATTRIB,   "color1");
-				glBindAttribLocation(programID, SHADER_TEXTURE0_ATTRIB,   "tex0");
-				glBindAttribLocation(programID, SHADER_TEXTURE1_ATTRIB,   "tex1");
-				glBindAttribLocation(programID, SHADER_TEXTURE2_ATTRIB,   "tex2");
-				glBindAttribLocation(programID, SHADER_TEXTURE3_ATTRIB,   "tex3");
-				glBindAttribLocation(programID, SHADER_TEXTURE4_ATTRIB,   "tex4");
-				glBindAttribLocation(programID, SHADER_TEXTURE5_ATTRIB,   "tex5");
-				glBindAttribLocation(programID, SHADER_TEXTURE6_ATTRIB,   "tex6");
-				glBindAttribLocation(programID, SHADER_TEXTURE7_ATTRIB,   "tex7");
-
-				glLinkProgram(programID);
-				GLint linkStatus;
-				glGetProgramiv(programID, GL_LINK_STATUS, &linkStatus);
-				GLsizei length = 0;
-				glGetProgramiv(programID, GL_INFO_LOG_LENGTH, &length);
-				if (linkStatus != GL_TRUE || (length > 1 && DEBUG_GLSL))
-				{
-					GLsizei charsWritten;
-					GLchar* infoLog = new GLchar[length];
-					glGetProgramInfoLog(programID, length, &charsWritten, infoLog);
-					ERROR_LOG(VIDEO, "yo.. linking failed! %s", infoLog);
-				}
-
-				// cleanup
-				glDeleteShader(vertexShaderID);
-				glDeleteShader(fragmentShaderID);
+				OGL::SHADER shader;
+				OGL::ProgramShaderCache::CompileShader(shader, vcode.GetBuffer(), pcode.GetBuffer(), "", glsl_header, OGL::g_ogl_config);
+				programID = shader.glprogid;
 			}
 
-			GLuint& programID = programs[ps_uid];
+			GLuint& programID = programs[program_uid];
 
 			// Set texture width and height
 			// TODO: Set _all_ uniforms!
@@ -738,8 +683,6 @@ namespace HwRasterizer
 
 				glBindBuffer(GL_UNIFORM_BUFFER, s_uniformBuffer->m_buffer);
                 auto buffer = s_uniformBuffer->Map(sizeof(PixelShaderConstants), sizeof(PixelShaderConstants));
-//                auto buffer = s_uniformBuffer->Map(sizeof(PixelShaderConstants));
-//                memset(&PixelShaderManager::constants, 0xFF, sizeof(PixelShaderConstants));
 				memcpy(buffer.first, &PixelShaderManager::constants, sizeof(PixelShaderConstants));
 				s_uniformBuffer->Unmap(sizeof(PixelShaderConstants));
 				glBindBufferRange(GL_UNIFORM_BUFFER, 1, s_uniformBuffer->m_buffer, buffer.second, sizeof(PixelShaderConstants));
