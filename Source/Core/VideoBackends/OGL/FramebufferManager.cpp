@@ -226,8 +226,9 @@ FramebufferManager::FramebufferManager(int targetWidth, int targetHeight, int ms
 		"	ocol0 = float4(dst6) / 63.f;\n"
 		"}";
 
-	ProgramShaderCache::CompileShader(m_pixel_format_shaders[0], vs, ps_rgb8_to_rgba6.c_str());
-	ProgramShaderCache::CompileShader(m_pixel_format_shaders[1], vs, ps_rgba6_to_rgb8.c_str());
+	const std::string glsl_header = ProgramShaderCache::CreateHeader(g_ActiveConfig, g_ogl_config); // TODO: This shouldn't be necessary... just make it accessible from ProgramShaderCache
+	ProgramShaderCache::CompileShader(m_pixel_format_shaders[0], vs, ps_rgb8_to_rgba6.c_str(), glsl_header, glsl_header, g_ogl_config);
+	ProgramShaderCache::CompileShader(m_pixel_format_shaders[1], vs, ps_rgba6_to_rgb8.c_str(), glsl_header, glsl_header, g_ogl_config);
 }
 
 FramebufferManager::~FramebufferManager()

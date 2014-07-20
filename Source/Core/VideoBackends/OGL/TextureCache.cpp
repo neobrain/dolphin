@@ -385,8 +385,9 @@ TextureCache::TextureCache()
 		"	gl_Position = vec4(rawpos*2.0-1.0, 0.0, 1.0);\n"
 		"}\n";
 
-	ProgramShaderCache::CompileShader(s_ColorMatrixProgram, VProgram, pColorMatrixProg);
-	ProgramShaderCache::CompileShader(s_DepthMatrixProgram, VProgram, pDepthMatrixProg);
+	const std::string glsl_header = ProgramShaderCache::CreateHeader(g_ActiveConfig, g_ogl_config); // TODO: This shouldn't be necessary... just make it accessible from ProgramShaderCache
+	ProgramShaderCache::CompileShader(s_ColorMatrixProgram, VProgram, pColorMatrixProg, glsl_header, glsl_header, g_ogl_config);
+	ProgramShaderCache::CompileShader(s_DepthMatrixProgram, VProgram, pDepthMatrixProg, glsl_header, glsl_header, g_ogl_config);
 
 	s_ColorMatrixUniform = glGetUniformLocation(s_ColorMatrixProgram.glprogid, "colmat");
 	s_DepthMatrixUniform = glGetUniformLocation(s_DepthMatrixProgram.glprogid, "colmat");

@@ -79,7 +79,7 @@ public:
 	static SHADER* SetShader(DSTALPHA_MODE dstAlphaMode, u32 components);
 	static void GetShaderId(SHADERUID *uid, DSTALPHA_MODE dstAlphaMode, u32 components);
 
-	static bool CompileShader(SHADER &shader, const char* vcode, const char* pcode);
+	static bool CompileShader(SHADER& shader, const char* vcode, const char* pcode, const std::string& vs_header, const std::string& ps_header, const VideoConfig& ogl_config);
 	static GLuint CompileSingleShader(GLuint type, const char* code, const std::string& header, const VideoConfig& ogl_config);
 	static void UploadConstants();
 

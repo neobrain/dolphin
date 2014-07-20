@@ -94,7 +94,8 @@ static void CreatePrograms()
 		"	vec4 const3 = vec4(0.0625,0.5,0.0625,0.5);\n"
 		"	ocol0 = vec4(dot(c1,y_const),dot(c01,u_const),dot(c0,y_const),dot(c01, v_const)) + const3;\n"
 		"}\n";
-	ProgramShaderCache::CompileShader(s_rgbToYuyvProgram, VProgramRgbToYuyv, FProgramRgbToYuyv);
+	const std::string glsl_header = ProgramShaderCache::CreateHeader(g_ActiveConfig, g_ogl_config); // TODO: This shouldn't be necessary... just make it accessible from ProgramShaderCache
+	ProgramShaderCache::CompileShader(s_rgbToYuyvProgram, VProgramRgbToYuyv, FProgramRgbToYuyv, glsl_header, glsl_header, g_ogl_config);
 	s_rgbToYuyvUniform_loc = glGetUniformLocation(s_rgbToYuyvProgram.glprogid, "copy_position");
 
 	/* TODO: Accuracy Improvements
@@ -129,7 +130,7 @@ static void CreatePrograms()
 		"		yComp + (2.018 * uComp),\n"
 		"		1.0);\n"
 		"}\n";
-	ProgramShaderCache::CompileShader(s_yuyvToRgbProgram, VProgramYuyvToRgb, FProgramYuyvToRgb);
+	ProgramShaderCache::CompileShader(s_yuyvToRgbProgram, VProgramYuyvToRgb, FProgramYuyvToRgb, glsl_header, glsl_header, g_ogl_config);
 }
 
 static SHADER &GetOrCreateEncodingShader(u32 format)
@@ -161,7 +162,8 @@ static SHADER &GetOrCreateEncodingShader(u32 format)
 			"	gl_Position = vec4(rawpos*2.0-1.0, 0.0, 1.0);\n"
 			"}\n";
 
-		ProgramShaderCache::CompileShader(s_encodingPrograms[format], VProgram, shader);
+		const std::string glsl_header = ProgramShaderCache::CreateHeader(g_ActiveConfig, g_ogl_config); // TODO: This shouldn't be necessary... just make it accessible from ProgramShaderCache
+		ProgramShaderCache::CompileShader(s_encodingPrograms[format], VProgram, shader, glsl_header, glsl_header, g_ogl_config);
 
 		s_encodingUniforms[format] = glGetUniformLocation(s_encodingPrograms[format].glprogid, "position");
 	}

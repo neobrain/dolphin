@@ -650,6 +650,7 @@ void Renderer::Init()
 
 	s_pfont = new RasterFont();
 
+	const std::string glsl_header = ProgramShaderCache::CreateHeader(g_ActiveConfig, g_ogl_config); // TODO: This shouldn't be necessary... just make it accessible from ProgramShaderCache
 	ProgramShaderCache::CompileShader(s_ShowEFBCopyRegions,
 		"in vec2 rawpos;\n"
 		"in vec3 color0;\n"
@@ -662,7 +663,7 @@ void Renderer::Init()
 		"out vec4 ocol0;\n"
 		"void main(void) {\n"
 		"	ocol0 = c;\n"
-		"}\n");
+		"}\n", glsl_header, glsl_header, g_ogl_config);
 
 	// creating buffers
 	glGenBuffers(1, &s_ShowEFBCopyRegions_VBO);

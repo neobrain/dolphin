@@ -5,6 +5,7 @@
 #include "VideoBackends/OGL/GLUtil.h"
 #include "VideoBackends/OGL/ProgramShaderCache.h"
 #include "VideoBackends/OGL/RasterFont.h"
+#include "VideoBackends/OGL/Render.h"
 
 // globals
 
@@ -157,7 +158,8 @@ RasterFont::RasterFont()
 	delete [] texture_data;
 
 	// generate shader
-	ProgramShaderCache::CompileShader(s_shader, s_vertexShaderSrc, s_fragmentShaderSrc);
+	const std::string glsl_header = ProgramShaderCache::CreateHeader(g_ActiveConfig, g_ogl_config); // TODO: This shouldn't be necessary... just make it accessible from ProgramShaderCache
+	ProgramShaderCache::CompileShader(s_shader, s_vertexShaderSrc, s_fragmentShaderSrc, glsl_header, glsl_header, g_ogl_config);
 
 	// bound uniforms
 	glUniform2f(glGetUniformLocation(s_shader.glprogid,"charSize"), 1.0f / GLfloat(char_count), 1.0f);

@@ -216,7 +216,7 @@ SHADER* ProgramShaderCache::SetShader ( DSTALPHA_MODE dstAlphaMode, u32 componen
 	}
 #endif
 
-	if (!CompileShader(newentry.shader, vcode.GetBuffer(), pcode.GetBuffer())) {
+	if (!CompileShader(newentry.shader, vcode.GetBuffer(), pcode.GetBuffer(), s_glsl_header, s_glsl_header, g_ogl_config)) {
 		GFX_DEBUGGER_PAUSE_AT(NEXT_ERROR, true);
 		return nullptr;
 	}
@@ -229,10 +229,10 @@ SHADER* ProgramShaderCache::SetShader ( DSTALPHA_MODE dstAlphaMode, u32 componen
 	return &last_entry->shader;
 }
 
-bool ProgramShaderCache::CompileShader ( SHADER& shader, const char* vcode, const char* pcode )
+bool ProgramShaderCache::CompileShader(SHADER& shader, const char* vcode, const char* pcode, const std::string& vs_header, const std::string& ps_header, const VideoConfig& ogl_config)
 {
-	GLuint vsid = CompileSingleShader(GL_VERTEX_SHADER, vcode, s_glsl_header, g_ogl_config);
-	GLuint psid = CompileSingleShader(GL_FRAGMENT_SHADER, pcode, s_glsl_header, g_ogl_config);
+	GLuint vsid = CompileSingleShader(GL_VERTEX_SHADER, vcode, vs_header, ogl_config);
+	GLuint psid = CompileSingleShader(GL_FRAGMENT_SHADER, pcode, ps_header, ogl_config);
 
 	if (!vsid || !psid)
 	{
@@ -241,7 +241,7 @@ bool ProgramShaderCache::CompileShader ( SHADER& shader, const char* vcode, cons
 		return false;
 	}
 
-	GLuint pid = shader.glprogid = glCreateProgram();;
+	GLuint pid = shader.glprogid = glCreateProgram();
 
 	glAttachShader(pid, vsid);
 	glAttachShader(pid, psid);

@@ -139,7 +139,8 @@ void ApplyShader()
 	}
 
 	// and compile it
-	if (!ProgramShaderCache::CompileShader(s_shader, s_vertex_shader, code.c_str())) {
+	const std::string glsl_header = ProgramShaderCache::CreateHeader(g_ActiveConfig, g_ogl_config); // TODO: This shouldn't be necessary... just make it accessible from ProgramShaderCache
+	if (!ProgramShaderCache::CompileShader(s_shader, s_vertex_shader, code.c_str(), glsl_header, glsl_header, g_ogl_config)) {
 		ERROR_LOG(VIDEO, "Failed to compile post-processing shader %s", s_currentShader.c_str());
 		return;
 	}
