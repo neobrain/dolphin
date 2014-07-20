@@ -660,7 +660,6 @@ namespace HwRasterizer
 			// Set texture width and height
 			// TODO: Set _all_ uniforms!
 			{
-				// TODO: Uploading constants does not seem to work, yet!
 				glUseProgram(programID);
 
 				PixelShaderManager::Dirty();
