@@ -474,6 +474,11 @@ namespace HwRasterizer
 	{
 		SetupState();
 
+        const u32 has_color[2] = {
+            1, 1
+            // TODO: These don't work for whatever reason.
+//            g_VtxDesc.Color0, g_VtxDesc.Color1
+        };
 		const u32 has_texcoord[8] = {
 			g_VtxDesc.Tex0Coord, g_VtxDesc.Tex1Coord, g_VtxDesc.Tex2Coord, g_VtxDesc.Tex3Coord,
 			g_VtxDesc.Tex4Coord, g_VtxDesc.Tex5Coord, g_VtxDesc.Tex6Coord, (const u32)((g_VtxDesc.Hex >> 31) & 3)
@@ -508,8 +513,8 @@ namespace HwRasterizer
 				}
 			}
 			int vertex_stride = sizeof(float)*3;
-			/*if (hasColor0) */ vertex_stride += sizeof(float) * 4;
-			/*if (hasColor1) */ vertex_stride += sizeof(float) * 4;
+			if (has_color[0]) vertex_stride += sizeof(float) * 4;
+			if (has_color[1]) vertex_stride += sizeof(float) * 4;
 			for (int i = 0; i < 8; ++i)
 				if (has_texcoord[i])
 					vertex_stride += sizeof(float) * 2;
@@ -521,13 +526,13 @@ namespace HwRasterizer
 				memcpy(&mapping.first[vertex_stride*i], vertices[i].pos, 3*sizeof(float));
 				offset += 3 * sizeof(float);
 
-				/*if (hasColor0) */
+				if (has_color[0])
 				{
 					memcpy(&mapping.first[vertex_stride*i + offset], vertices[i].col0, 4*sizeof(float));
 					offset += 4 * sizeof(float);
 				}
 
-				/*if (hasColor1) */
+				if (has_color[1])
 				{
 					memcpy(&mapping.first[vertex_stride*i + offset], vertices[i].col1, 4*sizeof(float));
 					offset += 4 * sizeof(float);
@@ -568,9 +573,9 @@ namespace HwRasterizer
 			vcode.Write("#extension GL_ARB_uniform_buffer_object : enable\n");
 
 			vcode.Write("in vec4 rawpos; // ATTR%d,\n", SHADER_POSITION_ATTRIB);
-//			if (hasColor0)
+			if (has_color[0])
 				vcode.Write("in vec4 color0; // ATTR%d,\n", SHADER_COLOR0_ATTRIB);
-//			if (hasColor1)
+			if (has_color[1])
 				vcode.Write("in vec4 color1; // ATTR%d,\n", SHADER_COLOR1_ATTRIB);
 			for (int tc = 0; tc < 8; ++tc)
 				if (has_texcoord[tc])
@@ -580,19 +585,19 @@ namespace HwRasterizer
 				if (has_texcoord[tc])
 					vcode.Write("centroid out vec3 uv%d;\n", tc);
 			vcode.Write("centroid out vec4 clipPos_2;\n");
-//			if (hasColor0)
-			vcode.Write("centroid out vec4 colors_02;\n");
-//			if (hasColor1)
-			vcode.Write("centroid out vec4 colors_12;\n");
+			if (has_color[0])
+                vcode.Write("centroid out vec4 colors_02;\n");
+			if (has_color[1])
+                vcode.Write("centroid out vec4 colors_12;\n");
 
 			vcode.Write("void main()\n{\n");
 			for (int tc = 0; tc < 8; ++tc)
 				if (has_texcoord[tc])
 					vcode.Write("uv%d = vec3(tex%d, 0.0);\n", tc, tc);
 			vcode.Write("clipPos_2 = rawpos;\n");
-//			if (hasColor0)
+			if (has_color[0])
 				vcode.Write("colors_02 = color0;\n");
-//			if (hasColor1)
+			if (has_color[1])
 				vcode.Write("colors_12 = color1;\n");
 			vcode.Write("gl_Position = rawpos;\n");
 
@@ -611,8 +616,8 @@ namespace HwRasterizer
 			g_ActiveConfig.bFastDepthCalc = true;
 
 			u32 components = 0;
-			components |= /*hasColor0 ? */ VB_HAS_COL0 /* : 0*/;
-			components |= /*hasColor1 ? */ VB_HAS_COL1 /* : 0*/;
+			components |= has_color[0] ? VB_HAS_COL0 : 0;
+			components |= has_color[1] ? VB_HAS_COL1 : 0;
 			for (int tc = 0; tc < 8; ++tc)
 				if (has_texcoord[tc])
 					components |= VB_HAS_UV0 + tc;
@@ -782,13 +787,13 @@ namespace HwRasterizer
 			glDisableVertexAttribArray(SHADER_TEXTURE7_ATTRIB);
 			glDisableVertexAttribArray(SHADER_COLOR0_ATTRIB);
 			glDisableVertexAttribArray(SHADER_COLOR1_ATTRIB);
-//			if (hasColor0)
+			if (has_color[0])
 			{
 				glEnableVertexAttribArray(SHADER_COLOR0_ATTRIB);
 				glVertexAttribPointer(SHADER_COLOR0_ATTRIB, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + offset);
 				offset += 4 * sizeof(float);
 			}
-//			if (hasColor1)
+			if (has_color[1])
 			{
 				glEnableVertexAttribArray(SHADER_COLOR1_ATTRIB);
 				glVertexAttribPointer(SHADER_COLOR1_ATTRIB, 4, GL_FLOAT, true, vertex_stride, (u8*)nullptr + offset);
@@ -933,7 +938,7 @@ namespace HwRasterizer
 			glVertexAttribPointer(clear_apos, 3, GL_FLOAT, GL_FALSE, 0, verts);
 			glUniform4f(clear_ucol, r, g, b, a);
 			glEnableVertexAttribArray(col_apos);
-				glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+//				glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 			glDisableVertexAttribArray(col_apos);
 		}
 		GL_REPORT_ERRORD();
