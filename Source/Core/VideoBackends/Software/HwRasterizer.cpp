@@ -446,6 +446,40 @@ namespace HwRasterizer
 				glDisable(GL_COLOR_LOGIC_OP);
 			}
 		}
+
+		// SetViewport - TODO: Not sure how to set this up properly..
+		{
+/*			int scissorXOff = bpmem.scissorOffset.x * 2;
+			int scissorYOff = bpmem.scissorOffset.y * 2;
+
+			float X = xfmem.viewport.xOrig - xfmem.viewport.wd - (float)scissorXOff;
+			float Y = (float)EFB_HEIGHT - xfmem.viewport.yOrig + xfmem.viewport.ht + (float)scissorYOff;
+			float Width = 2.0f * xfmem.viewport.wd;
+			float Height = -2.0f * xfmem.viewport.ht;
+			float GLNear = (xfmem.viewport.farZ - xfmem.viewport.zRange) / 16777216.0f;
+			float GLFar = xfmem.viewport.farZ / 16777216.0f;
+			if (Width < 0)
+			{
+				X += Width;
+				Width *= -1;
+			}
+			if (Height < 0)
+			{
+				Y += Height;
+				Height *= -1;
+			}
+
+			// Update the view port
+			if (OGL::g_ogl_config.bSupportViewportFloat)
+			{
+				glViewportIndexedf(0, X, Y, Width, Height);
+			}
+			else
+			{
+				glViewport(ceil(X), ceil(Y), ceil(Width), ceil(Height));
+			}
+			glDepthRangef(GLNear, GLFar);*/
+		}
 	}
 
 	void CopyEfb()
